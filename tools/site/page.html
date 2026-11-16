@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} · Vectiq</title>
+<meta name="description" content="{{description}}">
+<meta name="theme-color" content="#0b0b0c">
+<link rel="canonical" href="{{canonical}}">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.classList.add("js")</script>
+</head>
+<body class="doc">
+<a class="skip" href="#main">Skip to content</a>
+{{header}}
+<div class="layout">
+  <aside class="side" id="side" aria-label="Documentation">{{nav}}</aside>
+  <main id="main" class="main">
+    <article class="prose">
+      <h1>{{title}}</h1>
+      {{content}}
+    </article>
+    {{prevnext}}
+    <p class="editrow">{{edit}}</p>
+  </main>
+  {{toc}}
+</div>
+{{footer}}
+<script src="site.js" defer></script>
+</body>
+</html>
