@@ -291,3 +291,36 @@ async def test_audit_log(env):
     await login(env.client)
     entries = (await env.client.get("/api/c/g1/audit")).json()["entries"]
     assert entries[0]["action"] == "signed in" and entries[0]["at"] <= time.time()
+
+
+async def test_securitycam_page(env):
+    from vectiq.cogs.securitycam import SecurityCam
+
+    class Chan:
+        def __init__(self, cid, name):
+            self.id, self.name, self.category, self.sent = cid, name, None, []
+
+        async def send(self, **kw):
+            self.sent.append(kw)
+
+    g = env.bot.guilds[0]
+    cam, general = Chan("c1", "cam"), Chan("c2", "general")
+    g.text_channels = [cam, general]
+    g.get_channel = lambda cid: next((c for c in g.text_channels if c.id == cid), None)
+    env.bot.find_channel = lambda guild, ref: next((c for c in guild.text_channels if ref in (c.id, c.name)), None)
+    sc = SecurityCam(env.bot)
+    env.bot.get_cog = lambda name: sc if name == "SecurityCam" else None
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    await login(env.client)
+
+    d = (await env.client.get("/api/c/g1/securitycam")).json()
+    assert d["enabled"] and d["channel"] == ""
+    assert (await env.client.post("/api/c/g1/securitycam/test", headers=H)).status_code == 400
+    r = await env.client.put("/api/c/g1/securitycam", json={"channel": "c1", "ignore": ["c2", "nope"]}, headers=H)
+    assert r.status_code == 200
+    d = (await env.client.get("/api/c/g1/securitycam")).json()
+    assert d["channel"] == "c1" and d["ignore"] == ["c2"]
+    assert (await env.client.post("/api/c/g1/securitycam/test", headers=H)).status_code == 200
+    assert cam.sent and await sc.ignored_channels(g) == ["c2"]
+    await env.client.put("/api/c/g1/securitycam", json={"channel": ""}, headers=H)
+    assert (await env.client.get("/api/c/g1/securitycam")).json()["channel"] == ""

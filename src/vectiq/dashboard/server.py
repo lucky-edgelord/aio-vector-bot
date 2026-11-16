@@ -995,6 +995,56 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         await audit(npub, "reposted onboarding menu", "", g)
         return {"ok": True, "message": "The onboarding role menu is up to date."}
 
+    # -- security cam ------------------------------------------------------------------------------
+
+    @app.get("/api/c/{gid}/securitycam")
+    async def securitycam(gid: str, npub: str = Depends(current)):
+        g = community(gid, npub)
+        sc = bot.get_cog("SecurityCam")
+        if sc is None:
+            return {"enabled": False}
+        cam = await sc.camera(g)
+        st = sc.stats.get(gid, {})
+        return {"enabled": True, "channel": str(cam.id) if cam else "",
+                "channel_name": cam.name if cam else "",
+                "ignore": [str(c) for c in await bot.stores.settings.get(gid, "securitycam:ignore", []) or []],
+                "config_ignore": [str(c) for c in cfg.get("securitycam.ignore_channels", [])],
+                "include_bots": bool(cfg.get("securitycam.include_bots", False)),
+                "echoed": st.get("echoed", 0), "last": st["last"].isoformat() if st.get("last") else None}
+
+    @app.put("/api/c/{gid}/securitycam")
+    async def securitycam_save(gid: str, request: Request, npub: str = Depends(current)):
+        g = community(gid, npub)
+        cog("SecurityCam")
+        data = await body(request)
+        settings = bot.stores.settings
+        if "channel" in data:
+            if data["channel"]:
+                ch = channel(g, data["channel"])
+                await settings.set(gid, "securitycam:channel", str(ch.id))
+                await audit(npub, "security cam on", f"#{ch.name}", g)
+            else:
+                await settings.set(gid, "securitycam:channel", "")
+                await audit(npub, "security cam off", "", g)
+        if "ignore" in data:
+            ids = data["ignore"] if isinstance(data["ignore"], list) else []
+            known = {str(c.id) for c in g.text_channels}
+            ids = [str(i) for i in ids if str(i) in known]
+            await settings.set(gid, "securitycam:ignore", ids)
+            await audit(npub, "security cam skips", f"{len(ids)} channels", g)
+        return {"ok": True, "message": "Security cam saved."}
+
+    @app.post("/api/c/{gid}/securitycam/test")
+    async def securitycam_test(gid: str, npub: str = Depends(current)):
+        g = community(gid, npub)
+        sc = cog("SecurityCam")
+        cam = await sc.camera(g)
+        if cam is None:
+            fail(400, "Pick a camera channel first.")
+        await act(cam.send(embed=embed("📹 Security cam test", "If you can read this, echoes will land here.",
+                                       timestamp=True)), "send")
+        return {"ok": True, "message": f"Test sent to #{cam.name}."}
+
     # -- announcements -------------------------------------------------------------------------------
 
     @app.post("/api/c/{gid}/announce")

@@ -225,10 +225,11 @@ const PAGES = [
   ["overview", "◈", "Overview"], ["members", "☺", "Members"], ["moderation", "⚑", "Moderation"],
   ["leveling", "▲", "Leveling"], ["economy", "◎", "Economy"], ["tickets", "✉", "Tickets"],
   ["rolemenus", "❖", "Role menus"], ["giveaways", "✦", "Giveaways"], ["games", "▣", "Games"],
-  ["onboarding", "➜", "Onboarding"], ["announce", "✎", "Announce"], ["audit", "☰", "Audit log"],
+  ["onboarding", "➜", "Onboarding"], ["securitycam", "◉", "Security cam"],
+  ["announce", "✎", "Announce"], ["audit", "☰", "Audit log"],
 ];
 const MODULE_OF = { moderation: "moderation", leveling: "leveling", economy: "economy", tickets: "tickets", rolemenus: "roles",
-  giveaways: "giveaways", games: "games", onboarding: "onboarding" };
+  giveaways: "giveaways", games: "games", onboarding: "onboarding", securitycam: "securitycam" };
 
 async function boot() {
   try { S.me = await api("GET", "/api/me"); } catch { return; }
@@ -281,7 +282,7 @@ function renderShell(page) {
   add(shell, [side, h("div", { style: { minWidth: 0 } }, top, main)]);
   shell.addEventListener("click", (e) => { if (shell.classList.contains("open") && e.target === shell) shell.classList.remove("open"); });
   clear(root, shell);
-  const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, announce, audit,
+  const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit,
     settings, webhooks, users, account }[page];
   if (!fn || (!comm && !["settings", "webhooks", "users", "account"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
@@ -691,6 +692,49 @@ async function onboarding(main) {
     h("div", { style: { marginTop: "16px" } }, card(`Role menu: “${d.title}”`, h("div", { class: "list" }, Object.entries(d.role_menu).map(([e, r]) =>
       h("div", { class: "item" }, h("span", { style: { fontSize: "20px", width: "28px", textAlign: "center" } }, e), h("b", null, r)))),
     h("p", { class: "faint" }, `Posted in ${d.channel ? `#${d.channel}` : "the system channel"}.`))));
+}
+
+/* ---------------------------------------------------------------- security cam */
+
+async function securitycam(main) {
+  const [d, m] = await Promise.all([api("GET", C("/securitycam")), meta()]);
+  if (!d.enabled) {
+    clear(main, head("Security cam", "Echo every message into one staff channel."),
+      card(null, h("p", { class: "muted" }, "The security cam module is off."), h("a", { href: "#/settings/modules" }, "Turn it on in Settings →")));
+    return;
+  }
+  const ch = channelSelect(m.channels.filter((c) => !d.ignore.includes(c.id)), d.channel);
+  const skip = new Set(d.ignore);
+  const save = btn("Save", async () => {
+    try { await run(save, () => api("PUT", C("/securitycam"), { channel: ch.value, ignore: [...skip] })); securitycam(main); } catch { /* toast */ }
+  }, "primary");
+  const off = btn("Turn off", async () => {
+    try { await run(off, () => api("PUT", C("/securitycam"), { channel: "" })); securitycam(main); } catch { /* toast */ }
+  }, "ghost");
+  const test = btn("Send a test", () => run(test, () => api("POST", C("/securitycam/test"))).catch(() => {}), "ghost");
+  const status = d.channel
+    ? h("div", { class: "row" }, pill("recording", "green"), h("span", null, `Echoing to #${d.channel_name}`))
+    : h("div", { class: "row" }, pill("off"), h("span", { class: "muted" }, "Pick a channel to start."));
+  clear(main, head("Security cam", "Every message from every channel, with avatar, channel, time and attachments, is copied into one channel.",
+    d.channel ? test : null),
+    h("div", { class: "grid g2" },
+      card("Camera", h("div", { class: "form" }, status,
+        field("Camera channel", ch, "Keep this channel private to staff. Messages in it are never echoed."),
+        h("div", { class: "row" }, save, d.channel ? off : null))),
+      card("Since the bot started", h("div", { class: "stats", style: { gridTemplateColumns: "repeat(2, minmax(0,1fr))" } },
+        stat("Messages echoed", fmt(d.echoed), null, true), stat("Last echo", d.last ? new Date(d.last).toLocaleTimeString() : "—")),
+        h("p", { class: "faint" }, d.include_bots ? "Other bots' messages are included." : "Other bots' messages are skipped."),
+        h("a", { href: "#/settings/securitycam" }, "More options in Settings →"))),
+    h("div", { style: { marginTop: "16px" } }, card("Channels to skip",
+      h("p", { class: "muted" }, "Switch on a channel to leave it out of the echo."),
+      h("div", { class: "list" }, m.channels.filter((c) => c.id !== d.channel).map((c) =>
+        h("div", { class: "item" }, h("span", { class: "grow" }, `#${c.name}`),
+          d.config_ignore.some((x) => x === c.id || x.replace(/^#/, "").toLowerCase() === c.name.toLowerCase())
+            ? pill("skipped in config.yaml")
+            : toggle(skip.has(c.id), (v) => { if (v) skip.add(c.id); else skip.delete(c.id); })))),
+      h("div", { class: "row", style: { marginTop: "12px" } }, btn("Save skips", async (e) => {
+        try { await run(e.target, () => api("PUT", C("/securitycam"), { ignore: [...skip] })); } catch { /* toast */ }
+      }, "primary sm")))));
 }
 
 /* ---------------------------------------------------------------- announce */

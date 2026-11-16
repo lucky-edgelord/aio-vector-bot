@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Security cam (off by default): echoes every message from every channel into one staff channel with the
+  author, channel, time, text and attachments. `!securitycam set/off`, a dashboard page and a Settings section.
 - Web dashboard (FastAPI, off by default): username/password logins tied to Vector npubs, optional sign-in by
   Vector DM code, members and moderation, leveling, economy, tickets, role menus, giveaways, games, onboarding,
   announcements, audit log, settings layered over config.yaml, webhooks and user management.

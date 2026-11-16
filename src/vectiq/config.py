@@ -11,8 +11,8 @@ from typing import Any
 import yaml
 
 MODULES = ("moderation", "leveling", "economy", "tickets", "verification", "roles",
-           "giveaways", "games", "welcome", "onboarding", "utility", "webhooks", "dashboard")
-OFF_BY_DEFAULT = ("dashboard",)
+           "giveaways", "games", "welcome", "onboarding", "utility", "webhooks", "securitycam", "dashboard")
+OFF_BY_DEFAULT = ("securitycam", "dashboard")
 
 
 def _merge(base: dict, over: Mapping) -> dict:
@@ -54,6 +54,7 @@ DEFAULTS: dict[str, Any] = {
     "webhooks": {"server": {"enabled": False, "host": "0.0.0.0", "port": 8080,
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
+    "securitycam": {"channel": "", "include_bots": False, "ignore_channels": []},
     "dashboard": {"host": "127.0.0.1", "port": 8090, "base_url": "http://localhost:8090",
                   "session_days": 7, "code_minutes": 10, "vector_code_login": True},
 }
