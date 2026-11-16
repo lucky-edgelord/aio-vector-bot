@@ -20,8 +20,22 @@ modules:              # switch whole features on or off
   onboarding: true    # welcome -> verify -> pick roles, tracked per member
   utility: true
   webhooks: true
+  events: true        # event calendar with RSVPs and reminders (see below)
   securitycam: false  # echo every message from every channel into one staff channel (see below)
   dashboard: false    # the web dashboard (see the dashboard section below)
+
+events:
+  timezone: UTC               # how event times are typed and shown; per community: !event timezone America/New_York
+  channel: announcements      # where event posts go: a name or id ("announcements" finds "📣┊Announcements");
+                              # blank = the channel the command was used in
+  banner_image: true          # post a drawn banner above each event (a picture attached to the command wins)
+  default_minutes: 60         # length when none is given
+  reminders: [60, 15]         # minutes before the start: a channel ping + DMs to people going
+  dm_reminders: true
+  who_can_create: staff       # staff (Manage Messages) | everyone
+  attendee_roles: false       # give people who are going a temporary role (needs Manage Roles)
+  calendar_image: true        # !calendar as a picture
+  week_starts: monday         # monday | sunday (the calendar picture)
 
 securitycam:                  # needs modules.securitycam: true; or set the channel in chat: !securitycam set #cam
   channel: ""                 # channel name or id that receives the echoes. Keep it staff-only.

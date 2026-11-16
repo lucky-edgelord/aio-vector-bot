@@ -1082,7 +1082,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
     async def webhooks(npub: str = Depends(owner)):
         w = bot.get_cog("Webhooks")
         return {"enabled": w is not None, "hooks": w.status() if w else [],
-                "events": ["mod", "joins", "leaves", "levels", "tickets", "giveaways", "games", "onboarding"],
+                "events": ["mod", "joins", "leaves", "levels", "tickets", "giveaways", "games", "onboarding", "events"],
                 "server": {k: cfg.get(f"webhooks.server.{k}") for k in ("enabled", "base_url")},
                 "overridden": "webhooks.hooks" in cfg.overrides}
 

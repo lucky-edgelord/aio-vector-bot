@@ -7,7 +7,7 @@ from vectiq.stores import InsufficientFunds, level_for_xp, xp_for_level
 
 
 async def test_migrations_apply_once(db):
-    assert db.version == len(MIGRATIONS) == 5
+    assert db.version == len(MIGRATIONS) == 6
     assert await db.migrate() == len(MIGRATIONS)
 
 

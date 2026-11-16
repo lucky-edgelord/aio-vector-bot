@@ -31,6 +31,7 @@ COGS = (
     ("onboarding", "vectiq.cogs.onboarding"),
     ("utility", "vectiq.cogs.utility"),
     ("webhooks", "vectiq.cogs.webhooks"),
+    ("events", "vectiq.cogs.events"),
     ("securitycam", "vectiq.cogs.securitycam"),
     ("dashboard", "vectiq.cogs.dashboard"),
 )
