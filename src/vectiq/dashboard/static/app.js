@@ -241,6 +241,7 @@ async function boot() {
 window.addEventListener("hashchange", () => S.me && route());
 
 function route() {
+  document.querySelectorAll(".scrim").forEach((x) => x.remove());   // dialogs and panels don't outlive their page
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   S.route = parts;
   if (parts[0] === "c" && parts[1]) {

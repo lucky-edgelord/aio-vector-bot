@@ -6,7 +6,17 @@ An all-in-one community bot for any Vector community. Clone it, give it its own 
 
 A community-management bot for [Vector](https://vectorapp.io), in the spirit of [Logiq](https://github.com/programmify/Logiq) (a Discord MEE6 alternative), written from scratch on `vector-sdk-py` with **SQLite** instead of MongoDB.
 
-Moderation, leveling with image rank cards, an economy and shop, tickets, verification and onboarding, reaction roles, giveaways, welcome messages, analytics, **WebXDC mini games** refereed by the bot, and **webhooks you declare in YAML**.
+Moderation, leveling with image rank cards, an economy and shop, tickets, verification and onboarding, reaction roles, giveaways, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, and a **web dashboard**.
+
+![The web dashboard's overview page: member, message and moderation stats, a 30-day activity chart and the busiest channels](docs/images/dashboard-overview.png)
+
+<p align="center">
+  <img src="docs/images/leaderboard-card.png" alt="The leaderboard card the bot posts in chat: eight members with avatars, XP, message counts and level badges" width="49%">
+  <img src="docs/images/rank-card.png" alt="A member's rank card: avatar, rank, level, messages and progress to the next level" width="49%">
+</p>
+<p align="center"><sub>The leaderboard and rank cards members get in chat with <code>!leaderboard</code> and <code>!rank</code>.</sub></p>
+
+<sub>All images show a made-up demo community. Regenerate them with <code>python tools/screenshots.py</code>.</sub>
 
 ```
 src/vectiq/
@@ -103,6 +113,23 @@ New member → welcome → verification → a role menu built from the YAML (the
 
 A FastAPI dashboard runs inside the bot. Turn it on with `modules.dashboard: true`, restart, and open `http://localhost:8090`.
 
+<p align="center">
+  <img src="docs/images/dashboard-login.png" alt="Sign-in page with username and password, and an option to get a code from Vector instead" width="49%">
+  <img src="docs/images/dashboard-member.png" alt="A member's panel: level, XP and coins, moderation buttons, roles, and XP and coin adjustments" width="49%">
+</p>
+<p align="center">
+  <img src="docs/images/dashboard-members.png" alt="Members list with roles, level, XP, coins and warnings, plus search and filters" width="49%">
+  <img src="docs/images/dashboard-leveling.png" alt="Leveling page with the leaderboard card, role rewards and the full ranking" width="49%">
+</p>
+<p align="center">
+  <img src="docs/images/dashboard-ticket.png" alt="A support ticket's saved transcript shown as chat bubbles" width="49%">
+  <img src="docs/images/dashboard-settings.png" alt="Settings page with tabs per module and leveling options" width="49%">
+</p>
+<p align="center">
+  <img src="docs/images/dashboard-giveaways.png" alt="Giveaways page with running and ended giveaways and their entry counts" width="70%">
+  <img src="docs/images/dashboard-phone.png" alt="The overview on a phone" width="22%">
+</p>
+
 **Signing in** is by username and password. Every login belongs to a Vector account (npub), and that account's admin role in Vector decides which communities it can manage, checked on every request: remove someone's admin role and their dashboard access goes with it.
 
 ```sh
@@ -154,6 +181,8 @@ Add a game: write `games/<name>.py` (a `Game` subclass), a front-end in `games/a
 One SQLite file at `data/vectiq.db` (WAL mode). The schema is versioned in `db/migrations.py` and applied on start; never edit an applied migration, append a new one. Back it up with `sqlite3 data/vectiq.db ".backup backup.db"`. All ids are `TEXT` (Vector uses npub/hex strings).
 
 ## Development
+
+`python tools/screenshots.py --chrome /path/to/chrome` rebuilds the images in `docs/images/` from a made-up demo community (needs `pip install playwright`).
 
 ```sh
 pip install -e ".[dev]" && pytest && ruff check .
