@@ -1,0 +1,120 @@
+# Vectiq configuration. Edit, then restart (or run `!vectiq reload`).
+# Secrets (the bot key) live in .env, never here.
+
+prefix: "!"
+
+# Where Vectiq works. Leave `communities` empty to serve every Community the bot is in.
+communities: []
+owners: []            # npubs that can use !vectiq admin commands everywhere
+
+modules:              # switch whole features on or off
+  moderation: true
+  leveling: true
+  economy: true
+  tickets: true
+  verification: true
+  roles: true
+  giveaways: true
+  games: true         # WebXDC mini games
+  welcome: true
+  onboarding: true    # welcome -> verify -> pick roles, tracked per member
+  utility: true
+  webhooks: true
+
+moderation:
+  mute_max_days: 28
+  warn_threshold: 3           # warnings before the action below
+  warn_action: timeout        # timeout | kick | ban | none
+  warn_action_minutes: 60
+  log_channel: ""             # channel name or id for the mod log (blank = none)
+  automod:
+    enabled: false
+    max_mentions: 6
+    max_caps_percent: 80
+    caps_min_length: 12
+    block_links: false
+    banned_words: []
+    action: delete            # delete | warn
+
+leveling:
+  xp_min: 15
+  xp_max: 25
+  cooldown_seconds: 60
+  cards: true                 # !rank and !leaderboard send images (false = plain text)
+  announce: true              # post level-up messages
+  announce_channel: ""        # blank = the channel the user was typing in
+  no_xp_channels: []
+  rewards: {}                 # level: role name, e.g.  5: Regular
+
+economy:
+  currency_name: coins
+  currency_symbol: "🪙"
+  daily_amount: 200
+  daily_streak_bonus: 25      # extra per streak day, capped by daily_streak_cap
+  daily_streak_cap: 10
+  work_min: 40
+  work_max: 120
+  work_cooldown_minutes: 30
+  start_balance: 100
+  message_reward: 0           # coins per chatting message (0 = off)
+
+tickets:
+  category: ""                # category name to create ticket channels in (blank = none)
+  support_role: ""            # role name that can see every ticket
+  max_open_per_user: 2
+  close_emoji: "🔒"            # react with this inside a ticket to close it (blank = off)
+  transcripts: true
+
+verification:
+  mode: question              # question | button
+  role: Verified              # role granted on success (created if missing)
+  max_attempts: 3
+  channel: ""                 # where new members are greeted (blank = system channel)
+
+welcome:
+  enabled: true
+  channel: ""                 # blank = system channel
+  message: "Welcome to {community}, {mention}! You are member #{count}."
+  leave_message: "{name} has left {community}."
+  dm_message: ""
+
+onboarding:
+  steps: [verify, pick_roles]     # what a new member goes through, in order
+  channel: ""                     # where the role menu lives (blank = system channel)
+  required: false                 # true: onboarding only completes once they pick a role
+  title: "Pick your interests"
+  prompt: "Welcome! Pick your roles below, then say hi."
+  done_message: "{mention} you're all set. Enjoy {community}!"
+  role_menu:                      # emoji: role name (roles are created if missing)
+    "🎮": Gamer
+    "🎨": Artist
+    "💻": Dev
+
+giveaways:
+  max_winners: 10
+  min_minutes: 1
+
+games:
+  allow_unverified: false     # TESTING ONLY: trust players whose identity can't be verified (relayed connections)
+  join_when: opened           # opened: referee joins when a player opens the app | shared: as soon as it is posted
+  winner_coins: 50            # paid by the referee when someone wins a mini game
+  draw_coins: 10
+  trivia_coins_per_point: 10
+  slots_max_bet: 1000
+  idle_timeout_seconds: 300
+
+# --- Webhooks: declare them here, Vectiq creates them for you ------------------------------
+webhooks:
+  server:
+    enabled: false            # serve the HTTP endpoint so outside tools (GitHub, Grafana, ...) can post
+    host: 0.0.0.0
+    port: 8080
+    base_url: "http://localhost:8080"   # the public address people reach the server at
+    admin_key_env: WEBHOOKS_ADMIN_KEY   # name of the env var holding an optional admin key
+  hooks: []
+  # hooks:
+  #   - name: deploys             # unique name
+  #     community: ""             # community name (blank = the only/first one)
+  #     channel: deploys          # channel name or id the hook posts into
+  #     notify: [owners]          # who gets the URL by DM when it is created: owners | npub...
+  #     events: [mod, joins]      # Vectiq events mirrored into the channel: mod, joins, leaves, levels, tickets, giveaways, games, onboarding

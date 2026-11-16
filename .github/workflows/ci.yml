@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install (builds vector-sdk-py from source)
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Validate example config
+        run: VECTOR_NSEC=nsec1placeholder python -m vectiq --check
+      - name: Test
+        run: pytest -q

@@ -1,0 +1,39 @@
+[project]
+name = "vectiq"
+version = "0.1.0"
+description = "A community-management bot for Vector: moderation, leveling, economy, tickets, giveaways, WebXDC mini games and YAML webhooks, on SQLite."
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+dependencies = ["vector-sdk-py @ git+https://github.com/lucky-edgelord/vector-sdk-py", "PyYAML>=6", "Pillow>=10"]
+
+[project.optional-dependencies]
+webhooks = ["vector-sdk-py[webhooks] @ git+https://github.com/lucky-edgelord/vector-sdk-py"]
+dev = ["pytest", "pytest-asyncio", "ruff"]
+
+[project.urls]
+Source = "https://github.com/lucky-edgelord/aio-vector-bot"
+
+[project.scripts]
+vectiq = "vectiq.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+vectiq = ["games/data/*.json", "games/apps/**/*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
