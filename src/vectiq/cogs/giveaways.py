@@ -41,15 +41,20 @@ class Giveaways(commands.Cog, name="Giveaways"):
             return await ctx.send(fail(str(exc)))
         if seconds < self.cfg.get("giveaways.min_minutes", 1) * 60:
             return await ctx.send(fail("That is too short."))
+        await self.launch(ctx.guild, ctx.channel, ctx.author, seconds, winners, prize)
+
+    async def launch(self, guild, channel, host, seconds: int, winners: int, prize: str):
+        """Post a giveaway in ``channel``. Used by the command and the dashboard."""
         winners = min(max(winners, 1), self.cfg.get("giveaways.max_winners", 10))
         ends = int(time.time()) + seconds
-        g = await self.store.create(str(ctx.guild.id), str(ctx.channel.id), str(ctx.author.id), prize, winners, ends)
-        msg = await ctx.send(embed=embed(f"🎁 {prize}", f"React with {JOIN} to enter!\n"
-                                         f"Ends in **{format_duration(seconds)}** · {winners} winner(s)\n"
-                                         f"Hosted by {ctx.author.mention}", footer=f"giveaway #{g.id}"))
+        g = await self.store.create(str(guild.id), str(channel.id), str(host.id), prize, winners, ends)
+        msg = await channel.send(embed=embed(f"🎁 {prize}", f"React with {JOIN} to enter!\n"
+                                             f"Ends in **{format_duration(seconds)}** · {winners} winner(s)\n"
+                                             f"Hosted by {host.mention}", footer=f"giveaway #{g.id}"))
         await self.store.set_message(g.id, str(msg.id))
         await msg.add_reaction(JOIN)
-        self.bot.emit(ctx.guild, "giveaways", f"Giveaway #{g.id}", prize)
+        self.bot.emit(guild, "giveaways", f"Giveaway #{g.id}", prize)
+        return g
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):

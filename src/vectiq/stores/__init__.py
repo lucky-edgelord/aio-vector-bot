@@ -1,3 +1,4 @@
+from .dashboard import DashboardStore
 from .economy import EconomyStore, InsufficientFunds
 from .levels import LevelStore, level_for_xp, xp_for_level
 from .misc import ActivityStore, GameStatsStore, GiveawayStore, OnboardingStore, RoleMenuStore, SettingsStore, VerificationStore
@@ -6,6 +7,7 @@ from .tickets import TicketStore
 
 __all__ = (
     "ActivityStore",
+    "DashboardStore",
     "EconomyStore",
     "GameStatsStore",
     "GiveawayStore",
@@ -38,3 +40,4 @@ class Stores:
         self.games = GameStatsStore(db)
         self.activity = ActivityStore(db)
         self.onboarding = OnboardingStore(db)
+        self.dashboard = DashboardStore(db)

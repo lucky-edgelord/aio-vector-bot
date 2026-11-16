@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+- Web dashboard (FastAPI, off by default): username/password logins tied to Vector npubs, optional sign-in by
+  Vector DM code, members and moderation, leveling, economy, tickets, role menus, giveaways, games, onboarding,
+  announcements, audit log, settings layered over config.yaml, webhooks and user management.
+- `vectiq --add-user/--set-password/--delete-user/--list-users` for dashboard logins.
+- Cog logic the dashboard reuses moved into plain methods (moderation `record`/`escalate`, giveaways `launch`,
+  role menus `build_menu`, games `post_game`, webhooks `rotate_url`/`status`).
+- Fonts are now included in non-editable installs.
+
 ## 0.1.0
 - First release: moderation, leveling (image cards), economy and shop, tickets, verification, onboarding, reaction roles,
   giveaways, welcome, analytics, WebXDC mini games (Tic-Tac-Toe, Connect Four, Trivia, Slots), YAML-declared webhooks.

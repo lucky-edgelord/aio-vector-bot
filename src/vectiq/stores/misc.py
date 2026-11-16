@@ -166,6 +166,13 @@ class GiveawayStore:
         rows = await self.db.all("SELECT * FROM giveaways WHERE guild_id=? AND ended=0 ORDER BY ends_at", (guild_id,))
         return [_g(r) for r in rows]
 
+    async def recent(self, guild_id: str, limit: int = 20) -> list[Giveaway]:
+        rows = await self.db.all("SELECT * FROM giveaways WHERE guild_id=? ORDER BY id DESC LIMIT ?", (guild_id, limit))
+        return [_g(r) for r in rows]
+
+    async def entry_count(self, giveaway_id: int) -> int:
+        return await self.db.scalar("SELECT COUNT(*) FROM giveaway_entries WHERE giveaway_id=?", (giveaway_id,), 0)
+
     async def due(self, now: int | None = None) -> list[Giveaway]:
         rows = await self.db.all("SELECT * FROM giveaways WHERE ended=0 AND ends_at<=?", (now or int(time.time()),))
         return [_g(r) for r in rows]

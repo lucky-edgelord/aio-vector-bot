@@ -49,7 +49,7 @@ say "Creating the virtualenv and installing Vectiq (the first build takes a few 
 [[ -d .venv ]] || "$PY" -m venv .venv
 set +u; source .venv/bin/activate; set -u
 python -m pip install -q --upgrade pip
-python -m pip install -q -e ".[webhooks]"
+python -m pip install -q -e ".[webhooks,dashboard]"
 
 set_env() { # set_env KEY VALUE: replace or append in .env
   local k="$1" v="$2"

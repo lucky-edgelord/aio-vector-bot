@@ -35,14 +35,19 @@ class Roles(commands.Cog, name="Roles"):
             options.append((emoji, role.replace("_", " ")))
         if not title or not options:
             return await ctx.send(fail("Give a title and at least one emoji=Role pair."))
+        menu = await self.build_menu(ctx.guild, ctx.channel, title, options)
+        await ctx.send(ok(f"Menu #{menu.id} is live."), delete_after=10)
+
+    async def build_menu(self, guild, channel, title: str, options: list[tuple[str, str]]):
+        """Post a role menu: ``options`` is [(emoji, role name)]. Used by the command and the dashboard."""
         lines = [f"{emoji}  **{role}**" for emoji, role in options]
-        msg = await ctx.send(embed=embed(title, "React to get a role:\n" + "\n".join(lines)))
-        menu = await self.store.create(str(ctx.guild.id), str(ctx.channel.id), str(msg.id), title)
+        msg = await channel.send(embed=embed(title, "React to get a role:\n" + "\n".join(lines)))
+        menu = await self.store.create(str(guild.id), str(channel.id), str(msg.id), title)
         for emoji, role_name in options:
-            role = await self.bot.ensure_role(ctx.guild, role_name)
+            role = await self.bot.ensure_role(guild, role_name)
             await self.store.add_option(menu.id, emoji, str(role.id), role_name)
             await msg.add_reaction(emoji)
-        await ctx.send(ok(f"Menu #{menu.id} is live."), delete_after=10)
+        return menu
 
     @rolemenus.command(name="list")
     async def list_(self, ctx):

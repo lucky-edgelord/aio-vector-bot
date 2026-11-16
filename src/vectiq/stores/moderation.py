@@ -69,7 +69,15 @@ class ModerationStore:
             (now or int(time.time()),))
         return [_case(r) for r in rows]
 
-    async def recent(self, guild_id: str, limit: int = 10) -> list[Case]:
-        rows = await self.db.all("SELECT * FROM mod_cases WHERE guild_id=? ORDER BY id DESC LIMIT ?",
-                                 (guild_id, limit))
+    async def recent(self, guild_id: str, limit: int = 10, action: str | None = None) -> list[Case]:
+        sql, args = "SELECT * FROM mod_cases WHERE guild_id=?", [guild_id]
+        if action:
+            sql += " AND action=?"
+            args.append(action)
+        rows = await self.db.all(sql + " ORDER BY id DESC LIMIT ?", (*args, limit))
         return [_case(r) for r in rows]
+
+    async def warning_counts(self, guild_id: str) -> dict[str, int]:
+        rows = await self.db.all("SELECT user_id, COUNT(*) n FROM mod_cases WHERE guild_id=? AND action='warn' AND active=1"
+                                 " GROUP BY user_id", (guild_id,))
+        return {r["user_id"]: r["n"] for r in rows}

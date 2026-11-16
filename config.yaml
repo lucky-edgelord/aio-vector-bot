@@ -20,6 +20,7 @@ modules:              # switch whole features on or off
   onboarding: true    # welcome -> verify -> pick roles, tracked per member
   utility: true
   webhooks: true
+  dashboard: false    # the web dashboard (see the dashboard section below)
 
 moderation:
   mute_max_days: 28
@@ -118,3 +119,12 @@ webhooks:
   #     channel: deploys          # channel name or id the hook posts into
   #     notify: [owners]          # who gets the URL by DM when it is created: owners | npub...
   #     events: [mod, joins]      # Vectiq events mirrored into the channel: mod, joins, leaves, levels, tickets, giveaways, games, onboarding
+
+# --- Web dashboard (turn on with modules.dashboard: true) -----------------------------------
+dashboard:
+  host: 127.0.0.1             # 127.0.0.1 = only this computer; put HTTPS (Caddy, Tailscale...) in front for remote use
+  port: 8090
+  base_url: "http://localhost:8090"   # the address people open; used in sign-in links
+  session_days: 7             # how long a sign-in lasts
+  code_minutes: 10            # how long a Vector sign-in code lasts
+  vector_code_login: true     # also allow signing in with a one-time code sent by Vector DM
