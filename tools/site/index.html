@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vectiq: one bot for your whole Vector community</title>
+<meta name="description" content="Moderation, levels, tickets, events, mini games and a web dashboard for Vector communities. Set up from one YAML file, run on your own machine.">
+<meta name="theme-color" content="#0b0b0c">
+<link rel="canonical" href="{{canonical}}">
+<meta property="og:title" content="Vectiq: one bot for your whole Vector community">
+<meta property="og:description" content="Moderation, levels, tickets, events, mini games and a web dashboard. One YAML file, your own machine.">
+<meta property="og:image" content="{{canonical}}images/dashboard-overview.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.classList.add("js")</script>
+</head>
+<body class="home">
+<a class="skip" href="#main">Skip to content</a>
+{{header}}
+<main id="main">
+
+<section class="hero">
+  <div class="hero-text">
+    <h1>One bot for your whole Vector community</h1>
+    <p class="lede">Moderation, levels, tickets, events, mini games and a web dashboard, set up from a single YAML file. It runs on your own machine with its own Vector account.</p>
+    <p class="actions">
+      <a class="btn primary" href="getting-started.html">Get started</a>
+      <a class="btn" href="https://github.com/lucky-edgelord/aio-vector-bot">View on GitHub</a>
+    </p>
+    <div class="code" data-plain>
+      <button class="copy" type="button" aria-label="Copy code">Copy</button>
+<pre><code>git clone https://github.com/lucky-edgelord/aio-vector-bot
+cd aio-vector-bot &amp;&amp; ./install.sh</code></pre>
+    </div>
+    <p class="note">The macOS installer is shown. <a href="getting-started.html#linux">Linux steps</a> are in the guide.</p>
+  </div>
+
+  <figure class="chat" aria-label="A chat in a Vector community: a member creates an event and the bot posts it">
+    <div class="chat-head"><span class="hash">#</span> 📣┊Announcements</div>
+    <div class="feed" id="feed">
+      <div class="msg" data-step="1">
+        <span class="av u">L</span>
+        <div><b>Lucky</b><p><code>!event create Game night | friday 8pm | 2h | Bring snacks</code></p></div>
+      </div>
+      <div class="msg" data-step="2">
+        <span class="av bot">V</span>
+        <div><b>Vectiq <i>bot</i></b><p>✅ Event #4 <strong>Game night</strong> is on the calendar in #📣┊Announcements: Fri, Nov 20 · 8:00 PM – 10:00 PM EST (in 4 days).</p></div>
+      </div>
+      <div class="msg post" data-step="3">
+        <span class="av bot">V</span>
+        <div>
+          <b>Vectiq <i>bot</i></b>
+          <blockquote><strong>📅 Game night</strong><br>Bring snacks<br><br><strong>When</strong><br>Fri, Nov 20 · 8:00 PM – 10:00 PM EST<br>in 4 days</blockquote>
+          <img src="images/event-banner.png" width="560" height="210" alt="The event banner: a date tile reading Nov 20 Fri, the title Game night and the time">
+          <blockquote class="foot-quote">Event #4 · react ✅ going · 🤔 maybe · ❌ can't go</blockquote>
+          <p class="react" data-step="4"><span>✅ <em data-n="3">0</em></span><span>🤔 <em data-n="1">0</em></span><span>❌ <em data-n="0">0</em></span></p>
+        </div>
+      </div>
+    </div>
+    <div class="composer"><span id="typed" aria-hidden="true"></span><i class="caret" aria-hidden="true"></i></div>
+  </figure>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>What's in the box</h2>
+    <p class="sub">Every feature is a module you can switch off. Each one has its own guide.</p>
+    <ul class="features">
+      {{features}}
+    </ul>
+  </div>
+</section>
+
+<section class="band shot">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>The dashboard is for the jobs that are easier with a mouse</h2>
+        <p>Warn or time out a member, change a setting, read a ticket transcript or post an announcement without typing a command. Logins are a username and password, and each one is tied to a Vector account, so someone who loses their admin role in Vector loses dashboard access too.</p>
+        <p><a href="dashboard.html">How the dashboard works</a></p>
+      </div>
+    </div>
+    <img class="wide" src="images/dashboard-overview.png" width="2720" height="1720" alt="The dashboard overview: member, message and moderation numbers, a 30-day activity chart and the busiest channels" loading="lazy">
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="split two">
+      <div>
+        <h2>Rank cards and leaderboards are pictures</h2>
+        <p>Members get a card with their avatar, level and progress instead of a line of text, drawn in Vector's colours. The calendar works the same way: <code>!calendar</code> posts the month as an image.</p>
+        <p><a href="leveling.html">Leveling</a> · <a href="events.html">Event calendar</a></p>
+      </div>
+      <div class="pair">
+        <img src="images/rank-card.png" width="960" height="316" alt="A member's rank card with avatar, level, rank and progress bar" loading="lazy">
+        <img src="images/calendar.png" width="1120" height="1042" alt="The month calendar picture with events on their days" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap narrow">
+    <h2>From clone to running</h2>
+    <ol class="steps">
+      <li><strong>Install.</strong> On a Mac, <code>./install.sh</code> sets up everything and starts the bot at login. On Linux, create a virtual environment and <code>pip install -e ".[webhooks,dashboard]"</code>.</li>
+      <li><strong>Give the bot a role.</strong> In your community, give its account the permissions you want it to use. Without one it keeps running and tells you which permission is missing.</li>
+      <li><strong>Edit <code>config.yaml</code>.</strong> Turn modules on or off and change any number. <code>python -m vectiq --check</code> explains mistakes before you restart.</li>
+      <li><strong>Type <code>!help</code></strong> in any channel.</li>
+    </ol>
+    <p><a href="getting-started.html">The full getting started guide</a> covers keys, invites and permissions.</p>
+  </div>
+</section>
+
+<section class="band plain">
+  <div class="wrap">
+    <dl class="facts">
+      <div><dt>One YAML file</dt><dd>Every feature and every number lives in <code>config.yaml</code>, with a comment on each setting.</dd></div>
+      <div><dt>One SQLite file</dt><dd>All data is in <code>data/vectiq.db</code>. Back it up by copying a file.</dd></div>
+      <div><dt>Its own account</dt><dd>The bot signs in with its own Vector key. Your personal key never goes near it.</dd></div>
+    </dl>
+  </div>
+</section>
+
+</main>
+{{footer}}
+<script src="site.js" defer></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # needs rustc/cargo
 - **Schema changes:** append a migration in `db/migrations.py`; never edit one that has shipped.
 - **New settings:** add a default in `config.py` `DEFAULTS`, a commented entry in `config.yaml`, and validation if a wrong value would break things.
 - **New games:** see "Mini games" in the README.
+- **Docs:** pages are Markdown in `docs/`; `python tools/build_docs.py` builds the site (the command and settings references come from the code and `config.yaml`) and fails on a broken link.
 - Add or update tests for behaviour you change, and a line in `CHANGELOG.md`.
 
 ## Pull requests

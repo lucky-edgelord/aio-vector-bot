@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Documentation site on GitHub Pages: guides for every feature, a command reference and a settings reference built
+  from the code and `config.yaml`, search, and a link checker (`python tools/build_docs.py`). Every setting in
+  `config.yaml` now has a comment.
 - Event calendar: `!event create Title | friday 8pm | 2h | details` (natural times in the community's time zone),
   posts in the announcements channel with a drawn banner or an attached picture between the text and footer,
   RSVP by reaction (going / maybe / can't go) with capacity and waitlist, repeats (daily, weekly, biweekly,

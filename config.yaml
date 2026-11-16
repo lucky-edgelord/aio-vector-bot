@@ -20,9 +20,9 @@ modules:              # switch whole features on or off
   onboarding: true    # welcome -> verify -> pick roles, tracked per member
   utility: true
   webhooks: true
-  events: true        # event calendar with RSVPs and reminders (see below)
-  securitycam: false  # echo every message from every channel into one staff channel (see below)
-  dashboard: false    # the web dashboard (see the dashboard section below)
+  events: true        # event calendar with RSVPs and reminders
+  securitycam: false  # echo every message from every channel into one staff channel
+  dashboard: false    # the web dashboard
 
 events:
   timezone: UTC               # how event times are typed and shown; per community: !event timezone America/New_York
@@ -30,120 +30,120 @@ events:
                               # blank = the channel the command was used in
   banner_image: true          # post a drawn banner above each event (a picture attached to the command wins)
   default_minutes: 60         # length when none is given
-  reminders: [60, 15]         # minutes before the start: a channel ping + DMs to people going
-  dm_reminders: true
+  reminders: [60, 15]         # minutes before the start: a general post in the channel + a DM to people going
+  dm_reminders: true          # personal reminders by DM (the channel only ever gets a general post)
   who_can_create: staff       # staff (Manage Messages) | everyone
   attendee_roles: false       # give people who are going a temporary role (needs Manage Roles)
   calendar_image: true        # !calendar as a picture
   week_starts: monday         # monday | sunday (the calendar picture)
 
-securitycam:                  # needs modules.securitycam: true; or set the channel in chat: !securitycam set #cam
-  channel: ""                 # channel name or id that receives the echoes. Keep it staff-only.
+securitycam:                  # needs modules.securitycam: true
+  channel: ""                 # channel (name or id) that receives the echoes; or set it in chat with !securitycam set. Keep it staff-only.
   include_bots: false         # also echo other bots (this bot is never echoed)
   ignore_channels: []         # channels to skip
 
 moderation:
-  mute_max_days: 28
+  mute_max_days: 28           # longest timeout a moderator can give, in days (Vector allows up to 28)
   warn_threshold: 3           # warnings before the action below
   warn_action: timeout        # timeout | kick | ban | none
-  warn_action_minutes: 60
+  warn_action_minutes: 60     # how long the timeout lasts when warn_action is timeout
   log_channel: ""             # channel name or id for the mod log (blank = none)
   automod:
-    enabled: false
-    max_mentions: 6
-    max_caps_percent: 80
-    caps_min_length: 12
-    block_links: false
-    banned_words: []
-    action: delete            # delete | warn
+    enabled: false            # check every message from people without Manage Messages
+    max_mentions: 6           # more mentions than this in one message breaks the rule
+    max_caps_percent: 80      # this share of capital letters or more breaks the rule
+    caps_min_length: 12       # only check capitals in messages with at least this many letters
+    block_links: false        # messages containing links break the rule
+    banned_words: []          # whole words that break the rule (not case sensitive)
+    action: delete            # delete: remove the message | warn: remove it and add a warning
 
 leveling:
-  xp_min: 15
+  xp_min: 15                  # each rewarded message gives a random amount of XP between xp_min and xp_max
   xp_max: 25
-  cooldown_seconds: 60
+  cooldown_seconds: 60        # a member earns XP at most once per this many seconds
   cards: true                 # !rank and !leaderboard send images (false = plain text)
   announce: true              # post level-up messages
   announce_channel: ""        # blank = the channel the user was typing in
-  no_xp_channels: []
-  rewards: {}                 # level: role name, e.g.  5: Regular
+  no_xp_channels: []          # channels (name or id) where chatting earns no XP
+  rewards: {}                 # level: role name (created if missing), e.g.  5: Regular
 
 economy:
-  currency_name: coins
+  currency_name: coins        # what the money is called in messages
   currency_symbol: "🪙"
-  daily_amount: 200
+  daily_amount: 200           # coins from !daily
   daily_streak_bonus: 25      # extra per streak day, capped by daily_streak_cap
-  daily_streak_cap: 10
-  work_min: 40
+  daily_streak_cap: 10        # the bonus stops growing after this many days in a row
+  work_min: 40                # !work pays a random amount between work_min and work_max
   work_max: 120
-  work_cooldown_minutes: 30
-  start_balance: 100
+  work_cooldown_minutes: 30   # how long before a member can !work again
+  start_balance: 100          # cash a new wallet starts with
   message_reward: 0           # coins per chatting message (0 = off)
 
 tickets:
   category: ""                # category name to create ticket channels in (blank = none)
   support_role: ""            # role name that can see every ticket
-  max_open_per_user: 2
+  max_open_per_user: 2        # open tickets one member can have at once
   close_emoji: "🔒"            # react with this inside a ticket to close it (blank = off)
-  transcripts: true
+  transcripts: true           # keep the chat of each ticket (!tickets transcript, and the dashboard)
 
 verification:
   mode: question              # question | button
   role: Verified              # role granted on success (created if missing)
-  max_attempts: 3
+  max_attempts: 3             # wrong answers allowed before the member is locked out until staff verify them
   channel: ""                 # where new members are greeted (blank = system channel)
 
 welcome:
-  enabled: true
+  enabled: true               # post welcome and goodbye messages
   channel: ""                 # blank = system channel
-  message: "Welcome to {community}, {mention}! You are member #{count}."
-  leave_message: "{name} has left {community}."
-  dm_message: ""
+  message: "Welcome to {community}, {mention}! You are member #{count}."   # placeholders: {mention} {name} {community} {count}
+  leave_message: "{name} has left {community}."   # shown when someone leaves
+  dm_message: ""              # optional private welcome sent by DM (blank = none)
 
 onboarding:
   steps: [verify, pick_roles]     # what a new member goes through, in order
   channel: ""                     # where the role menu lives (blank = system channel)
   required: false                 # true: onboarding only completes once they pick a role
-  title: "Pick your interests"
-  prompt: "Welcome! Pick your roles below, then say hi."
-  done_message: "{mention} you're all set. Enjoy {community}!"
+  title: "Pick your interests"   # heading of the role menu
+  prompt: "Welcome! Pick your roles below, then say hi."   # text under the heading
+  done_message: "{mention} you're all set. Enjoy {community}!"   # sent when a member finishes
   role_menu:                      # emoji: role name (roles are created if missing)
     "🎮": Gamer
     "🎨": Artist
     "💻": Dev
 
 giveaways:
-  max_winners: 10
-  min_minutes: 1
+  max_winners: 10             # most winners one giveaway can have
+  min_minutes: 1              # shortest giveaway allowed
 
 games:
   allow_unverified: false     # TESTING ONLY: trust players whose identity can't be verified (relayed connections)
   join_when: opened           # opened: referee joins when a player opens the app | shared: as soon as it is posted
   winner_coins: 50            # paid by the referee when someone wins a mini game
-  draw_coins: 10
-  trivia_coins_per_point: 10
-  slots_max_bet: 1000
-  idle_timeout_seconds: 300
+  draw_coins: 10              # paid to each player when a game ends in a draw
+  trivia_coins_per_point: 10  # trivia pays this per point scored
+  slots_max_bet: 1000         # biggest bet !play slots accepts
+  idle_timeout_seconds: 300   # the referee leaves a game nobody has touched for this long
 
 # --- Webhooks: declare them here, Vectiq creates them for you ------------------------------
 webhooks:
   server:
     enabled: false            # serve the HTTP endpoint so outside tools (GitHub, Grafana, ...) can post
-    host: 0.0.0.0
+    host: 0.0.0.0             # network address to listen on
     port: 8080
     base_url: "http://localhost:8080"   # the public address people reach the server at
     admin_key_env: WEBHOOKS_ADMIN_KEY   # name of the env var holding an optional admin key
-  hooks: []
+  hooks: []                   # the list of hooks; see the webhooks guide for the fields
   # hooks:
   #   - name: deploys             # unique name
   #     community: ""             # community name (blank = the only/first one)
   #     channel: deploys          # channel name or id the hook posts into
   #     notify: [owners]          # who gets the URL by DM when it is created: owners | npub...
-  #     events: [mod, joins]      # Vectiq events mirrored into the channel: mod, joins, leaves, levels, tickets, giveaways, games, onboarding
+  #     events: [mod, joins]      # Vectiq events mirrored into the channel: mod, joins, leaves, levels, tickets, giveaways, games, onboarding, events
 
 # --- Web dashboard (turn on with modules.dashboard: true) -----------------------------------
 dashboard:
   host: 127.0.0.1             # 127.0.0.1 = only this computer; put HTTPS (Caddy, Tailscale...) in front for remote use
-  port: 8090
+  port: 8090                  # port the dashboard listens on
   base_url: "http://localhost:8090"   # the address people open; used in sign-in links
   session_days: 7             # how long a sign-in lasts
   code_minutes: 10            # how long a Vector sign-in code lasts

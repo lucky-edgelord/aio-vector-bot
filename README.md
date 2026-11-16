@@ -1,6 +1,9 @@
 # AIO Vector Bot (Vectiq)
 
 [![CI](https://github.com/lucky-edgelord/aio-vector-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/lucky-edgelord/aio-vector-bot/actions/workflows/ci.yml)
+[![Docs](https://github.com/lucky-edgelord/aio-vector-bot/actions/workflows/pages.yml/badge.svg)](https://lucky-edgelord.github.io/aio-vector-bot/)
+
+**Documentation: https://lucky-edgelord.github.io/aio-vector-bot/**
 
 An all-in-one community bot for any Vector community. Clone it, give it its own key, edit `config.yaml`, run it. The package and command are called `vectiq`.
 
