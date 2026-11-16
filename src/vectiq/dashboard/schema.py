@@ -33,6 +33,7 @@ MODULE_HELP = {
     "onboarding": "Welcome → verify → pick roles",
     "utility": "Polls, reminders, analytics and other tools",
     "webhooks": "Webhooks declared in config.yaml",
+    "securitycam": "Echo every message from every channel into one staff channel",
     "dashboard": "This web dashboard",
 }
 
@@ -53,6 +54,12 @@ GROUPS: list[dict[str, Any]] = [
         field("moderation.warn_action", "Action at threshold", "enum", options=("timeout", "kick", "ban", "none")),
         field("moderation.warn_action_minutes", "Timeout length (minutes)", "int", minimum=1, maximum=40320),
         field("moderation.mute_max_days", "Longest timeout (days)", "int", minimum=1, maximum=28),
+    ]},
+    {"id": "securitycam", "title": "Security cam", "fields": [
+        field("securitycam.channel", "Camera channel", "text", "Channel name or id that receives every echoed "
+              "message. Blank = use the one set with !securitycam set. Keep it private."),
+        field("securitycam.include_bots", "Include other bots", "bool"),
+        field("securitycam.ignore_channels", "Channels to skip", "list", "Names or ids, one per line"),
     ]},
     {"id": "automod", "title": "Automod", "fields": [
         field("moderation.automod.enabled", "Automod on", "bool"),

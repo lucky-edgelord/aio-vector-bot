@@ -74,6 +74,7 @@ Use a **separate Vector account for the bot**, never your personal key.
 | Welcome | `welcome` | templated join/leave messages |
 | Games | `games` | Tic-Tac-Toe, Connect Four, Trivia, Slots as **WebXDC mini apps** |
 | Utilities / analytics | `utility` | userinfo, poll, activity chart |
+| Security cam | `securitycam` | echo every message (author, channel, time, text, attachments) into one staff channel; off by default |
 | (new) | `onboarding`, `webhooks` | welcome → verify → pick roles; YAML-declared webhooks |
 
 Not ported: music, Twitch/YouTube/Twitter alerts, temporary voice channels and the web dashboard. They don't map onto Vector (or were off in Logiq).
@@ -97,6 +98,10 @@ webhooks:
 ```
 
 On start (and `!webhooks sync`) Vectiq creates the missing hooks, DMs you each URL **once** (tokens are stored hashed, so a lost URL is replaced with `!webhooks rotate <name>`), and mirrors the listed events into the channel: `mod`, `joins`, `leaves`, `levels`, `tickets`, `giveaways`, `games`, `onboarding`. Hooks use the SDK's Discord-compatible format, so any tool that can post to a Discord webhook works by swapping the URL. Enabling the server needs `pip install "vector-sdk-py[webhooks]"` (the installer does this) and HTTPS in front of it.
+
+### Security cam
+
+Turn on `modules.securitycam`, then run `!securitycam set #channel` (Manage Server), or pick the channel on the dashboard's Security cam page. Every message in every other channel is copied there: the author's name and text, then any attachments, then the source channel and time. The camera channel itself and the bot's own messages are never echoed; other bots are skipped unless `securitycam.include_bots` is on, and you can skip channels in config.yaml or on the dashboard. **Make the camera channel staff-only** — it shows everything.
 
 ### Onboarding
 
@@ -160,6 +165,7 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 | Giveaways | `giveaway start/end/reroll/cancel/list` |
 | Games | `games` `play <game>` `gamestats` `gameboard` |
 | Utility | `userinfo` `communityinfo` `poll` `analytics` `testwelcome` `about` `ping` |
+| Security cam | `securitycam` `securitycam set [channel]` `securitycam off` |
 | Owner | `vectiq reload/stats`, `webhooks`, `webhooks sync/rotate/test` |
 
 Moderation commands are gated by the matching Vector permission. Owner commands use `owners:` in `config.yaml`.

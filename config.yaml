@@ -20,7 +20,13 @@ modules:              # switch whole features on or off
   onboarding: true    # welcome -> verify -> pick roles, tracked per member
   utility: true
   webhooks: true
+  securitycam: false  # echo every message from every channel into one staff channel (see below)
   dashboard: false    # the web dashboard (see the dashboard section below)
+
+securitycam:                  # needs modules.securitycam: true; or set the channel in chat: !securitycam set #cam
+  channel: ""                 # channel name or id that receives the echoes. Keep it staff-only.
+  include_bots: false         # also echo other bots (this bot is never echoed)
+  ignore_channels: []         # channels to skip
 
 moderation:
   mute_max_days: 28
