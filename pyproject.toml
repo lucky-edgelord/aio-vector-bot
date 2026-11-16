@@ -9,7 +9,8 @@ dependencies = ["vector-sdk-py @ git+https://github.com/lucky-edgelord/vector-sd
 
 [project.optional-dependencies]
 webhooks = ["vector-sdk-py[webhooks] @ git+https://github.com/lucky-edgelord/vector-sdk-py"]
-dev = ["pytest", "pytest-asyncio", "ruff"]
+dashboard = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest", "pytest-asyncio", "ruff", "fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27"]
 
 [project.urls]
 Source = "https://github.com/lucky-edgelord/aio-vector-bot"
@@ -25,7 +26,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-vectiq = ["games/data/*.json", "games/apps/**/*"]
+vectiq = ["games/data/*.json", "games/apps/**/*", "assets/fonts/*", "dashboard/static/**/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

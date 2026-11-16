@@ -90,6 +90,19 @@ class LevelStore:
             (guild_id, limit, offset))
         return [Rank(r["user_id"], r["xp"], r["level"], r["messages"], offset + i + 1) for i, r in enumerate(rows)]
 
+    async def count(self, guild_id: str) -> int:
+        return await self.db.scalar("SELECT COUNT(*) FROM levels WHERE guild_id=?", (guild_id,), 0)
+
+    async def many(self, guild_id: str, user_ids: list[str]) -> dict[str, tuple[int, int]]:
+        """{user_id: (xp, level)} for the given members (missing = never chatted)."""
+        out: dict[str, tuple[int, int]] = {}
+        for i in range(0, len(user_ids), 500):
+            chunk = user_ids[i:i + 500]
+            rows = await self.db.all(f"SELECT user_id, xp, level FROM levels WHERE guild_id=? AND user_id IN "
+                                     f"({','.join('?' * len(chunk))})", (guild_id, *chunk))
+            out.update({r["user_id"]: (r["xp"], r["level"]) for r in rows})
+        return out
+
     async def reset(self, guild_id: str, user_id: str) -> None:
         await self.db.execute("DELETE FROM levels WHERE guild_id=? AND user_id=?", (guild_id, user_id))
 

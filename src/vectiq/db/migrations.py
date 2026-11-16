@@ -189,4 +189,58 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (guild_id, user_id)
     );
     """,
+    # 4 - web dashboard: sign-in codes, sessions, audit log, settings edited in the dashboard
+    """
+    CREATE TABLE dash_logins (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        npub       TEXT NOT NULL,
+        code_hash  TEXT NOT NULL,
+        link_hash  TEXT NOT NULL UNIQUE,
+        expires_at INTEGER NOT NULL,
+        attempts   INTEGER NOT NULL DEFAULT 0,
+        used       INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX idx_dash_logins_npub ON dash_logins (npub);
+
+    CREATE TABLE dash_sessions (
+        token_hash TEXT PRIMARY KEY,
+        npub       TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        last_seen  INTEGER NOT NULL,
+        user_agent TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE dash_audit (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        at       INTEGER NOT NULL,
+        npub     TEXT NOT NULL,
+        guild_id TEXT NOT NULL DEFAULT '',
+        action   TEXT NOT NULL,
+        detail   TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX idx_dash_audit_guild ON dash_audit (guild_id, id);
+
+    CREATE TABLE config_overrides (
+        path       TEXT PRIMARY KEY,
+        value      TEXT NOT NULL,
+        updated_by TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    """,
+    # 5 - dashboard accounts (username + password, each tied to a Vector npub for permissions)
+    """
+    CREATE TABLE dash_users (
+        username     TEXT PRIMARY KEY COLLATE NOCASE,
+        npub         TEXT NOT NULL,
+        pw_hash      TEXT NOT NULL,
+        created_at   INTEGER NOT NULL,
+        updated_at   INTEGER NOT NULL,
+        created_by   TEXT NOT NULL DEFAULT '',
+        failed       INTEGER NOT NULL DEFAULT 0,
+        locked_until INTEGER NOT NULL DEFAULT 0,
+        last_login   INTEGER
+    );
+    CREATE INDEX idx_dash_users_npub ON dash_users (npub);
+    """,
 ]

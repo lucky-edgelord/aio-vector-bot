@@ -31,6 +31,7 @@ COGS = (
     ("onboarding", "vectiq.cogs.onboarding"),
     ("utility", "vectiq.cogs.utility"),
     ("webhooks", "vectiq.cogs.webhooks"),
+    ("dashboard", "vectiq.cogs.dashboard"),
 )
 
 
@@ -138,4 +139,11 @@ class VectiqBot(commands.Bot):
 async def build(config: Config | None = None) -> VectiqBot:
     config = config or Config.load()
     db = await Database(config.db_path).connect()
+    overrides = await Stores(db).dashboard.overrides()
+    if overrides:
+        try:
+            config.apply_overrides(overrides)
+            log.info("applied %d setting(s) changed in the dashboard", len(overrides))
+        except Exception as exc:  # noqa: BLE001 - a bad saved setting must not stop the bot
+            log.error("ignoring dashboard settings: %s", exc)
     return VectiqBot(config, db)

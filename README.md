@@ -40,7 +40,7 @@ Manual start: `./run.sh` (foreground), `./run.sh --check` (validate `config.yaml
 ### Linux
 
 ```sh
-python3 -m venv .venv && .venv/bin/pip install -e ".[webhooks]"
+python3 -m venv .venv && .venv/bin/pip install -e ".[webhooks,dashboard]"
 cp .env.example .env && chmod 600 .env    # put the bot's VECTOR_NSEC in it
 .venv/bin/python -m vectiq --check && .venv/bin/python -m vectiq
 ```
@@ -57,6 +57,7 @@ Use a **separate Vector account for the bot**, never your personal key.
 | Leveling | `leveling` | MEE6 curve, cooldown, level-up messages, role rewards, **image rank card and leaderboard** |
 | Economy | `economy` | wallet + bank, daily streaks, work, pay, shop with roles and stock, rich list, transaction history |
 | Tickets | `tickets` | private channel per ticket, claim, close by command or 🔒 reaction, stored transcript |
+| Web dashboard | `dashboard` | FastAPI dashboard with username/password logins tied to Vector admin roles (off by default) |
 | Verification | `verification` | arithmetic question or a ✅ reaction |
 | Role menus | `roles` | reaction roles, add and remove |
 | Giveaways | `giveaways` | react 🎉, timed, multiple winners, reroll |
@@ -98,6 +99,27 @@ onboarding:
 
 New member → welcome → verification → a role menu built from the YAML (the same reaction roles as `!rolemenu`) → done message. Progress is stored per member and finishing fires an `onboarding` event.
 
+## Web dashboard
+
+A FastAPI dashboard runs inside the bot. Turn it on with `modules.dashboard: true`, restart, and open `http://localhost:8090`.
+
+**Signing in** is by username and password. Every login belongs to a Vector account (npub), and that account's admin role in Vector decides which communities it can manage, checked on every request: remove someone's admin role and their dashboard access goes with it.
+
+```sh
+.venv/bin/python -m vectiq --add-user alice --npub npub1...    # asks for the password (10+ characters)
+.venv/bin/python -m vectiq --list-users
+.venv/bin/python -m vectiq --set-password alice                # also unlocks a locked account
+.venv/bin/python -m vectiq --delete-user alice
+```
+
+Owners can also create logins on the **Users** page, and anyone signed in can change their password on **My account**. As a fallback (no password yet, or forgot it) admins can get a one-time code by Vector DM from the sign-in page or with `!dashboard`; turn that off with `dashboard.vector_code_login: false`.
+
+**Pages:** overview with 30-day activity, members (warn, timeout, kick, ban, roles, XP, coins, full record), moderation cases and bans, leveling and role rewards (with the leaderboard card), economy and shop, tickets with transcripts, role menus, giveaways, games, onboarding, announcements, an audit log of every dashboard action, settings, webhooks and users.
+
+**Settings** edited in the dashboard are saved in the database and layered over `config.yaml`, which is never rewritten (its comments stay). Each changed setting shows a "dashboard" tag and can be reset to the file's value; **Export YAML** downloads the merged result. Module switches and the dashboard's own address need a restart.
+
+**Security:** passwords are hashed with scrypt; five wrong passwords lock a login for 15 minutes; sign-in is rate-limited per IP; sessions are HttpOnly, SameSite=Strict cookies stored hashed; every change needs a same-origin header (no CSRF); the pages send a strict Content-Security-Policy. It listens on `127.0.0.1` by default. To reach it from elsewhere, put it behind HTTPS (for example `caddy reverse-proxy --from dash.example.com --to 127.0.0.1:8090`, or Tailscale) and set `dashboard.base_url` to the `https://` address so cookies are marked Secure.
+
 ## Commands
 
 | Area | Commands |
@@ -105,6 +127,7 @@ New member → welcome → verification → a role menu built from the YAML (the
 | Moderation | `warn` `warnings` `delwarn` `clearwarns` `timeout` `untimeout` `kick` `ban` `tempban` `unban` `case` `history` `modlog` `purge` `lock` `unlock` `slowmode` |
 | Leveling | `rank` `leaderboard` `levelreward add/remove` `givexp` `resetxp` `levelcurve` |
 | Economy | `balance` `daily` `work` `pay` `deposit` `withdraw` `richest` `transactions` `shop` `buy` `inventory` `addmoney` |
+| Dashboard | `dashboard` (DMs you a one-time sign-in link) |
 | Tickets | `ticket open/close/claim/list/transcript`, or react 🔒 in the ticket to close (`tickets.close_emoji`) |
 | Roles & access | `rolemenu create/list/delete` `verify` `forceverify` `onboarding` |
 | Giveaways | `giveaway start/end/reroll/cancel/list` |

@@ -35,14 +35,18 @@ class Moderation(commands.Cog, name="Moderation"):
     # -- helpers ----------------------------------------------------------------------
 
     async def _record(self, ctx, user, action, reason, *, expires_at=None):
-        case = await self.store.add(str(ctx.guild.id), str(user.id), str(ctx.author.id), action, reason,
+        return await self.record(ctx.guild, user, ctx.author, action, reason, expires_at=expires_at)
+
+    async def record(self, guild, user, moderator, action, reason, *, expires_at=None):
+        """Store a case, mirror it to hooks and the mod log. Used by commands and the dashboard."""
+        case = await self.store.add(str(guild.id), str(user.id), str(moderator.id), action, reason,
                                     expires_at=expires_at)
         text = f"{name_of(user)} · {action} · {reason or 'no reason'}"
-        self.bot.emit(ctx.guild, "mod", f"Case #{case.id}", text)
+        self.bot.emit(guild, "mod", f"Case #{case.id}", text)
         log_ref = self.cfg.get("moderation.log_channel", "")
         if log_ref:
-            await self.bot.log_to(ctx.guild, log_ref, f"Case #{case.id}: {action}",
-                                  f"**User:** {name_of(user)}\n**Moderator:** {name_of(ctx.author)}\n"
+            await self.bot.log_to(guild, log_ref, f"Case #{case.id}: {action}",
+                                  f"**User:** {name_of(user)}\n**Moderator:** {name_of(moderator)}\n"
                                   f"**Reason:** {reason or 'none'}")
         return case
 
@@ -66,9 +70,10 @@ class Moderation(commands.Cog, name="Moderation"):
         case = await self._record(ctx, member, "warn", reason)
         count = len(await self.store.warnings(str(ctx.guild.id), str(member.id)))
         await ctx.send(ok(f"Warned {name_of(member)} (case #{case.id}, warning {count})."))
-        await self._maybe_escalate(ctx, member, count)
+        await self.escalate(ctx.guild, member, count, ctx.author, ctx.send)
 
-    async def _maybe_escalate(self, ctx, member, count):
+    async def escalate(self, guild, member, count, moderator, reply):
+        """Apply ``moderation.warn_action`` when a member reaches the warning threshold."""
         limit = self.cfg.get("moderation.warn_threshold", 3)
         action = self.cfg.get("moderation.warn_action", "none")
         if action == "none" or count < limit or count % limit:
@@ -77,17 +82,17 @@ class Moderation(commands.Cog, name="Moderation"):
         try:
             if action == "timeout":
                 await member.timeout(dt.timedelta(minutes=minutes), reason="warning threshold")
-                await self._record(ctx, member, "timeout", f"{count} warnings",
+                await self.record(guild, member, moderator, "timeout", f"{count} warnings",
                                    expires_at=int(time.time()) + minutes * 60)
             elif action == "kick":
                 await member.kick(reason="warning threshold")
-                await self._record(ctx, member, "kick", f"{count} warnings")
+                await self.record(guild, member, moderator, "kick", f"{count} warnings")
             elif action == "ban":
                 await member.ban(reason="warning threshold")
-                await self._record(ctx, member, "ban", f"{count} warnings")
-            await ctx.send(f"⚠️ {name_of(member)} reached {count} warnings: {action}.")
+                await self.record(guild, member, moderator, "ban", f"{count} warnings")
+            await reply(f"⚠️ {name_of(member)} reached {count} warnings: {action}.")
         except Exception as exc:  # noqa: BLE001
-            await ctx.send(fail(f"Could not {action} {name_of(member)}: {exc}"))
+            await reply(fail(f"Could not {action} {name_of(member)}: {exc}"))
 
     @commands.command(aliases=["infractions"])
     @commands.has_permissions(moderate_members=True)

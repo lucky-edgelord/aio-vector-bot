@@ -111,6 +111,21 @@ class EconomyStore:
             " ORDER BY balance+bank DESC, user_id LIMIT ?", (guild_id, limit))
         return [Wallet(r["user_id"], r["balance"], r["bank"], r["daily_streak"]) for r in rows]
 
+    async def balances(self, guild_id: str, user_ids: list[str]) -> dict[str, int]:
+        """{user_id: cash + bank} for the given members (missing = no wallet yet)."""
+        out: dict[str, int] = {}
+        for i in range(0, len(user_ids), 500):
+            chunk = user_ids[i:i + 500]
+            rows = await self.db.all(f"SELECT user_id, balance+bank t FROM wallets WHERE guild_id=? AND user_id IN "
+                                     f"({','.join('?' * len(chunk))})", (guild_id, *chunk))
+            out.update({r["user_id"]: r["t"] for r in rows})
+        return out
+
+    async def totals(self, guild_id: str) -> dict:
+        r = await self.db.one("SELECT COUNT(*) n, COALESCE(SUM(balance),0) cash, COALESCE(SUM(bank),0) bank FROM wallets"
+                              " WHERE guild_id=?", (guild_id,))
+        return {"wallets": r["n"], "cash": r["cash"], "bank": r["bank"]}
+
     async def history(self, guild_id: str, user_id: str, limit: int = 10):
         return await self.db.all("SELECT amount, reason, created_at FROM transactions WHERE guild_id=? AND user_id=?"
                                  " ORDER BY id DESC LIMIT ?", (guild_id, user_id, limit))

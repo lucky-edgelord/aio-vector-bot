@@ -66,6 +66,17 @@ class TicketStore:
         return await self.db.all("SELECT author_id, content, sent_at FROM ticket_messages WHERE ticket_id=? ORDER BY id",
                                  (ticket_id,))
 
+    async def recent(self, guild_id: str, status: str | None = None, limit: int = 50) -> list[Ticket]:
+        sql, args = "SELECT * FROM tickets WHERE guild_id=?", [guild_id]
+        if status:
+            sql += " AND status=?"
+            args.append(status)
+        rows = await self.db.all(sql + " ORDER BY id DESC LIMIT ?", (*args, limit))
+        return [_t(r) for r in rows]
+
+    async def message_count(self, ticket_id: int) -> int:
+        return await self.db.scalar("SELECT COUNT(*) FROM ticket_messages WHERE ticket_id=?", (ticket_id,), 0)
+
     async def open_tickets(self, guild_id: str) -> list[Ticket]:
         rows = await self.db.all("SELECT * FROM tickets WHERE guild_id=? AND status='open' ORDER BY id", (guild_id,))
         return [_t(r) for r in rows]

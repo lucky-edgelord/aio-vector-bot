@@ -153,13 +153,12 @@ class Webhooks(commands.Cog, name="Webhooks"):
     @is_owner()
     async def sync_(self, ctx):
         """Re-read config.yaml and create any missing hooks."""
-        from ..config import Config, ConfigError
+        from ..config import ConfigError
 
         try:
-            fresh = Config.load(self.cfg.path)
+            self.cfg.reload()
         except ConfigError as exc:
             return await ctx.send(fail(str(exc)))
-        self.cfg.data = fresh.data
         await ctx.send("\n".join(await self.sync()) or "No hooks declared.")
 
     @webhooks.command(name="rotate")
@@ -170,16 +169,32 @@ class Webhooks(commands.Cog, name="Webhooks"):
         target = self._resolved.get(name)
         if hook is None or target is None:
             return await ctx.send(fail("No such hook, or its channel was not found."))
-        guild, channel = target
+        url = await self.rotate_url(name)
+        try:
+            await ctx.author.send(f"**{name}** → `{url}`")
+        except Exception:  # noqa: BLE001
+            return await ctx.send(fail("Made a new hook but couldn't DM you the URL."))
+        await ctx.send(ok("New URL sent to your DMs."))
+
+    async def rotate_url(self, name: str) -> str:
+        """Replace a declared hook with a fresh one and return its URL (the old URL stops working)."""
+        guild, channel = self._resolved[name]
         for w in self.bot.webhook_store.list(channel_id=str(channel.id)):
             if w.name == name:
                 self.bot.webhook_store.delete(w.id)
         wh = await channel.create_webhook(name=name)
-        try:
-            await ctx.author.send(f"**{name}** → `{wh.url}`")
-        except Exception:  # noqa: BLE001
-            return await ctx.send(fail("Made a new hook but couldn't DM you the URL."))
-        await ctx.send(ok("New URL sent to your DMs."))
+        return wh.url
+
+    def status(self) -> list[dict]:
+        """Declared hooks and where they resolved, for the dashboard."""
+        out = []
+        for hook in self.cfg.hooks:
+            target = self._resolved.get(hook["name"])
+            out.append({"name": hook["name"], "channel": hook["channel"], "events": hook.get("events", []),
+                        "community": str(target[0].id) if target else None,
+                        "channel_id": str(target[1].id) if target else None,
+                        "channel_name": target[1].name if target else None})
+        return out
 
     @webhooks.command(name="test")
     @is_owner()

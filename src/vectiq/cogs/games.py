@@ -65,8 +65,13 @@ class Games(commands.Cog, name="Games"):
         game = game.lower().replace("-", "").replace(" ", "")
         if game not in GAMES:
             return await ctx.send(fail(f"Pick one of: {', '.join(GAMES)}."))
+        await self.post_game(ctx.channel, game)
+        await ctx.send(f"🎮 **{GAMES[game].title}** is ready. Tap the app above to play.")
+
+    async def post_game(self, channel, game: str) -> None:
+        """Share a game's Mini App in ``channel`` and referee it. Used by the command and the dashboard."""
         path = packager.build(game, self.out_dir)
-        app = await ctx.channel.send_xdc(str(path))
+        app = await channel.send_xdc(str(path))
         # The SDK never auto-joins an app the bot posted itself, so the referee joins its own game right away.
         # (If its session later times out, the "opened" handler below starts a new one with the same game state.)
         try:
@@ -77,7 +82,6 @@ class Games(commands.Cog, name="Games"):
             task.add_done_callback(self._tasks.discard)
         except Exception:  # noqa: BLE001 - the app is posted either way; the opened-handler can still take over
             log.exception("could not join my own %s app", game)
-        await ctx.send(f"🎮 **{GAMES[game].title}** is ready. Tap the app above to play.")
 
     @commands.command()
     @commands.guild_only()
