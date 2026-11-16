@@ -74,6 +74,7 @@ Use a **separate Vector account for the bot**, never your personal key.
 | Welcome | `welcome` | templated join/leave messages |
 | Games | `games` | Tic-Tac-Toe, Connect Four, Trivia, Slots as **WebXDC mini apps** |
 | Utilities / analytics | `utility` | userinfo, poll, activity chart |
+| Events | `events` | event calendar: RSVPs, waitlists, repeats, reminders (channel + DM), banner pictures, month picture, .ics |
 | Security cam | `securitycam` | echo every message (author, channel, time, text, attachments) into one staff channel; off by default |
 | (new) | `onboarding`, `webhooks` | welcome → verify → pick roles; YAML-declared webhooks |
 
@@ -98,6 +99,18 @@ webhooks:
 ```
 
 On start (and `!webhooks sync`) Vectiq creates the missing hooks, DMs you each URL **once** (tokens are stored hashed, so a lost URL is replaced with `!webhooks rotate <name>`), and mirrors the listed events into the channel: `mod`, `joins`, `leaves`, `levels`, `tickets`, `giveaways`, `games`, `onboarding`. Hooks use the SDK's Discord-compatible format, so any tool that can post to a Discord webhook works by swapping the URL. Enabling the server needs `pip install "vector-sdk-py[webhooks]"` (the installer does this) and HTTPS in front of it.
+
+### Event calendar
+
+```
+!event create Game night | friday 8pm | 2h | Bring snacks
+```
+
+Times can be typed as `friday 8pm`, `tomorrow 18:30`, `nov 20 7pm`, `2026-11-20 20:00` or `in 2h`, read in the community's time zone (`events.timezone`, or `!event timezone America/New_York`). Each event goes to the announcements channel (`events.channel`; `announcements` finds `📣┊Announcements`): the details, then a picture, then the footer where members react ✅ going, 🤔 maybe or ❌ can't go. The picture is a drawn banner, or whatever you attach to the command (`!event edit <id> image` with a picture changes it later). The post updates as people answer; with `capacity` set, extra people go on a waitlist and move up when someone drops out.
+
+Before it starts, a general reminder (no pings, with the picture) goes in the channel and a personal reminder goes by DM to everyone going or maybe (`events.reminders`, default 60 and 15 minutes). Repeating events (`!event edit <id> repeat weekly`) post a fresh RSVP list for each occurrence. `!calendar` shows the month as a picture, `!event ics <id>` and `!calendar ics` give calendar files for Google, Apple and Outlook.
+
+![Event calendar](docs/images/calendar.png)
 
 ### Security cam
 
@@ -165,6 +178,7 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 | Giveaways | `giveaway start/end/reroll/cancel/list` |
 | Games | `games` `play <game>` `gamestats` `gameboard` |
 | Utility | `userinfo` `communityinfo` `poll` `analytics` `testwelcome` `about` `ping` |
+| Events | `event create` `event list` `event info` `event edit` `event rsvp` `event who` `event cancel` `event delete` `event repost` `event ics` `event timezone` `calendar` |
 | Security cam | `securitycam` `securitycam set [channel]` `securitycam off` |
 | Owner | `vectiq reload/stats`, `webhooks`, `webhooks sync/rotate/test` |
 

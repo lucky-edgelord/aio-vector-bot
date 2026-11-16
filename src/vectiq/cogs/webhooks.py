@@ -18,7 +18,7 @@ from ..utils.checks import is_owner
 from ..utils.embeds import embed, fail, ok, short
 
 log = logging.getLogger("vectiq.webhooks")
-EVENT_KINDS = ("mod", "joins", "leaves", "levels", "tickets", "giveaways", "games", "onboarding")
+EVENT_KINDS = ("mod", "joins", "leaves", "levels", "tickets", "giveaways", "games", "onboarding", "events")
 
 
 class Webhooks(commands.Cog, name="Webhooks"):

@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 
 MODULES = ("moderation", "leveling", "economy", "tickets", "verification", "roles",
-           "giveaways", "games", "welcome", "onboarding", "utility", "webhooks", "securitycam", "dashboard")
+           "giveaways", "games", "welcome", "onboarding", "utility", "webhooks", "events", "securitycam", "dashboard")
 OFF_BY_DEFAULT = ("securitycam", "dashboard")
 
 
@@ -54,6 +54,10 @@ DEFAULTS: dict[str, Any] = {
     "webhooks": {"server": {"enabled": False, "host": "0.0.0.0", "port": 8080,
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
+    "events": {"timezone": "UTC", "channel": "announcements", "banner_image": True,
+               "default_minutes": 60, "reminders": [60, 15], "dm_reminders": True,
+               "who_can_create": "staff", "attendee_roles": False, "calendar_image": True, "week_starts": "monday",
+               "max_per_community": 200},
     "securitycam": {"channel": "", "include_bots": False, "ignore_channels": []},
     "dashboard": {"host": "127.0.0.1", "port": 8090, "base_url": "http://localhost:8090",
                   "session_days": 7, "code_minutes": 10, "vector_code_login": True},
@@ -176,6 +180,16 @@ class Config:
             raise ConfigError("dashboard.port must be a port number")
         if d["games"]["join_when"] not in ("opened", "shared"):
             raise ConfigError("games.join_when must be opened or shared")
+        ev = d["events"]
+        try:
+            from zoneinfo import ZoneInfo
+            ZoneInfo(str(ev["timezone"]))
+        except Exception:  # noqa: BLE001
+            raise ConfigError(f"events.timezone: unknown time zone {ev['timezone']!r} (e.g. America/New_York)") from None
+        if ev["who_can_create"] not in ("staff", "everyone"):
+            raise ConfigError("events.who_can_create must be staff or everyone")
+        if any(not str(m).strip().isdigit() for m in ev["reminders"]):
+            raise ConfigError("events.reminders: minutes before the start, e.g. [60, 15]")
         lv = d["leveling"]
         if lv["xp_min"] > lv["xp_max"]:
             raise ConfigError("leveling.xp_min must not exceed xp_max")

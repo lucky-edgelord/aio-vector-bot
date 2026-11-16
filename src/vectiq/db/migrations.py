@@ -243,4 +243,48 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX idx_dash_users_npub ON dash_users (npub);
     """,
+    # 6 - event calendar
+    """
+    CREATE TABLE events (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        channel_id  TEXT NOT NULL,
+        message_id  TEXT,
+        image_message_id TEXT,
+        footer_message_id TEXT,
+        creator_id  TEXT NOT NULL,
+        title       TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        location    TEXT NOT NULL DEFAULT '',
+        image_path  TEXT NOT NULL DEFAULT '',
+        starts_at   INTEGER NOT NULL,
+        ends_at     INTEGER NOT NULL,
+        tz          TEXT NOT NULL DEFAULT 'UTC',
+        repeat      TEXT NOT NULL DEFAULT 'none',
+        remind      TEXT NOT NULL DEFAULT '[]',
+        capacity    INTEGER NOT NULL DEFAULT 0,
+        role_id     TEXT NOT NULL DEFAULT '',
+        status      TEXT NOT NULL DEFAULT 'scheduled',
+        created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX idx_events_guild ON events (guild_id, starts_at);
+    CREATE INDEX idx_events_status ON events (status, starts_at);
+    CREATE INDEX idx_events_message ON events (message_id);
+    CREATE INDEX idx_events_footer ON events (footer_message_id);
+
+    CREATE TABLE event_rsvps (
+        event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        user_id  TEXT NOT NULL,
+        status   TEXT NOT NULL,
+        at       REAL NOT NULL,
+        PRIMARY KEY (event_id, user_id)
+    );
+
+    CREATE TABLE event_reminders (
+        event_id  INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        starts_at INTEGER NOT NULL,
+        minutes   INTEGER NOT NULL,
+        PRIMARY KEY (event_id, starts_at, minutes)
+    );
+    """,
 ]

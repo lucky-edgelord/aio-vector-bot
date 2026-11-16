@@ -33,6 +33,7 @@ MODULE_HELP = {
     "onboarding": "Welcome → verify → pick roles",
     "utility": "Polls, reminders, analytics and other tools",
     "webhooks": "Webhooks declared in config.yaml",
+    "events": "Event calendar with RSVPs, reminders and repeats",
     "securitycam": "Echo every message from every channel into one staff channel",
     "dashboard": "This web dashboard",
 }
@@ -54,6 +55,20 @@ GROUPS: list[dict[str, Any]] = [
         field("moderation.warn_action", "Action at threshold", "enum", options=("timeout", "kick", "ban", "none")),
         field("moderation.warn_action_minutes", "Timeout length (minutes)", "int", minimum=1, maximum=40320),
         field("moderation.mute_max_days", "Longest timeout (days)", "int", minimum=1, maximum=28),
+    ]},
+    {"id": "events", "title": "Events", "fields": [
+        field("events.timezone", "Default time zone", "text", "e.g. America/New_York. Each community can override it "
+              "with !event timezone or on the Events page."),
+        field("events.channel", "Event channel", "text", "Where event posts go. A name or id; \"announcements\" finds "
+              "\"📣┊Announcements\". Blank = where the command was used."),
+        field("events.banner_image", "Banner picture on each event", "bool", "A picture attached to the command wins"),
+        field("events.default_minutes", "Default length (minutes)", "int", minimum=1, maximum=20160),
+        field("events.reminders", "Reminders (minutes before)", "list", "One number per line, e.g. 60 and 15"),
+        field("events.dm_reminders", "DM reminders to people going", "bool"),
+        field("events.who_can_create", "Who can create events", "enum", options=("staff", "everyone")),
+        field("events.attendee_roles", "Give attendees a role", "bool", "A temporary role per event, for pings"),
+        field("events.calendar_image", "Calendar as an image", "bool"),
+        field("events.week_starts", "Week starts on", "enum", options=("monday", "sunday")),
     ]},
     {"id": "securitycam", "title": "Security cam", "fields": [
         field("securitycam.channel", "Camera channel", "text", "Channel name or id that receives every echoed "

@@ -1,5 +1,6 @@
 from .dashboard import DashboardStore
 from .economy import EconomyStore, InsufficientFunds
+from .events import Attendees, Event, EventStore
 from .levels import LevelStore, level_for_xp, xp_for_level
 from .misc import ActivityStore, GameStatsStore, GiveawayStore, OnboardingStore, RoleMenuStore, SettingsStore, VerificationStore
 from .moderation import ModerationStore
@@ -9,6 +10,9 @@ __all__ = (
     "ActivityStore",
     "DashboardStore",
     "EconomyStore",
+    "Event",
+    "EventStore",
+    "Attendees",
     "GameStatsStore",
     "GiveawayStore",
     "InsufficientFunds",
@@ -41,3 +45,4 @@ class Stores:
         self.activity = ActivityStore(db)
         self.onboarding = OnboardingStore(db)
         self.dashboard = DashboardStore(db)
+        self.events = EventStore(db)

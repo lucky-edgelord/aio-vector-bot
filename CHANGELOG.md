@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- Event calendar: `!event create Title | friday 8pm | 2h | details` (natural times in the community's time zone),
+  posts in the announcements channel with a drawn banner or an attached picture between the text and footer,
+  RSVP by reaction (going / maybe / can't go) with capacity and waitlist, repeats (daily, weekly, biweekly,
+  monthly), general reminders in the channel and personal reminders by DM, optional attendee roles, `!calendar`
+  month picture, `.ics` export, edit/cancel/repost, and an Events section in dashboard Settings.
 - Security cam (off by default): echoes every message from every channel into one staff channel with the
   author, channel, time, text and attachments. `!securitycam set/off`, a dashboard page and a Settings section.
 - Web dashboard (FastAPI, off by default): username/password logins tied to Vector npubs, optional sign-in by
