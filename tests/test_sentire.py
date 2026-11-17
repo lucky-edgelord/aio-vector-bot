@@ -162,8 +162,8 @@ async def test_without_the_program_it_says_how_to_install(tmp_path, make_bot, mo
 async def test_dashboard_panel_api(stores, tmp_path):
     """Any module's page: listed in /api/me, drawn by /api/panel, buttons through /action."""
     import httpx
-    from tests.test_dashboard import ADMIN, FakeBot, H
 
+    from tests.test_dashboard import ADMIN, FakeBot, H
     from vectiq.dashboard.server import create_app
 
     class Widget:

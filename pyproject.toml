@@ -45,6 +45,9 @@ src = ["src"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["vectiq", "tests"]
+
 [tool.ruff.lint.per-file-ignores]
 "tools/*" = ["E501"]
 "src/vectiq/dashboard/verify_page.py" = ["E501"]   # inline page styles   # build scripts hold long strings of copy
