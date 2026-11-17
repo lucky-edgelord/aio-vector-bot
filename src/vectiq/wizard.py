@@ -202,8 +202,11 @@ def run(path: str | Path | None = None, *, ask: Callable[[str], str] = input,
     scr = Screen(say, sys.stdout.isatty() if tty is None else tty)
     cfg_path = Path(path or "config.yaml")
     if not cfg_path.exists():
-        say(f"{cfg_path} doesn't exist. Run ./install.sh first, or copy config.yaml from the repository.")
-        return 1
+        from .scaffold import example
+
+        cfg_path.parent.mkdir(parents=True, exist_ok=True)
+        cfg_path.write_text(example("config.example.yaml"), "utf-8")
+        say(f"{cfg_path} didn't exist, so I made one from the example.")
     cfg = Config.load(cfg_path, env={})
     answers: dict[str, Any] = {}
 

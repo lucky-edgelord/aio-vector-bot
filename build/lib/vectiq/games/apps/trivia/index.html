@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trivia</title><link rel="stylesheet" href="style.css">
+<style>
+ #opts { display:grid; gap:8px; margin:10px 0; } #opts button { background:var(--card); color:var(--fg); border:1px solid var(--line); text-align:left; }
+ #opts button.right { background:#14352c; border-color:var(--acc); } #opts button.wrong { background:#3b1d1d; border-color:var(--bad); } #opts button.pick { border-color:var(--acc2); }
+ #bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; } #bar i { display:block; height:100%; background:var(--acc); width:0; }
+ table { width:100%; border-collapse:collapse; } td { padding:4px 6px; text-align:left; } td:last-child { text-align:right; } tr.me td { color:var(--acc); }
+</style></head><body>
+<h1>🧠 TRIVIA</h1>
+<div class="status" id="status">Connecting…</div>
+<div id="quiz" hidden><div class="dim" id="round"></div><div id="bar"><i></i></div><h2 id="q" style="font-size:18px"></h2><div id="opts"></div></div>
+<div class="card" id="board" hidden><table id="rows"></table></div>
+<button id="join" hidden>Join</button> <button id="start" hidden>Start game</button>
+<script src="webxdc.js"></script><script src="net.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let S = null, mine = null;
+$("join").onclick = () => net.send({ t: "join" });
+$("start").onclick = () => net.send({ t: "start" });
+function me() { return S.players.find((p) => p.addr === net.addr); }
+function render() {
+  const m = me(), lobby = S.phase === "lobby", q = S.phase === "question" || S.phase === "reveal";
+  $("join").hidden = !(lobby && !m); $("start").hidden = !(lobby && m && S.host_addr === net.addr);
+  $("quiz").hidden = !q; $("board").hidden = !S.players.length;
+  $("rows").innerHTML = [...S.players].sort((a, b) => b.score - a.score).map((p) =>
+    `<tr class="${p.addr === net.addr ? "me" : ""}"><td>${esc(p.name)}${p.answered && S.phase === "question" ? " ✓" : ""}</td><td>${p.correct}✔</td><td>${p.score}</td></tr>`).join("");
+  if (q) {
+    $("round").textContent = "Question " + S.round + " of " + S.rounds; $("q").textContent = S.question;
+    const picked = S.picks ? S.picks[net.addr] : mine;
+    $("opts").innerHTML = ""; S.options.forEach((o, i) => {
+      const b = document.createElement("button"); b.textContent = o;
+      if (S.phase === "reveal") { b.disabled = true; if (i === S.answer) b.className = "right"; else if (picked === i) b.className = "wrong"; }
+      else { b.disabled = !m || mine !== null; if (mine === i) b.className = "pick"; b.onclick = () => { mine = i; net.send({ t: "answer", i }); render(); }; }
+      $("opts").appendChild(b);
+    });
+  }
+  setStatus(S.phase === "lobby" ? (m ? "In the lobby. The host starts the game." : "Join to play") :
+            S.phase === "done" ? "Game over! Coins were paid out." : S.phase === "reveal" ? "Answer revealed" : m ? "Pick an answer" : "Watching");
+}
+function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function setStatus(t, err) { $("status").textContent = t; $("status").className = "status" + (err ? " err" : ""); }
+setInterval(() => { if (S && S.phase === "question") { const left = Math.max(0, S.deadline - Date.now() / 1000); $("bar").firstChild.style.width = (100 * left / 15) + "%"; } }, 200);
+let lastRound = -1;
+net.start((s) => { if (s.round !== lastRound || s.phase === "lobby") { mine = null; lastRound = s.round; } S = s; render(); }, (e) => setStatus(e, true));
+</script></body></html>

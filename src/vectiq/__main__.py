@@ -14,6 +14,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="vectiq", description="Vectiq, a community bot for Vector")
     ap.add_argument("--config", help="path to config.yaml (default: ./config.yaml)")
     ap.add_argument("--check", action="store_true", help="validate config.yaml and exit")
+    ap.add_argument("--version", action="store_true", help="print the version and exit")
+    ap.add_argument("--init", nargs="?", const=".", metavar="FOLDER",
+                    help="create config.yaml and .env in FOLDER (default: here), then run the setup wizard with --setup")
     ap.add_argument("--setup", action="store_true", help="answer a few questions to fill in config.yaml")
     io = ap.add_argument_group("settings files")
     io.add_argument("--export-config", metavar="FILE",
@@ -35,6 +38,18 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+    if args.version:
+        from . import __version__
+
+        print(f"vectiq {__version__}")
+        return 0
+    if args.init is not None:
+        from .scaffold import init
+
+        for path, created in init(args.init):
+            print(f"{'created' if created else 'kept   '} {path}")
+        print("\nNext: put the bot's VECTOR_NSEC in .env, run `vectiq --setup` to fill in config.yaml, then `vectiq`.")
+        return 0
     load_dotenv(os.environ.get("VECTIQ_ENV", ".env"))
     if args.setup:
         from .wizard import run as setup

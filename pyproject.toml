@@ -3,6 +3,7 @@ name = "vectiq"
 version = "0.1.0"
 description = "A community-management bot for Vector: moderation, leveling, economy, tickets, giveaways, WebXDC mini games and YAML webhooks, on SQLite."
 requires-python = ">=3.10"
+classifiers = ["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License", "Topic :: Communications :: Chat"]
 readme = "README.md"
 license = {text = "MIT"}
 dependencies = ["vector-sdk-py @ git+https://github.com/lucky-edgelord/vector-sdk-py", "PyYAML>=6", "Pillow>=10"]
@@ -26,7 +27,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-vectiq = ["games/data/*.json", "games/apps/**/*", "assets/fonts/*", "dashboard/static/**/*"]
+vectiq = ["config.example.yaml", "env.example", "games/data/*.json", "games/apps/**/*", "assets/fonts/*", "dashboard/static/**/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

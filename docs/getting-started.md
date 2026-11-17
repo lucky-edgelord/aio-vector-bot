@@ -40,6 +40,20 @@ It installs Homebrew packages, creates a virtual environment, asks for the bot's
 
 Useful variations: `./install.sh --no-service` installs without starting at login, and `./install.sh --yes` skips every question and reads `VECTOR_NSEC` and `VECTIQ_INVITE_URLS` from the environment.
 
+### With pip or pipx
+
+You don't need to clone anything. This works on Linux and macOS, and needs `rustc`/`cargo` and `cmake` the first time because the Vector SDK is compiled from source.
+
+```sh
+pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"
+mkdir my-bot && cd my-bot
+vectiq --init          # writes config.yaml and .env here
+vectiq --setup         # friendly wizard; then put VECTOR_NSEC in .env
+vectiq
+```
+
+Plain `pip install` in a virtual environment works the same way. Update with `pipx upgrade vectiq`, or reinstall with `--force` to pick up the newest commit. `vectiq --version` shows what you have.
+
 ### Linux
 
 ```sh

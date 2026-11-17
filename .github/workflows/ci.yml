@@ -23,6 +23,12 @@ jobs:
         run: VECTOR_NSEC=nsec1placeholder python -m vectiq --check
       - name: Test
         run: pytest -q
+      - name: Build the wheel and try it in a clean folder
+        run: |
+          pip wheel --no-deps -q -w dist .
+          pip install --force-reinstall --no-deps -q dist/*.whl
+          mkdir /tmp/fresh && cd /tmp/fresh
+          vectiq --version && vectiq --init && VECTOR_NSEC=nsec1placeholder vectiq --check
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 40

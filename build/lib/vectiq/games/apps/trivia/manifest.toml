@@ -1,0 +1,4 @@
+name = "Vectiq Trivia"
+id = "vectiq-trivia"
+description = "Eight timed questions. Correct answers earn coins."
+version = "0.1.0"

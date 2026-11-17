@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tic-Tac-Toe</title><link rel="stylesheet" href="style.css">
+<style>
+ #board { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px auto; width:min(86vw,330px); }
+ .sq { aspect-ratio:1; font-size:min(18vw,80px); background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:12px; padding:0; }
+ .sq.X { color:var(--acc); } .sq.O { color:var(--acc2); } .sq.win { background:#14352c; border-color:var(--acc); }
+</style></head><body>
+<h1>⭕ TIC-TAC-TOE ❌</h1>
+<div class="seats"><div class="seat" id="sX"></div><div class="seat" id="sO"></div></div>
+<div class="status" id="status">Connecting…</div>
+<div id="board"></div>
+<button id="sit">Take a seat</button> <button id="again" class="ghost" hidden>Rematch</button>
+<script src="webxdc.js"></script><script src="net.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let S = null;
+const board = $("board");
+for (let i = 0; i < 9; i++) { const b = document.createElement("button"); b.className = "sq"; b.onclick = () => net.send({ t: "move", i }); board.appendChild(b); }
+$("sit").onclick = () => net.send({ t: "join" });
+$("again").onclick = () => net.send({ t: "rematch" });
+function mark() { if (!S) return null; return ["X", "O"].find((m) => S.seats[m] && S.seats[m].addr === net.addr) || null; }
+function render() {
+  const me = mark(), full = S.seats.X && S.seats.O;
+  for (const m of ["X", "O"]) {
+    const s = S.seats[m], el = $("s" + m);
+    el.textContent = m + " · " + (s ? s.name : "open");
+    el.className = "seat" + (S.turn === m && !S.winner && full ? " turn" : "") + (me === m ? " me" : "");
+  }
+  [...board.children].forEach((b, i) => {
+    b.textContent = S.board[i]; b.className = "sq " + S.board[i] + (S.line && S.line.includes(i) ? " win" : "");
+    b.disabled = !!S.winner || !me || S.turn !== me || !full || !!S.board[i];
+  });
+  $("sit").hidden = !!me || !(!S.seats.X || !S.seats.O);
+  $("again").hidden = !S.winner || !me;
+  let t = !full ? (me ? "Waiting for an opponent…" : "Waiting for players") : S.turn === me ? "Your turn" : "Their turn";
+  if (S.winner === "draw") t = "It's a draw!"; else if (S.winner) t = S.winner === me ? "You win! 🎉" : (S.seats[S.winner].name + " wins");
+  setStatus(t);
+}
+function setStatus(t, err) { $("status").textContent = t; $("status").className = "status" + (err ? " err" : ""); }
+net.start((s) => { S = s; render(); }, (e) => { setStatus(e, true); setTimeout(() => S && render(), 2500); });
+</script></body></html>

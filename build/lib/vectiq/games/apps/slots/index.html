@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slots</title><link rel="stylesheet" href="style.css">
+<style>
+ #reels { display:flex; gap:10px; justify-content:center; margin:14px 0; } .reel { font-size:54px; width:84px; height:96px; line-height:96px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+ .reel.spin { animation: blur .12s linear infinite; } @keyframes blur { 50% { transform: translateY(-4px); opacity:.6; } }
+ #bet { display:flex; gap:8px; justify-content:center; align-items:center; } #bet input { width:90px; padding:9px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; text-align:center; }
+ .big { font-size:20px; } .win { color:var(--acc); } #feed { text-align:left; font-size:14px; }
+</style></head><body>
+<h1>🎰 SLOTS</h1>
+<div class="card"><div class="dim">Your coins</div><div class="big" id="bal">…</div></div>
+<div id="reels"><div class="reel">❔</div><div class="reel">❔</div><div class="reel">❔</div></div>
+<div class="status" id="status">Connecting…</div>
+<div id="bet"><button class="ghost" id="minus">−</button><input id="amt" type="number" value="10" min="1"><button class="ghost" id="plus">+</button><button id="spin">SPIN</button></div>
+<p class="dim">Three alike pays 10× (💎 30×). Two alike pays 1.2×.</p>
+<div class="card" id="feed"></div>
+<script src="webxdc.js"></script><script src="net.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let spinning = false, max = 1000;
+const amt = () => Math.max(1, Math.min(max, parseInt($("amt").value) || 1));
+$("minus").onclick = () => $("amt").value = Math.max(1, amt() - 10);
+$("plus").onclick = () => $("amt").value = Math.min(max, amt() + 10);
+$("spin").onclick = () => {
+  if (spinning) return; $("amt").value = amt(); spinning = true; $("spin").disabled = true; setStatus("Spinning…");
+  document.querySelectorAll(".reel").forEach((r) => r.classList.add("spin"));
+  net.send({ t: "spin", bet: amt() });
+  setTimeout(() => { if (spinning) done(); }, 8000);
+};
+function done() { spinning = false; $("spin").disabled = false; document.querySelectorAll(".reel").forEach((r) => r.classList.remove("spin")); }
+function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function setStatus(t, err, cls) { $("status").textContent = t; $("status").className = "status" + (err ? " err" : "") + (cls ? " " + cls : ""); }
+net.start((s) => {
+  max = s.max_bet || max;
+  $("feed").innerHTML = "<div class=dim>Recent spins</div>" + s.feed.map((f) => `<div>${esc(f.name)} ${f.reels.join(" ")} ${f.won ? "won " + f.won : "lost " + f.bet}</div>`).join("");
+  if (!net.mine(s)) return;
+  if (s.balance !== undefined) $("bal").textContent = "🪙 " + s.balance.toLocaleString();
+  if (s.reels) {
+    document.querySelectorAll(".reel").forEach((r, i) => { r.textContent = s.reels[i]; });
+    setStatus(s.won ? "You won " + s.won + "! 🎉" : "No luck. Try again.", false, s.won ? "win" : ""); done();
+  }
+}, (e) => { setStatus(e, true); done(); });
+</script></body></html>

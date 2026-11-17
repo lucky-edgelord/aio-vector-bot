@@ -59,6 +59,15 @@ docker compose up -d          # settings in ./docker-config, data in ./docker-da
 
 See the [Docker guide](docs/docker.md) for the setup wizard, ports and backups.
 
+### pip / pipx
+
+```sh
+pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"
+mkdir my-bot && cd my-bot && vectiq --init && vectiq --setup
+```
+
+`--init` writes `config.yaml` and `.env` in the current folder; put the bot's `VECTOR_NSEC` in `.env`, then run `vectiq`.
+
 ### Linux
 
 ```sh
