@@ -1,8 +1,8 @@
 """The shared management layer (dashboard and MCP), the Channels & roles API, and the MCP tools."""
 
 import pytest
-from tests.fake_community import Guild, fake_bot
 
+from tests.fake_community import Guild, fake_bot
 from vectiq.manage import ManageError, Manager, perms_list
 
 
@@ -138,8 +138,8 @@ async def test_mcp_token_check(tmp_path, monkeypatch):
 async def test_channels_and_roles_dashboard_api(stores, tmp_path):
     """The Channels & roles page's routes, signed in as a community admin."""
     import httpx
-    from tests.test_dashboard import ADMIN, MEMBER, FakeBot, FakePerms, H
 
+    from tests.test_dashboard import ADMIN, MEMBER, FakeBot, FakePerms, H
     from vectiq.config import Config
     from vectiq.dashboard.server import create_app
 
@@ -223,3 +223,10 @@ async def test_mcp_over_http_needs_the_token(setup, stores):
     finally:
         server.should_exit = True
         await asyncio.wait_for(task, 10)
+
+
+def test_vector_refusals_are_explained():
+    from vectiq.manage import explain
+
+    assert "Upgrading the community" in explain(RuntimeError("this community still uses the legacy roster"))
+    assert explain(RuntimeError("something else")) == "something else"

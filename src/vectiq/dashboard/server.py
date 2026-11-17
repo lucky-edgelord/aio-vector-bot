@@ -729,7 +729,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
 
     # -- channels, categories, roles and permissions (the shared vectiq.manage layer) -------------------
 
-    from ..manage import ManageError, Manager
+    from ..manage import ManageError, Manager, explain
 
     manager = Manager(bot)
 
@@ -741,7 +741,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001 - usually a missing permission on Vector's side
-            fail(502, f"Couldn't {what}: {exc}")
+            fail(502, f"Couldn't {what}: {explain(exc)}")
         await audit(npub, what, detail[:480], g)
         return out
 

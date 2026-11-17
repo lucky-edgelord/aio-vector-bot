@@ -51,6 +51,17 @@ class ManageError(ValueError):
     """Something a person asked for can't be done; the message says why."""
 
 
+def explain(exc: Exception) -> str:
+    """Vector's own refusals, in words a community admin can act on."""
+    text = str(exc)
+    if "legacy roster" in text:
+        return ("this community still uses Vector's legacy roster, which can't do this (per-channel permissions, "
+                "deleting roles). Upgrading the community in Vector removes the limit")
+    if "permission" in text.lower() and "denied" in text.lower():
+        return f"the bot isn't allowed to do that here; give its role more permissions ({text})"
+    return text
+
+
 def perms_list(value: int | Permissions) -> list[str]:
     v = int(value)
     return [n for n in PERM_NAMES if v & VALID_FLAGS[n]]

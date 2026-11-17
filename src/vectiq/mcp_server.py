@@ -20,7 +20,7 @@ from fastmcp.server.auth import AccessToken, TokenVerifier
 from pydantic import Field
 
 from . import modules
-from .manage import PERMISSIONS, ManageError, Manager
+from .manage import PERMISSIONS, ManageError, Manager, explain
 
 log = logging.getLogger("vectiq.mcp")
 
@@ -79,7 +79,7 @@ def build(bot, *, token: str | None, read_only: bool = False) -> FastMCP:
         except ManageError as exc:
             raise ToolError(str(exc)) from None
         except Exception as exc:  # noqa: BLE001
-            raise ToolError(f"Vector refused: {exc}") from None
+            raise ToolError(f"Vector refused: {explain(exc)}") from None
         try:
             await bot.stores.dashboard.audit("mcp", action, detail[:480], str(guild.id) if guild is not None else "")
         except Exception:  # noqa: BLE001
