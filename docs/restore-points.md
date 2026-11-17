@@ -1,7 +1,7 @@
 ---
 title: Restore points
 group: Start here
-order: 4
+order: 5
 summary: Go back to an earlier moment, like System Restore. Points are made on a schedule, before risky changes, and whenever you like.
 ---
 

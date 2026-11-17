@@ -305,3 +305,6 @@ textarea.input { height: auto; min-height: 90px; padding: 10px 14px; resize: ver
 .item.rp { position: relative; gap: 12px; flex-wrap: wrap; }
 .rp-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--accent); flex: none; }
 .item.rp:first-child .rp-dot { background: var(--accent); }
+
+.wiz-group { margin: 14px 0 2px; font-size: .8rem; color: var(--muted, #888); font-weight: 600; }
+.wiz-checklist > .wiz-group:first-child { margin-top: 0; }

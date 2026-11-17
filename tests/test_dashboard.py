@@ -250,7 +250,7 @@ async def test_settings_overrides(env):
     assert bad.status_code == 400 and env.cfg.get("leveling.xp_min") == 15      # invalid combos change nothing
     assert (await c.put("/api/settings", json={"changes": {"nsec": "x"}}, headers=H)).status_code == 400
     r = await c.put("/api/settings", json={"changes": {"modules.games": False}}, headers=H)
-    assert r.json()["restart"] == ["Mini games"]
+    assert r.json()["restart"] == [] and "Switching off: Mini games" in r.json()["message"]   # applied live
     assert (await c.delete("/api/settings/economy.daily_amount", headers=H)).status_code == 200
     assert env.cfg.get("economy.daily_amount") == 200 and "economy.daily_amount" not in await env.store.overrides()
 

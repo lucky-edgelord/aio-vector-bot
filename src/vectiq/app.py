@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -11,31 +12,14 @@ from vector.ext import commands
 
 from .config import Config
 from .db import Database
+from .modules import CORE_COGS, REGISTRY
 from .stores import Stores
 from .utils.embeds import embed
 
 log = logging.getLogger("vectiq")
 
-# (module name in config.yaml, python module). `core` always loads.
-COGS = (
-    ("core", "vectiq.cogs.core"),
-    ("core", "vectiq.cogs.restorepoints"),
-    ("moderation", "vectiq.cogs.moderation"),
-    ("leveling", "vectiq.cogs.leveling"),
-    ("economy", "vectiq.cogs.economy"),
-    ("tickets", "vectiq.cogs.tickets"),
-    ("verification", "vectiq.cogs.verification"),
-    ("roles", "vectiq.cogs.roles"),
-    ("giveaways", "vectiq.cogs.giveaways"),
-    ("games", "vectiq.cogs.games"),
-    ("welcome", "vectiq.cogs.welcome"),
-    ("onboarding", "vectiq.cogs.onboarding"),
-    ("utility", "vectiq.cogs.utility"),
-    ("webhooks", "vectiq.cogs.webhooks"),
-    ("events", "vectiq.cogs.events"),
-    ("securitycam", "vectiq.cogs.securitycam"),
-    ("dashboard", "vectiq.cogs.dashboard"),
-)
+# Every feature is a module in vectiq.modules.REGISTRY; only the ones switched on are imported.
+COGS = tuple(("core", c) for c in CORE_COGS) + tuple((m.name, c) for m in REGISTRY for c in m.cogs)
 
 
 class VectiqBot(commands.Bot):
@@ -48,14 +32,83 @@ class VectiqBot(commands.Bot):
         self.db = db
         self.stores = Stores(db)
         self._joined_file = Path(config.data_dir) / ".joined"
+        self._modules_lock = asyncio.Lock()
+        self.module_problems: dict[str, str] = {}     # module -> why it isn't running although switched on
 
     # -- lifecycle --------------------------------------------------------------------
 
     async def setup_hook(self) -> None:
-        for name, module in COGS:
-            if name == "core" or self.config.enabled(name):
-                await self.load_extension(module)
-                log.info("loaded %s", name)
+        await self.sync_modules()
+
+    async def sync_modules(self) -> dict[str, list[str]]:
+        """Load the modules that are switched on and unload the ones that are off, while running.
+
+        Returns {"loaded": [...], "unloaded": [...], "problems": [...]} with module names."""
+        async with self._modules_lock:
+            done: dict[str, list[str]] = {"loaded": [], "unloaded": [], "problems": []}
+            for cog in CORE_COGS:
+                if cog not in self.extensions:
+                    await self.load_extension(cog)
+            want: dict[str, str] = {}
+            problems: dict[str, str] = {}
+            for m in REGISTRY:
+                if not self.config.enabled(m.name):
+                    continue
+                if (missing := m.missing()):
+                    problems[m.name] = f"needs {', '.join(missing)}: {m.install_hint()}"
+                    continue
+                want.update({c: m.name for c in m.cogs})
+            for ext in [e for e in self.extensions if e.startswith("vectiq.cogs.") and e not in CORE_COGS]:
+                if ext not in want:
+                    try:
+                        await self.unload_extension(ext)
+                        done["unloaded"].append(ext.rsplit(".", 1)[1])
+                        log.info("module off: %s", ext.rsplit(".", 1)[1])
+                    except Exception as exc:  # noqa: BLE001
+                        log.error("could not unload %s: %s", ext, exc)
+            for ext, name in want.items():
+                if ext in self.extensions:
+                    continue
+                try:
+                    await self.load_extension(ext)
+                    done["loaded"].append(name)
+                    log.info("module on: %s", name)
+                except Exception as exc:  # noqa: BLE001 - one broken module must not stop the others
+                    problems[name] = f"failed to start: {exc}"
+                    log.exception("module %s failed to start", name)
+            self.module_problems = problems
+            done["problems"] = sorted(problems)
+            for name, why in problems.items():
+                log.warning("module %s is on but not running: %s", name, why)
+            return done
+
+    async def apply_settings(self) -> dict[str, list[str]]:
+        """Settings changed (config.yaml, dashboard, import, rollback): tell the modules, then switch modules."""
+        result = await self.sync_modules()
+        self.dispatch("vectiq_config_reload")
+        return result
+
+    async def set_module(self, name: str, on: bool, by: str) -> dict[str, list[str]]:
+        """Switch a module on or off from a command, kept like a dashboard change (survives restarts)."""
+        path = f"modules.{name}"
+        merged = dict(self.config.overrides)
+        if on == bool(self.config.from_file(path, False)):
+            merged.pop(path, None)
+        else:
+            merged[path] = on
+        self.config.apply_overrides(merged)
+        if path in merged:
+            await self.stores.dashboard.set_override(path, on, by)
+        else:
+            await self.stores.dashboard.clear_override(path)
+        return await self.apply_settings()
+
+    def when_ready(self, coro_fn) -> None:
+        """Run ``coro_fn()`` once the bot is ready, or now if it already is (modules can start later)."""
+        if self.is_ready():
+            asyncio.get_running_loop().create_task(coro_fn())
+        else:
+            self.add_listener(coro_fn, "on_ready")
 
     async def on_ready(self) -> None:
         log.info("ready as %s in %d communities", self.user, len(self.guilds))

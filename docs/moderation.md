@@ -2,7 +2,7 @@
 title: Moderation
 group: Community
 order: 1
-summary: Warnings that escalate, timeouts, bans that lift themselves, purge, lock, automod and a mod log.
+summary: Warnings that escalate, timeouts, bans that lift themselves, softbans, purge, lock and a mod log.
 ---
 
 Every moderation action is stored as a numbered **case**, so you can see what happened, who did it and why. Commands need the matching Vector permission, so someone who can't time people out in Vector can't do it through the bot either.
@@ -67,21 +67,7 @@ moderation:
 
 ## Automod
 
-Automod checks every message from people who don't have Manage Messages. It is off by default:
-
-```yaml
-moderation:
-  automod:
-    enabled: true
-    max_mentions: 6
-    max_caps_percent: 80
-    caps_min_length: 12
-    block_links: false
-    banned_words: [heck]
-    action: delete            # delete | warn
-```
-
-A message that breaks a rule is removed. With `action: warn`, the author also gets a warning, which counts toward the threshold above. Banned words match whole words and ignore case, so a ban on `ass` doesn't catch `class`.
+Automod is its own module now, with a switch for every rule. See [Automod](automod.md). Old `moderation.automod` settings are still read and moved there automatically.
 
 ## Commands
 

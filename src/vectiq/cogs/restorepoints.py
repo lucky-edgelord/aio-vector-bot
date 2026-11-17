@@ -81,7 +81,8 @@ class RestorePointsCog(commands.Cog, name="Restore points"):
             r = await self.points.rollback(p)
         except ValueError as exc:
             return await ctx.send(fail(f"Can't roll back: {exc}"))
-        note = " Some changes need a restart to finish." if r["restart"] else ""
+        await self.bot.apply_settings()
+        note = " Features that were switched on or off there have been switched back." if r["restart"] else ""
         await ctx.send(ok(f"Rolled back to {p.when}.{note} To undo, roll back to the newest point "
                           f"(`restorepoint rollback 1 confirm`)."))
 

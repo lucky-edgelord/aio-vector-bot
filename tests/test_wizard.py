@@ -179,3 +179,24 @@ def test_init_creates_files_once(tmp_path):
     assert [c for _, c in init(tmp_path / "bot")] == [False, False]
     assert (tmp_path / "bot" / ".env").read_text() == "VECTOR_NSEC=nsec1mine\n"
     assert main(["--config", str(tmp_path / "bot" / "config.yaml"), "--check"]) == 0
+
+
+def test_every_wizard_question_can_be_written_into_config_yaml():
+    """The terminal wizard edits config.yaml in place; every question it can ask must land in the file."""
+    import yaml
+
+    from vectiq.dashboard import schema
+    from vectiq.wizard import set_value
+
+    sample = {"bool": True, "int": 3, "number": 0.5, "text": "x", "channel": "general", "longtext": "hi",
+              "list": ["a", "b"]}
+    text = open("config.yaml").read()
+    for step in schema.WIZARD:
+        for path in step["paths"]:
+            f = schema.FIELDS[path]
+            value = f["options"][-1] if f["type"] == "enum" else sample[f["type"]]
+            new = set_value(text, path, value)
+            node = yaml.safe_load(new)
+            for part in path.split("."):
+                node = node[part]
+            assert node == value, path

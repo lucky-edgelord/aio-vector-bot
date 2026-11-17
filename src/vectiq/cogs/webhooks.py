@@ -35,9 +35,10 @@ class Webhooks(commands.Cog, name="Webhooks"):
     # -- lifecycle --------------------------------------------------------------------
 
     async def cog_load(self):
-        self.bot.add_listener(self._on_ready_once, "on_ready")
+        self.bot.when_ready(self._on_ready_once)
 
     async def cog_unload(self):
+        self.bot.remove_listener(self._on_ready_once, "on_ready")
         if self._server is not None:
             self._server.should_exit = True
 

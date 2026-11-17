@@ -1,4 +1,4 @@
-# Vectiq configuration. Edit, then restart (or run `!vectiq reload`).
+# Vectiq configuration. Edit, then run `!vectiq reload` (no restart needed, even for modules).
 # Secrets (the bot key) live in .env, never here.
 
 prefix: "!"
@@ -7,22 +7,32 @@ prefix: "!"
 communities: []
 owners: []            # npubs that can use !vectiq admin commands everywhere
 
-modules:              # switch whole features on or off
-  moderation: true
-  leveling: true
-  economy: true
-  tickets: true
+modules:              # every feature is a module: on or off. Only modules that are on are loaded.
+  # Safety                Change these live with `!module on <name>`, the dashboard or `vectiq --setup`.
+  moderation: true    # warnings, timeouts, kicks, bans, softbans, purge, lock, slowmode
+  automod: false      # removes spam, mass mentions, shouting, invites, floods, risky files (section `automod`)
+  linksafety: false   # removes links to scam/malware/adult sites using oisd.nl blocklists (section `linksafety`)
+  imageguard: false   # polices pictures: blocklist + optional nudity detector (section `imageguard`)
   verification: true
-  roles: true
-  giveaways: true
-  games: true         # WebXDC mini games
+  securitycam: false  # echo every message from every channel into one staff channel
+  # Members
   welcome: true
   onboarding: true    # welcome -> verify -> pick roles, tracked per member
-  utility: true
-  webhooks: true
+  roles: true
+  tickets: true
+  # Community
   events: true        # event calendar with RSVPs and reminders
-  securitycam: false  # echo every message from every channel into one staff channel
-  dashboard: false    # the web dashboard
+  notifications: false # YouTube uploads, Twitch go-lives, RSS posts (section `notifications`)
+  utility: true
+  # Fun
+  leveling: true
+  economy: true
+  giveaways: true
+  games: true         # WebXDC mini games
+  music: false        # music in voice channels (needs: pip install "vectiq[music]" and ffmpeg)
+  # Integrations
+  webhooks: true
+  dashboard: false    # the web dashboard (needs: pip install "vectiq[dashboard]")
 
 
 backup:
@@ -58,14 +68,123 @@ moderation:
   warn_action: timeout        # timeout | kick | ban | none
   warn_action_minutes: 60     # how long the timeout lasts when warn_action is timeout
   log_channel: ""             # channel name or id for the mod log (blank = none)
-  automod:
-    enabled: false            # check every message from people without Manage Messages
-    max_mentions: 6           # more mentions than this in one message breaks the rule
-    max_caps_percent: 80      # this share of capital letters or more breaks the rule
-    caps_min_length: 12       # only check capitals in messages with at least this many letters
-    block_links: false        # messages containing links break the rule
-    banned_words: []          # whole words that break the rule (not case sensitive)
-    action: delete            # delete: remove the message | warn: remove it and add a warning
+
+# --- Automod (modules.automod) -------------------------------------------------------------------
+# Staff (Manage Messages) are never checked. Every rule has its own switch and may set its own action.
+automod:
+  action: delete              # delete | warn (also a warning) | timeout (also a mute) | log (only tell the mod log)
+  timeout_minutes: 10         # mute length for action: timeout
+  exempt_roles: []            # roles automod skips
+  exempt_channels: []         # channels automod skips
+  mentions:                   # more mentions than `max` in one message
+    enabled: true
+    max: 6
+  caps:                       # shouting: this share of capitals in a message this long
+    enabled: true
+    percent: 80
+    min_length: 12
+  words:                      # banned words; partial: also inside other words
+    enabled: false
+    list: []
+    partial: false
+  invites:                    # Vector, Discord, Telegram, WhatsApp, Signal, Matrix invites
+    enabled: true
+    allow: []
+    extra: []
+  links:                      # remove every link except these domains
+    enabled: false
+    allow: []
+  flood:                      # more than `messages` in `seconds`
+    enabled: true
+    messages: 6
+    seconds: 8
+  duplicates:                 # the same message more than `repeats` times
+    enabled: true
+    repeats: 3
+    seconds: 60
+  files:                      # attachments with these extensions
+    enabled: true
+    block: [exe, scr, bat, cmd, com, msi, vbs, js, jar, ps1, lnk, apk, dll, hta, reg]
+  zalgo:                      # glitchy text stacked with combining marks
+    enabled: false
+    max_marks: 10
+
+# --- Link safety (modules.linksafety) -------------------------------------------------------------
+linksafety:
+  lists:                      # domain blocklists, downloaded and cached in data/linksafety
+    - https://big.oisd.nl/domainswild2      # oisd big: scams, malware, phishing, ads, tracking (~230k sites)
+  nsfw: false                 # also block adult sites (adds https://nsfw.oisd.nl/domainswild2)
+  refresh_hours: 24           # download the lists again this often
+  allow: []                   # domains always allowed (subdomains included)
+  block: []                   # domains always blocked
+  action: delete              # delete | warn | timeout | log
+  timeout_minutes: 10
+  exempt_roles: []
+  exempt_channels: []
+  safe_browsing_key_env: ""   # optional: name of the .env variable with a Google Safe Browsing API key
+
+# --- Image guard (modules.imageguard) -------------------------------------------------------------
+imageguard:
+  detector: "off"             # off | nudenet | nsfw-detector | sightengine | http (see the image guard guide)
+  threshold: 0.7              # remove at this score or above (0-1, lower = stricter)
+  action: delete              # delete | warn | timeout | log
+  timeout_minutes: 10
+  blocklist: true             # remove pictures blocked with !imageguard block
+  match_distance: 6           # how close counts as the same picture (0 = identical; 6 catches resized copies)
+  remember: true              # add pictures the detector removed to the blocklist
+  max_mb: 15                  # skip bigger pictures
+  allow_channels: []          # channels where pictures aren't checked (e.g. an adults-only channel)
+  exempt_roles: []
+  exempt_channels: []
+  nsfw_detector:              # detector: nsfw-detector (pip install "vectiq[nsfw-detector]")
+    model_path: ""            # the downloaded Keras .h5 model from github.com/GantMan/nsfw_model
+    count_sexy: false         # also count "sexy" (suggestive) as unsafe
+  sightengine:                # detector: sightengine; keys go in .env
+    user_env: SIGHTENGINE_USER
+    secret_env: SIGHTENGINE_SECRET
+    models: nudity-2.1
+    strict: false             # also count "very suggestive"
+  http:                       # detector: http; your API gets the picture as multipart "media"
+    url: ""
+    score_field: score        # where the 0-1 score is in the JSON answer, e.g. result.nsfw
+    header: ""                # optional auth header name, e.g. Authorization
+    header_env: ""            # .env variable holding its value
+
+# --- Music (modules.music; needs pip install "vectiq[music]" and ffmpeg) ----------------------
+music:
+  dj_role: DJ                 # who controls the player (skip without voting, volume, loop...). Blank = everyone.
+                              # Staff with Manage Channels and anyone alone with the bot are always DJs.
+  default_volume: 80          # percent
+  max_volume: 150
+  max_queue: 500
+  max_track_minutes: 0        # longest song allowed (0 = no limit)
+  vote_skip_ratio: 0.5        # share of listeners needed to vote-skip
+  leave_when_alone_seconds: 60
+  leave_when_idle_seconds: 300
+  stay_247: false             # stay in the channel by default (24/7 mode); `247` toggles it
+  announce: true              # post "Now playing" in the chat
+  search: ytsearch            # ytsearch (YouTube) | ytmsearch (YouTube Music) | scsearch (SoundCloud)
+  allow_playlists: true
+  max_playlist: 100           # most songs taken from one playlist
+  ffmpeg: ffmpeg              # the ffmpeg program
+
+# --- Stream & video alerts (modules.notifications) ----------------------------------------------
+notifications:
+  channel: announcements      # default channel for alerts
+  check_minutes: 5            # how often to look for new posts
+  max_per_check: 3            # most posts per feed each time (stops a flood after downtime)
+  messages: {}                # override the text per type: youtube / twitch / rss; {title} {url} {author}
+  twitch:                     # Twitch needs an app from dev.twitch.tv; put its id and secret in .env
+    client_id_env: TWITCH_CLIENT_ID
+    client_secret_env: TWITCH_CLIENT_SECRET
+  feeds: []                   # alerts declared here (more can be added with !notify add)
+  # feeds:
+  #   - type: youtube         # youtube | twitch | rss
+  #     source: "@LinusTechTips"   # channel link, @handle or id; Twitch name; or a feed link
+  #     channel: videos       # channel name or id (blank = the default above)
+  #     community: ""         # blank = every community the bot serves
+  #     role: ""              # role to mention
+  #     message: ""           # custom text for this feed
 
 leveling:
   xp_min: 15                  # each rewarded message gives a random amount of XP between xp_min and xp_max

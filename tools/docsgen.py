@@ -22,7 +22,8 @@ AREAS = {
     "Tickets": "Tickets", "Verification": "Verification", "RoleMenus": "Role menus", "Roles": "Role menus",
     "Giveaways": "Giveaways", "Games": "Games", "Welcome": "Welcome", "Onboarding": "Onboarding",
     "Utility": "Utility", "Webhooks": "Webhooks", "Events": "Events", "SecurityCam": "Security cam",
-    "Dashboard": "Dashboard", "Restore points": "Restore points",
+    "Dashboard": "Dashboard", "Restore points": "Restore points", "Automod": "Automod", "LinkSafety": "Link safety",
+    "ImageGuard": "Image guard", "Notifications": "Stream & video alerts", "Music": "Music",
 }
 PERMS = {
     "manage_messages": "Manage Messages", "manage_guild": "Manage Community", "manage_roles": "Manage Roles",
@@ -158,12 +159,13 @@ FALLBACK = {
 
 
 def module_help() -> dict[str, str]:
-    """One-line module descriptions, read from the dashboard schema (the same words the Settings page uses)."""
-    tree = ast.parse((ROOT / "src" / "vectiq" / "dashboard" / "schema.py").read_text())
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "MODULE_HELP" for t in node.targets):
-            return ast.literal_eval(node.value)
-    return {}
+    """One-line module descriptions, from the module registry (the same words the Settings page uses)."""
+    import sys
+
+    sys.path.insert(0, str(ROOT / "src"))
+    from vectiq import modules
+
+    return {m.name: m.help + (f" (needs `{m.install_hint()}`)" if m.imports else "") for m in modules.REGISTRY}
 
 
 def config_reference() -> dict[str, list[dict]]:

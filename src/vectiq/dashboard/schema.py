@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from .. import modules
 from ..config import MODULES
 
-# type: bool | int | text | channel | longtext | enum | list | emoji_map
+# type: bool | int | number | text | channel | longtext | enum | list | emoji_map
 # (channel is text, matched loosely; the dashboard offers the community's channels to pick from)
 F = dict[str, Any]
 
@@ -21,25 +22,10 @@ def field(path: str, label: str, kind: str, help: str = "", *, options: tuple = 
             "min": minimum, "max": maximum}
 
 
-MODULE_LABEL = {"roles": "Role menus", "securitycam": "Security cam", "games": "Mini games", "events": "Event calendar"}
-
-MODULE_HELP = {
-    "moderation": "Warnings, timeouts, kicks, bans, purge, lock, slowmode, automod",
-    "leveling": "XP for chatting, levels, rank cards, role rewards",
-    "economy": "Coins, daily and work rewards, shop",
-    "tickets": "Private support channels",
-    "verification": "New members pass a question, a reaction or a CAPTCHA before they can talk",
-    "roles": "Reaction role menus",
-    "giveaways": "Timed giveaways with reactions",
-    "games": "WebXDC mini games refereed by the bot",
-    "welcome": "Join and leave messages",
-    "onboarding": "Welcome → verify → pick roles",
-    "utility": "Polls, reminders, analytics and other tools",
-    "webhooks": "Webhooks declared in config.yaml",
-    "events": "Event calendar with RSVPs, reminders and repeats",
-    "securitycam": "Echo every message from every channel into one staff channel",
-    "dashboard": "This web dashboard",
-}
+MODULE_LABEL = {m.name: m.label for m in modules.REGISTRY}
+MODULE_HELP = {m.name: m.help + (f" (needs {m.install_hint()})" if m.extra and m.imports else "")
+               for m in modules.REGISTRY}
+ACTIONS = ("delete", "warn", "timeout", "log")
 
 GROUPS: list[dict[str, Any]] = [
     {"id": "general", "title": "General", "fields": [
@@ -50,8 +36,8 @@ GROUPS: list[dict[str, Any]] = [
               "settings and manage webhooks."),
     ]},
     {"id": "modules", "title": "Modules", "fields": [
-        field(f"modules.{m}", MODULE_LABEL.get(m, m.capitalize()), "bool", MODULE_HELP.get(m, ""), restart=True)
-        for m in MODULES
+        field(f"modules.{m}", MODULE_LABEL.get(m, m.capitalize()), "bool", MODULE_HELP.get(m, ""))
+        | {"group": modules.BY_NAME[m].group} for m in MODULES
     ]},
     {"id": "moderation", "title": "Moderation", "fields": [
         field("moderation.log_channel", "Mod log channel", "channel", "Channel name or id (blank = none)"),
@@ -91,13 +77,81 @@ GROUPS: list[dict[str, Any]] = [
         field("securitycam.ignore_channels", "Channels to skip", "list", "Names or ids, one per line"),
     ]},
     {"id": "automod", "title": "Automod", "fields": [
-        field("moderation.automod.enabled", "Automod on", "bool"),
-        field("moderation.automod.action", "What to do", "enum", options=("delete", "warn")),
-        field("moderation.automod.banned_words", "Banned words", "list", "One per line"),
-        field("moderation.automod.block_links", "Block links", "bool"),
-        field("moderation.automod.max_mentions", "Most mentions per message", "int", minimum=1, maximum=100),
-        field("moderation.automod.max_caps_percent", "Most capital letters (%)", "int", minimum=1, maximum=100),
-        field("moderation.automod.caps_min_length", "Check caps from length", "int", minimum=1, maximum=2000),
+        field("automod.action", "What to do", "enum", "delete removes it; warn also adds a warning; timeout also "
+              "mutes; log only tells the mod log", options=ACTIONS),
+        field("automod.timeout_minutes", "Timeout length (minutes)", "int", minimum=1, maximum=40320),
+        field("automod.mentions.enabled", "Mass mentions", "bool"),
+        field("automod.mentions.max", "Most mentions per message", "int", minimum=1, maximum=100),
+        field("automod.caps.enabled", "Shouting (capital letters)", "bool"),
+        field("automod.caps.percent", "Most capital letters (%)", "int", minimum=1, maximum=100),
+        field("automod.caps.min_length", "Check capitals from length", "int", minimum=1, maximum=2000),
+        field("automod.words.enabled", "Banned words", "bool"),
+        field("automod.words.list", "Word list", "list", "One per line, not case sensitive"),
+        field("automod.words.partial", "Match inside words too", "bool"),
+        field("automod.invites.enabled", "Invite links", "bool", "Vector, Discord, Telegram, WhatsApp, Signal and "
+              "Matrix invites"),
+        field("automod.invites.allow", "Allowed invites", "list", "Links (or parts) that may be posted"),
+        field("automod.links.enabled", "All links", "bool", "Remove every link except allowed sites"),
+        field("automod.links.allow", "Allowed sites", "list", "Domains, one per line; subdomains included"),
+        field("automod.flood.enabled", "Message floods", "bool"),
+        field("automod.flood.messages", "Most messages…", "int", minimum=2, maximum=100),
+        field("automod.flood.seconds", "…in this many seconds", "int", minimum=1, maximum=600),
+        field("automod.duplicates.enabled", "Repeated messages", "bool"),
+        field("automod.duplicates.repeats", "Most repeats", "int", minimum=1, maximum=50),
+        field("automod.files.enabled", "Risky files", "bool"),
+        field("automod.files.block", "Blocked file types", "list", "Extensions, one per line"),
+        field("automod.zalgo.enabled", "Glitch (zalgo) text", "bool"),
+        field("automod.exempt_roles", "Roles automod skips", "list", "Staff with Manage Messages are always skipped"),
+        field("automod.exempt_channels", "Channels automod skips", "list"),
+    ]},
+    {"id": "linksafety", "title": "Link safety", "fields": [
+        field("linksafety.lists", "Blocklists", "list", "Links to domain lists, one per line. The default oisd "
+              "big list covers scams, malware, phishing, ads and tracking."),
+        field("linksafety.nsfw", "Also block adult sites", "bool", "Adds the oisd NSFW list"),
+        field("linksafety.allow", "Always allow", "list", "Domains, one per line"),
+        field("linksafety.block", "Always block", "list", "Domains, one per line"),
+        field("linksafety.action", "What to do", "enum", options=ACTIONS),
+        field("linksafety.refresh_hours", "Download lists every (hours)", "int", minimum=1, maximum=720),
+        field("linksafety.safe_browsing_key_env", "Google Safe Browsing key variable", "text",
+              "Optional: name of the .env variable with an API key"),
+        field("linksafety.exempt_roles", "Roles that are skipped", "list"),
+        field("linksafety.exempt_channels", "Channels that are skipped", "list"),
+    ]},
+    {"id": "imageguard", "title": "Image guard", "fields": [
+        field("imageguard.detector", "Nudity detector", "enum", "off = only the blocklist of known pictures",
+              options=("off", "nudenet", "nsfw-detector", "sightengine", "http")),
+        field("imageguard.threshold", "Remove at score", "number", "0 to 1. Lower is stricter.", minimum=0, maximum=1),
+        field("imageguard.action", "What to do", "enum", options=ACTIONS),
+        field("imageguard.blocklist", "Blocklist of known pictures", "bool"),
+        field("imageguard.match_distance", "How close counts as the same picture", "int", "0 = identical only; "
+              "6 catches resized and re-saved copies", minimum=0, maximum=20),
+        field("imageguard.remember", "Remember pictures the detector removed", "bool"),
+        field("imageguard.allow_channels", "Channels where anything goes", "list", "e.g. an adults-only channel"),
+        field("imageguard.nsfw_detector.model_path", "nsfw-detector model file", "text", "Path to the downloaded "
+              ".h5 model"),
+        field("imageguard.http.url", "Web API address", "text", "For the http detector"),
+        field("imageguard.http.score_field", "Score field in the answer", "text", "e.g. score or result.nsfw"),
+        field("imageguard.exempt_roles", "Roles that are skipped", "list"),
+    ]},
+    {"id": "music", "title": "Music", "fields": [
+        field("music.dj_role", "DJ role", "text", "Who controls the player. Blank = everyone."),
+        field("music.default_volume", "Starting volume (%)", "int", minimum=0, maximum=200),
+        field("music.max_volume", "Highest volume (%)", "int", minimum=1, maximum=200),
+        field("music.vote_skip_ratio", "Share of listeners to vote-skip", "number", minimum=0.05, maximum=1),
+        field("music.max_queue", "Longest queue", "int", minimum=1, maximum=5000),
+        field("music.max_track_minutes", "Longest song (minutes)", "int", "0 = no limit", minimum=0, maximum=1440),
+        field("music.search", "Search on", "enum", options=("ytsearch", "ytmsearch", "scsearch")),
+        field("music.allow_playlists", "Allow playlists", "bool"),
+        field("music.max_playlist", "Most songs from a playlist", "int", minimum=1, maximum=1000),
+        field("music.leave_when_alone_seconds", "Leave when alone after (seconds)", "int", minimum=5, maximum=86400),
+        field("music.leave_when_idle_seconds", "Leave when idle after (seconds)", "int", minimum=5, maximum=86400),
+        field("music.stay_247", "24/7 by default", "bool"),
+        field("music.announce", "Post \"Now playing\"", "bool"),
+    ]},
+    {"id": "notifications", "title": "Stream & video alerts", "fields": [
+        field("notifications.channel", "Default channel", "channel", "Where alerts go unless a feed says otherwise"),
+        field("notifications.check_minutes", "Check every (minutes)", "int", minimum=2, maximum=1440),
+        field("notifications.max_per_check", "Most posts per feed per check", "int", minimum=1, maximum=20),
     ]},
     {"id": "leveling", "title": "Leveling", "fields": [
         field("leveling.cards", "Image rank cards", "bool"),
@@ -213,7 +267,7 @@ WIZARD: list[dict[str, Any]] = [
      "the default. Names match loosely, so \"mod-log\" finds \"🛡┊mod-log\".",
      "paths": ["moderation.log_channel", "verification.channel", "verification.log_channel", "welcome.channel",
                "welcome.leave_channel", "onboarding.channel", "onboarding.log_channel", "events.channel",
-               "leveling.announce_channel", "tickets.log_channel", "securitycam.channel"]},
+               "leveling.announce_channel", "tickets.log_channel", "securitycam.channel", "notifications.channel"]},
     {"id": "verification", "title": "Verification", "say": "Let's keep the bots out. I'll check new members are "
      "human before they can join in.", "when": {"modules.verification": [True]},
      "paths": ["verification.mode", "verification.role", "verification.gate", "verification.spam_kick",
@@ -226,8 +280,22 @@ WIZARD: list[dict[str, Any]] = [
                "verification.device_check", "verification.on_duplicate"]},
     {"id": "moderation", "title": "Moderation", "say": "When someone breaks the rules, how firm should I be?",
      "when": {"modules.moderation": [True]},
-     "paths": ["moderation.warn_threshold", "moderation.warn_action", "verification.softban_escalate",
-               "moderation.automod.enabled", "moderation.automod.block_links"]},
+     "paths": ["moderation.warn_threshold", "moderation.warn_action", "verification.softban_escalate"]},
+    {"id": "automod", "title": "Automod", "say": "Automod removes trouble the moment it's posted. Each rule has its "
+     "own switch.", "when": {"modules.automod": [True]},
+     "paths": ["automod.action", "automod.mentions.enabled", "automod.caps.enabled", "automod.invites.enabled",
+               "automod.flood.enabled", "automod.duplicates.enabled", "automod.files.enabled", "automod.links.enabled",
+               "automod.words.enabled", "automod.words.list"]},
+    {"id": "linksafety", "title": "Link safety", "say": "I'll check links against big public blocklists and remove "
+     "the dangerous ones.", "when": {"modules.linksafety": [True]},
+     "paths": ["linksafety.nsfw", "linksafety.action", "linksafety.allow"]},
+    {"id": "imageguard", "title": "Image guard", "say": "Now pictures. I can remove pictures you've blocked, and "
+     "with a detector I can spot nudity too.", "when": {"modules.imageguard": [True]},
+     "paths": ["imageguard.detector", "imageguard.threshold", "imageguard.nsfw_detector.model_path",
+               "imageguard.http.url", "imageguard.action", "imageguard.allow_channels"]},
+    {"id": "music", "title": "Music", "say": "Music! Who gets to control the player?",
+     "when": {"modules.music": [True]},
+     "paths": ["music.dj_role", "music.default_volume", "music.search", "music.stay_247"]},
     {"id": "welcome", "title": "New members", "say": "Last one: what should new members see when they arrive?",
      "when": {"modules.welcome": [True]},
      "paths": ["welcome.message", "welcome.leave_message", "onboarding.steps", "onboarding.required"]},
@@ -270,8 +338,31 @@ WIZARD_ASK: dict[str, str] = {
     "moderation.warn_action": "And then what should I do?",
     "verification.softban_escalate": "If a softbanned member keeps coming back, after how many returns should it "
                                      "become a real ban? (0 means never)",
-    "moderation.automod.enabled": "Should I watch for spam, mass mentions and shouting on my own?",
-    "moderation.automod.block_links": "Should I remove links from members who aren't staff?",
+    "notifications.channel": "Where should YouTube, Twitch and RSS alerts go?",
+    "music.dj_role": "Which role can skip, loop and change the volume without a vote? Leave it empty to let everyone.",
+    "music.default_volume": "How loud should I start, in percent?",
+    "music.search": "Where should I search when someone types a song name?",
+    "music.stay_247": "Should I stay in the voice channel even when nobody's listening?",
+    "automod.action": "When a rule is broken, what should I do?",
+    "automod.mentions.enabled": "Remove messages that mention lots of people at once?",
+    "automod.caps.enabled": "Remove shouting (mostly capital letters)?",
+    "automod.invites.enabled": "Remove invite links to other communities and chats?",
+    "automod.flood.enabled": "Remove floods: lots of messages in a few seconds?",
+    "automod.duplicates.enabled": "Remove the same message posted again and again?",
+    "automod.files.enabled": "Remove risky files like .exe and .bat?",
+    "automod.links.enabled": "Remove every link except sites you allow? (Most communities say no and use link "
+                             "safety instead.)",
+    "automod.words.enabled": "Do you want a list of banned words?",
+    "automod.words.list": "Which words? Separate them with commas.",
+    "linksafety.nsfw": "Should I also block adult sites?",
+    "linksafety.action": "When someone posts a dangerous link, what should I do?",
+    "linksafety.allow": "Any sites I should always allow, even if a list says otherwise?",
+    "imageguard.detector": "Should I look for nudity in pictures? Pick a detector, or off.",
+    "imageguard.threshold": "How sure should I be before removing a picture? 0.7 is a good start; lower is stricter.",
+    "imageguard.nsfw_detector.model_path": "Where is the nsfw-detector model file you downloaded?",
+    "imageguard.http.url": "What's the address of your image-checking API?",
+    "imageguard.action": "When I remove a picture, what else should I do?",
+    "imageguard.allow_channels": "Any channels where pictures shouldn't be checked (like an adults-only one)?",
     "welcome.message": "What should I say when someone joins? You can use {mention}, {name}, {community} and {count}.",
     "welcome.leave_message": "And when someone leaves? Leave it empty to say nothing.",
     "onboarding.steps": "What should new members go through, in order? verify, pick_roles, or both.",
@@ -300,7 +391,11 @@ WIZARD_WHEN: dict[str, dict[str, list]] = {
     "securitycam.channel": {"modules.securitycam": [True]},
     "verification.spam_kick": {"verification.gate": ["channel", "all"]},
     "verification.on_duplicate": {"verification.device_check": [True]},
-    "moderation.automod.block_links": {"moderation.automod.enabled": [True]},
+    "notifications.channel": {"modules.notifications": [True]},
+    "automod.words.list": {"automod.words.enabled": [True]},
+    "imageguard.threshold": {"imageguard.detector": ["nudenet", "nsfw-detector", "sightengine", "http"]},
+    "imageguard.nsfw_detector.model_path": {"imageguard.detector": ["nsfw-detector"]},
+    "imageguard.http.url": {"imageguard.detector": ["http"]},
 }
 
 # Plain explanations for each choice, shown next to the options in both wizards.
@@ -319,6 +414,27 @@ OPTION_HELP: dict[str, dict[str, str]] = {
         "refuse": "Say no and let staff decide. Safest: families and shared Wi-Fi look like one device.",
         "kick": "Remove the second account. It can rejoin.",
         "softban": "Remove it and keep removing it if it comes back.",
+    },
+    "automod.action": {
+        "delete": "Remove it and say why.", "warn": "Remove it and add a warning.",
+        "timeout": "Remove it, warn and mute them for a while.", "log": "Leave it, just tell the mod log. Good for trying out.",
+    },
+    "linksafety.action": {
+        "delete": "Remove it and say why.", "warn": "Remove it and add a warning.",
+        "timeout": "Remove it, warn and mute them for a while.", "log": "Leave it, just tell the mod log.",
+    },
+    "imageguard.action": {
+        "delete": "Remove it and say why.", "warn": "Remove it and add a warning.",
+        "timeout": "Remove it, warn and mute them for a while.", "log": "Leave it, just tell the mod log.",
+    },
+    "music.search": {"ytsearch": "YouTube.", "ytmsearch": "YouTube Music: better for songs.",
+                     "scsearch": "SoundCloud."},
+    "imageguard.detector": {
+        "off": "Only pictures you've blocked with !imageguard block. Nothing to install.",
+        "nudenet": "NudeNet, on this computer. Private and free; pip install \"vectiq[nudenet]\".",
+        "nsfw-detector": "GantMan's model on this computer. Needs TensorFlow and a model download.",
+        "sightengine": "Sightengine's web API. Accurate; needs an account and keys in .env.",
+        "http": "Your own web API that answers with a score.",
     },
     "moderation.warn_action": {
         "timeout": "Mute them for a while.", "kick": "Remove them; they can rejoin.",
@@ -352,6 +468,16 @@ def coerce(path: str, value: Any) -> Any:
         if not isinstance(value, bool):
             raise FieldError(f"{label}: must be on or off")
         return value
+    if kind == "number":
+        try:
+            x = float(value)
+        except (TypeError, ValueError):
+            raise FieldError(f"{label}: must be a number") from None
+        if f["min"] is not None and x < f["min"]:
+            raise FieldError(f"{label}: at least {f['min']}")
+        if f["max"] is not None and x > f["max"]:
+            raise FieldError(f"{label}: at most {f['max']}")
+        return x
     if kind == "int":
         try:
             n = int(value)

@@ -78,9 +78,10 @@ class Verification(commands.Cog, name="Verification"):
     async def cog_load(self):
         self.prune_loop.start()
         if self.mode == "captcha" and not self.cfg.get("modules.dashboard"):
-            self.bot.add_listener(self._serve_alone, "on_ready")
+            self.bot.when_ready(self._serve_alone)
 
     async def cog_unload(self):
+        self.bot.remove_listener(self._serve_alone, "on_ready")
         self.prune_loop.cancel()
         if self._server is not None:
             self._server.should_exit = True

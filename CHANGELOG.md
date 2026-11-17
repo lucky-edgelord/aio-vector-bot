@@ -1,6 +1,25 @@
 # Changelog
 
 ## Unreleased
+- Everything is a module: one registry of every feature, grouped (Safety, Members, Community, Fun, Integrations).
+  Only modules that are on are imported. Switching one on or off applies live, with no restart, from `!module on|off`,
+  `!modules`, the dashboard, both setup wizards, settings import, rollback or `!vectiq reload`. A module whose
+  optional package is missing stays off and says what to install. New pip extras: `music`, `nudenet`,
+  `nsfw-detector`, `all`.
+- Automod is its own module with a switch per rule: mentions, caps, words, invites (Vector, Discord, Telegram,
+  WhatsApp, Signal, Matrix), links, floods, duplicates, risky files, zalgo; actions delete, warn, timeout or log;
+  exempt roles and channels. Old `moderation.automod` settings are upgraded automatically.
+- Link safety: links checked against oisd.nl blocklists (big by default, NSFW optional, any domain list), cached
+  and refreshed, with allow/block lists and optional Google Safe Browsing. `!linksafety check|update`.
+- Image guard: a per-community blocklist of pictures matched by perceptual hash (`!imageguard block|unblock|list|test`)
+  and optional nudity detection with NudeNet, nsfw-detector, Sightengine or your own HTTP API, loaded lazily.
+- Stream & video alerts: YouTube uploads (no key), Twitch go-lives (Helix) and RSS/Atom feeds, from config.yaml or
+  `!notify add|remove|check`, remembering what was already posted.
+- Music: voice playback through yt-dlp and a streaming ffmpeg source; play (search, links, playlists), search,
+  playnext, queue, nowplaying, skip with vote-skip, forceskip, skipto, back, replay, seek, pause/resume, loop,
+  shuffle, move, remove, clearqueue, removedupes, leavecleanup, volume, filters, 24/7, a DJ role and auto-leave.
+  `play` is shared with mini games (`!play tictactoe` still works; the games command is also `!game`).
+- Docker image: ffmpeg included and an `EXTRAS` build argument.
 - Installers for every system: `install.sh` now also supports Linux (apt, dnf, pacman, zypper, apk; systemd user service), `install.ps1` for Windows (winget, scheduled task), with matching `uninstall` and `run.ps1` scripts.
 - pip install: `pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"`, `vectiq --init` (writes config.yaml and .env), `vectiq --version`, the example files bundled in the package, and `--setup` creating a missing config.yaml.
 - Docker: a `Dockerfile` and `docker-compose.yml` (settings in `docker-config/`, data in `docker-data/`), a CI image build, `VECTIQ_DASHBOARD_HOST`, and a Docker guide.

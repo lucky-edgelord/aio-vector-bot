@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import re
 import time
 from collections import defaultdict
 
@@ -12,11 +11,9 @@ from ..utils.durations import DurationError, format_duration, parse_duration
 from ..utils.embeds import embed, fail, name_of, ok, short, table
 from ..utils.softban import is_staff, kick_on_sight, softban
 
-LINK = re.compile(r"https?://|www\.", re.IGNORECASE)
-
 
 class Moderation(commands.Cog, name="Moderation"):
-    """Warnings, timeouts, kicks, bans, cleanup, slowmode and a light automod."""
+    """Warnings, timeouts, kicks, bans, cleanup and slowmode. (Automod is its own module.)"""
 
     def __init__(self, bot):
         self.bot = bot
@@ -297,7 +294,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.bot.stores.settings.unset(str(ctx.guild.id), f"slowmode:{ctx.channel.id}")
             await ctx.send(ok("Slowmode is off."))
 
-    # -- listeners: slowmode + automod ------------------------------------------------
+    # -- listeners: softbans + slowmode ------------------------------------------------
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -324,40 +321,12 @@ class Moderation(commands.Cog, name="Moderation"):
             if now - self._last_post[key] < delay:
                 return await self._hide(message)
             self._last_post[key] = now
-        reason = self.automod_reason(message.content or "")
-        if reason:
-            await self._hide(message)
-            if self.cfg.get("moderation.automod.action") == "warn":
-                case = await self.store.add(gid, str(message.author.id), str(self.bot.user.id), "warn",
-                                            f"automod: {reason}")
-                await message.channel.send(f"⚠️ {name_of(message.author)}: {reason} (warning, case #{case.id})")
-            else:
-                await message.channel.send(f"🧹 {name_of(message.author)}: {reason}")
 
     async def _hide(self, message):
         try:
             await message.delete()
         except Exception:  # noqa: BLE001 - missing permission must not break other listeners
             pass
-
-    def automod_reason(self, text: str) -> str | None:
-        """Pure rule check (testable): the first rule the text breaks, or None."""
-        a = self.cfg.get("moderation.automod", {})
-        if not a.get("enabled"):
-            return None
-        if text.count("nostr:") + text.count("@") > a["max_mentions"]:
-            return "too many mentions"
-        letters = [c for c in text if c.isalpha()]
-        if len(letters) >= a["caps_min_length"] and \
-                100 * sum(c.isupper() for c in letters) / len(letters) >= a["max_caps_percent"]:
-            return "too many capital letters"
-        if a.get("block_links") and LINK.search(text):
-            return "links are not allowed here"
-        lowered = text.lower()
-        for word in a.get("banned_words", []):
-            if re.search(rf"\b{re.escape(str(word).lower())}\b", lowered):
-                return "that word is not allowed"
-        return None
 
 
 async def setup(bot):
