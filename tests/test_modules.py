@@ -67,9 +67,10 @@ def test_modules_that_are_off_are_never_imported(tmp_path):
         "    await bot.sync_modules()\n"
         "    bad = [m for m in ('vectiq.cogs.music', 'vectiq.cogs.imageguard', 'vectiq.cogs.dashboard', 'yt_dlp',"
         " 'fastapi', 'vectiq.cogs.linksafety') if m in sys.modules]\n"
-        "    print(bad)\n"
-        "asyncio.run(main())\n")
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+        "    print(bad, flush=True)\n"
+        "asyncio.run(main())\n"
+        "import os; os._exit(0)\n")   # skip interpreter shutdown: the SDK's native threads can stall it
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True, timeout=90).stdout
     assert out.strip().splitlines()[-1] == "[]"
 
 
