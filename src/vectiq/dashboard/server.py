@@ -727,6 +727,111 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         await audit(npub, "gave role" if add else "removed role", f"{role.name} {uid}", g)
         return {"ok": True, "message": f"{'Gave' if add else 'Removed'} {role.name}."}
 
+    # -- channels, categories, roles and permissions (the shared vectiq.manage layer) -------------------
+
+    from ..manage import ManageError, Manager, explain
+
+    manager = Manager(bot)
+
+    async def manage(g: Any, npub: str, what: str, coro, detail: str = ""):
+        try:
+            out = await coro
+        except ManageError as exc:
+            fail(400, str(exc))
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001 - usually a missing permission on Vector's side
+            fail(502, f"Couldn't {what}: {explain(exc)}")
+        await audit(npub, what, detail[:480], g)
+        return out
+
+    @app.get("/api/c/{gid}/structure")
+    async def structure(gid: str, npub: str = Depends(current)):
+        return manager.structure(community(gid, npub))
+
+    @app.post("/api/c/{gid}/channels")
+    async def channel_new(gid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        ch = await manage(g, npub, "created channel", manager.create_channel(
+            g, d.get("name", ""), d.get("kind", "text"), d.get("category", ""), d.get("topic", ""),
+            bool(d.get("private"))), str(d.get("name")))
+        return {"ok": True, "message": f"Created #{ch['name']}.", "channel": ch}
+
+    @app.patch("/api/c/{gid}/channels/{cid}")
+    async def channel_edit(gid: str, cid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        ch = await manage(g, npub, "edited channel", manager.edit_channel(
+            g, cid, name=d.get("name"), topic=d.get("topic"), category=d.get("category"), private=d.get("private"),
+            read_only=d.get("read_only"), position=d.get("position")), cid)
+        return {"ok": True, "message": f"Saved #{ch['name']}.", "channel": ch}
+
+    @app.delete("/api/c/{gid}/channels/{cid}")
+    async def channel_delete(gid: str, cid: str, npub: str = Depends(current)):
+        g = community(gid, npub)
+        name = await manage(g, npub, "deleted channel", manager.delete_channel(g, cid), cid)
+        return {"ok": True, "message": f"Deleted #{name}."}
+
+    @app.post("/api/c/{gid}/categories")
+    async def category_new(gid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        c = await manage(g, npub, "created category", manager.create_category(g, d.get("name", "")), str(d.get("name")))
+        return {"ok": True, "message": f"Created {c['name']}.", "category": c}
+
+    @app.patch("/api/c/{gid}/categories/{cid}")
+    async def category_edit(gid: str, cid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        c = await manage(g, npub, "renamed category", manager.rename_category(g, cid, d.get("name", "")), cid)
+        return {"ok": True, "message": f"Renamed to {c['name']}."}
+
+    @app.delete("/api/c/{gid}/categories/{cid}")
+    async def category_delete(gid: str, cid: str, npub: str = Depends(current)):
+        g = community(gid, npub)
+        name = await manage(g, npub, "deleted category", manager.delete_category(g, cid), cid)
+        return {"ok": True, "message": f"Deleted {name}. Its channels moved out of it."}
+
+    @app.put("/api/c/{gid}/overwrites")
+    async def overwrite_set(gid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        r = await manage(g, npub, "changed permissions", manager.set_overwrite(
+            g, str(d.get("where", "")), str(d.get("target", "")), d.get("allow") or [], d.get("deny") or []),
+            f"{d.get('where')} {d.get('target')}")
+        cleared = not r["allow"] and not r["deny"]
+        return {"ok": True, "message": f"{'Reset' if cleared else 'Saved'} {r['target']} in {r['where']}."}
+
+    @app.post("/api/c/{gid}/roles")
+    async def role_new(gid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        r = await manage(g, npub, "created role", manager.create_role(
+            g, d.get("name", ""), permissions=d.get("permissions") or [], colour_hex=d.get("colour", ""),
+            hoist=bool(d.get("hoist")), mentionable=bool(d.get("mentionable"))), str(d.get("name")))
+        return {"ok": True, "message": f"Created {r['name']}.", "role": r}
+
+    @app.patch("/api/c/{gid}/roles/{rid}")
+    async def role_edit(gid: str, rid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        r = await manage(g, npub, "edited role", manager.edit_role(
+            g, rid, name=d.get("name"), permissions=d.get("permissions"), colour_hex=d.get("colour"),
+            hoist=d.get("hoist"), mentionable=d.get("mentionable")), rid)
+        return {"ok": True, "message": f"Saved {r['name']}."}
+
+    @app.delete("/api/c/{gid}/roles/{rid}")
+    async def role_delete(gid: str, rid: str, npub: str = Depends(current)):
+        g = community(gid, npub)
+        name = await manage(g, npub, "deleted role", manager.delete_role(g, rid), rid)
+        return {"ok": True, "message": f"Deleted {name}."}
+
+    @app.put("/api/c/{gid}/roles-order")
+    async def role_order(gid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        await manage(g, npub, "reordered roles", manager.order_roles(g, [str(x) for x in d.get("order") or []]))
+        return {"ok": True, "message": "Role order saved."}
+
+    @app.put("/api/c/{gid}/everyone")
+    async def everyone_set(gid: str, request: Request, npub: str = Depends(current)):
+        g, d = community(gid, npub), await body(request)
+        await manage(g, npub, "changed @everyone", manager.everyone_permissions(g, d.get("permissions") or []))
+        return {"ok": True, "message": "Saved what @everyone may do."}
+
     # -- moderation ----------------------------------------------------------------------------------
 
     def case_json(g: Any, c: Any) -> dict:

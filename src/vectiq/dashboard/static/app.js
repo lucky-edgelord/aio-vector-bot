@@ -225,7 +225,7 @@ const PAGES = [
   ["overview", "◈", "Overview"], ["members", "☺", "Members"], ["moderation", "⚑", "Moderation"],
   ["leveling", "▲", "Leveling"], ["economy", "◎", "Economy"], ["tickets", "✉", "Tickets"],
   ["rolemenus", "❖", "Role menus"], ["giveaways", "✦", "Giveaways"], ["games", "▣", "Games"],
-  ["onboarding", "➜", "Onboarding"], ["securitycam", "◉", "Security cam"],
+  ["onboarding", "➜", "Onboarding"], ["structure", "▤", "Channels & roles"], ["securitycam", "◉", "Security cam"],
   ["announce", "✎", "Announce"], ["audit", "☰", "Audit log"],
 ];
 const MODULE_OF = { moderation: "moderation", leveling: "leveling", economy: "economy", tickets: "tickets", rolemenus: "roles",
@@ -291,7 +291,7 @@ function renderShell(page) {
   shell.addEventListener("click", (e) => { if (shell.classList.contains("open") && e.target === shell) shell.classList.remove("open"); });
   clear(root, shell);
   const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit,
-    settings, setup, restore, webhooks, users, account, m: modulePanel }[page];
+    settings, setup, restore, webhooks, users, account, m: modulePanel, structure }[page];
   if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
   fn(main).catch((e) => clear(main, card(null, h("p", { class: "muted" }, e.message))));
@@ -1103,6 +1103,142 @@ async function restore(main) {
       btn("Delete", () => remove(p), "ghost sm"))))
     : empty("No restore points yet. Make one above, or wait for the first scheduled one.")),
   h("p", { class: "faint" }, `Saved in ${d.dir}. The bot's key in .env is never included.`));
+}
+
+/* ---------------------------------------------------------------- channels & roles */
+
+// Allow / inherit / deny for one permission, as three small buttons.
+function triState(value, onchange) {
+  let v = value;
+  const wrap = h("div", { class: "tri", role: "radiogroup" });
+  const opts = [["deny", "✕", "Deny"], ["inherit", "/", "Inherit"], ["allow", "✓", "Allow"]];
+  const draw = () => clear(wrap, opts.map(([k, ico, label]) => h("button", { type: "button", class: ["tri-b", k, v === k && "on"],
+    title: label, "aria-label": label, "aria-pressed": String(v === k), onclick: () => { v = k; onchange(k); draw(); } }, ico)));
+  draw();
+  return wrap;
+}
+
+function permGrid(catalog, picked, onchange) {
+  const set = new Set(picked);
+  const groups = [...new Set(catalog.map((p) => p.group))];
+  return h("div", { class: "perm-grid" }, groups.map((g) => h("div", { class: "perm-group" }, h("h4", null, g),
+    catalog.filter((p) => p.group === g).map((p) => h("label", { class: "perm" },
+      toggle(set.has(p.name), (on) => { if (on) set.add(p.name); else set.delete(p.name); onchange([...set]); }),
+      h("span", null, p.label))))));
+}
+
+async function structure(main) {
+  const d = await api("GET", `/api/c/${S.gid}/structure`);
+  const base = `/api/c/${S.gid}`;
+  const reload = () => route();
+  const cats = [["", "No category"], ...d.categories.map((c) => [c.id, c.name])];
+
+  const editChannel = (ch) => {
+    const name = input({ value: ch ? ch.name : "", placeholder: "general" });
+    const kind = select([["text", "Text"], ["voice", "Voice"], ["forum", "Forum"]], ch ? ch.kind : "text", ch ? { disabled: true } : {});
+    const cat = select(cats, ch ? ch.category : (S.newIn || ""));
+    const topic = input({ value: ch ? ch.topic : "", placeholder: "What it's for (optional)" });
+    let priv = ch ? ch.private : false, ro = ch ? ch.read_only : false;
+    modal(ch ? `#${ch.name}` : "New channel", h("div", { class: "form" }, field("Name", name), field("Kind", kind), field("Category", cat),
+      field("Topic", topic), field("Private", toggle(priv, (v) => (priv = v)), "Only people and roles you allow can see it"),
+      ch ? field("Read-only", toggle(ro, (v) => (ro = v)), "Only people with Manage Messages can post") : null),
+    [{ label: ch ? "Save" : "Create", after: reload, run: () => ch
+      ? api("PATCH", `${base}/channels/${encodeURIComponent(ch.id)}`, { name: name.value, topic: topic.value, category: cat.value, private: priv, read_only: ro })
+      : api("POST", `${base}/channels`, { name: name.value, kind: kind.value, category: cat.value, topic: topic.value, private: priv }) }]);
+  };
+
+  const editOverwrites = (place, isCat) => {
+    const roles = [["everyone", "@everyone"], ...d.roles.map((r) => [r.id, r.name])];
+    const who = select([...roles, ["member", "A member (npub)…"]], "everyone");
+    const npub = input({ placeholder: "npub1…", style: { display: "none" } });
+    const grid = h("div", { class: "ow-grid" });
+    let current = {};
+    const load = () => {
+      const t = who.value === "member" ? npub.value.trim() : who.value;
+      const ow = place.overwrites.find((o) => o.target === t) || { allow: [], deny: [] };
+      current = Object.fromEntries(d.permissions.map((p) => [p.name, ow.allow.includes(p.name) ? "allow" : ow.deny.includes(p.name) ? "deny" : "inherit"]));
+      const groups = [...new Set(d.permissions.map((p) => p.group))];
+      clear(grid, groups.map((g) => h("div", { class: "perm-group" }, h("h4", null, g), d.permissions.filter((p) => p.group === g).map((p) =>
+        h("div", { class: "ow-row" }, h("span", null, p.label), triState(current[p.name], (v) => (current[p.name] = v)))))));
+    };
+    who.addEventListener("change", () => { npub.style.display = who.value === "member" ? "" : "none"; load(); });
+    npub.addEventListener("change", load);
+    load();
+    const existing = place.overwrites.length ? h("p", { class: "faint" }, "Set here: ", place.overwrites.map((o) => o.name).join(", ")) : null;
+    modal(`Permissions in ${isCat ? place.name : "#" + place.name}`, h("div", { class: "stack" }, existing, field("For", h("div", { class: "row" }, who, npub)),
+      h("p", { class: "faint", style: { margin: 0 } }, "✓ allow · / inherit from the role and category · ✕ deny"), grid),
+    [{ label: "Reset to inherit", kind: "ghost", after: reload, run: () => api("PUT", `${base}/overwrites`, { where: place.id, target: who.value === "member" ? npub.value.trim() : who.value, allow: [], deny: [] }) },
+      { label: "Save", after: reload, run: () => api("PUT", `${base}/overwrites`, { where: place.id, target: who.value === "member" ? npub.value.trim() : who.value,
+        allow: Object.keys(current).filter((k) => current[k] === "allow"), deny: Object.keys(current).filter((k) => current[k] === "deny") }) }]);
+  };
+
+  const editRole = (r) => {
+    const name = input({ value: r ? r.name : "", placeholder: "Moderators" });
+    const colour = input({ type: "color", value: (r && r.colour) || "#59fcb3", class: "input swatch" });
+    let perms = r ? [...r.permissions] : ["view_channel", "send_messages", "read_message_history", "add_reactions", "attach_files", "connect", "speak"];
+    let hoist = r ? r.hoist : false, mention = r ? r.mentionable : false;
+    modal(r ? r.name : "New role", h("div", { class: "form" }, field("Name", name), field("Colour", colour),
+      field("Show separately in the member list", toggle(hoist, (v) => (hoist = v))), field("Anyone can @mention it", toggle(mention, (v) => (mention = v))),
+      h("div", { class: "f" }, "Permissions", permGrid(d.permissions, perms, (p) => (perms = p)))),
+    [{ label: r ? "Save" : "Create", after: reload, run: () => r
+      ? api("PATCH", `${base}/roles/${encodeURIComponent(r.id)}`, { name: name.value, colour: colour.value, permissions: perms, hoist, mentionable: mention })
+      : api("POST", `${base}/roles`, { name: name.value, colour: colour.value, permissions: perms, hoist, mentionable: mention }) }]);
+  };
+
+  const editEveryone = () => {
+    let perms = [...d.everyone];
+    modal("What @everyone may do", h("div", { class: "stack" }, h("p", { class: "muted", style: { margin: 0 } }, "Every member has these. Roles add more; channel permissions can take them away."),
+      permGrid(d.permissions, perms, (p) => (perms = p))),
+    [{ label: "Save", after: reload, run: () => api("PUT", `${base}/everyone`, { permissions: perms }) }]);
+  };
+
+  const del = async (what, label, path) => {
+    if (await confirmBox(`Delete ${label}?`, what === "channel" ? "Its messages go with it. This can't be undone." : "This can't be undone.", "Delete")) {
+      try { toast((await api("DELETE", path)).message); reload(); } catch { /* toast */ }
+    }
+  };
+  const move = async (i, dir) => {
+    const order = d.roles.map((r) => r.id);
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    try { toast((await api("PUT", `${base}/roles-order`, { order })).message); reload(); } catch { /* toast */ }
+  };
+
+  const chanRow = (ch) => h("div", { class: "item" },
+    h("span", { class: "ico faint" }, ch.kind === "voice" ? "🔊" : ch.kind === "forum" ? "☷" : "#"),
+    h("div", { class: "grow" }, h("b", null, ch.name), ch.topic ? h("div", { class: "faint ellipsis" }, ch.topic) : null),
+    ch.private ? pill("private", "yellow") : null, ch.read_only ? pill("read-only", "") : null,
+    ch.overwrites.length ? pill(`${ch.overwrites.length} permission${ch.overwrites.length === 1 ? "" : "s"}`, "") : null,
+    btn("Edit", () => editChannel(ch), "ghost sm"), btn("Permissions", () => editOverwrites(ch, false), "ghost sm"),
+    btn("Delete", () => del("channel", `#${ch.name}`, `${base}/channels/${encodeURIComponent(ch.id)}`), "ghost sm"));
+
+  const channels = card("Channels", h("div", { class: "row wrap", style: { marginBottom: "10px" } },
+    btn("+ Channel", () => { S.newIn = ""; editChannel(null); }, "primary sm"),
+    btn("+ Category", () => { const name = input({ placeholder: "Events" });
+      modal("New category", field("Name", name), [{ label: "Create", after: reload, run: () => api("POST", `${base}/categories`, { name: name.value }) }]); }, "sm")),
+  d.channels.length ? h("div", { class: "list" }, d.channels.map(chanRow)) : null,
+  d.categories.map((c) => h("div", { class: "cat" },
+    h("div", { class: "row cat-head" }, h("b", { class: "grow" }, c.name.toUpperCase()),
+      btn("+", () => { S.newIn = c.id; editChannel(null); }, "ghost sm", { title: "New channel here", "aria-label": `New channel in ${c.name}` }),
+      btn("Rename", () => { const name = input({ value: c.name });
+        modal("Rename category", field("Name", name), [{ label: "Save", after: reload, run: () => api("PATCH", `${base}/categories/${encodeURIComponent(c.id)}`, { name: name.value }) }]); }, "ghost sm"),
+      btn("Permissions", () => editOverwrites(c, true), "ghost sm"),
+      btn("Delete", () => del("category", c.name, `${base}/categories/${encodeURIComponent(c.id)}`), "ghost sm")),
+    c.channels.length ? h("div", { class: "list" }, c.channels.map(chanRow)) : h("p", { class: "faint" }, "No channels yet."))));
+
+  const roles = card("Roles", h("div", { class: "row wrap", style: { marginBottom: "10px" } },
+    btn("+ Role", () => editRole(null), "primary sm"), btn("@everyone…", editEveryone, "sm")),
+  d.roles.length ? h("div", { class: "list" }, d.roles.map((r, i) => h("div", { class: "item" },
+    h("span", { class: "dot", style: { background: r.colour || "var(--muted, #888)" } }),
+    h("div", { class: "grow" }, h("b", null, r.name), h("div", { class: "faint" }, `${r.members} member${r.members === 1 ? "" : "s"} · ${r.permissions.length} permission${r.permissions.length === 1 ? "" : "s"}`)),
+    r.managed ? pill("bot", "") : null,
+    btn("↑", () => move(i, -1), "ghost sm", { "aria-label": `Move ${r.name} up`, disabled: i === 0 }),
+    btn("↓", () => move(i, 1), "ghost sm", { "aria-label": `Move ${r.name} down`, disabled: i === d.roles.length - 1 }),
+    btn("Edit", () => editRole(r), "ghost sm"), btn("Delete", () => del("role", r.name, `${base}/roles/${encodeURIComponent(r.id)}`), "ghost sm"))))
+    : empty("No roles yet."), h("p", { class: "faint" }, "Higher roles come first. Give members roles on the Members page."));
+
+  clear(main, head("Channels & roles", "Create and arrange channels and categories, and decide who can do what."), h("div", { class: "split" }, channels, roles));
 }
 
 /* ---------------------------------------------------------------- module panels */

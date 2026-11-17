@@ -318,3 +318,23 @@ textarea.input { height: auto; min-height: 90px; padding: 10px 14px; resize: ver
 .panel-stat.tone-yellow .panel-value { color: #f5c451; }
 .panel-stat.tone-red .panel-value { color: #f16b78; }
 .panel-log { margin: 0; max-height: 360px; overflow: auto; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* channels & roles */
+.split { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 960px) { .split { grid-template-columns: minmax(0, 1fr); } }
+.cat { margin-top: 14px; }
+.cat-head { gap: 6px; padding: 4px 2px; font-size: .78rem; letter-spacing: .02em; color: var(--muted, #999); }
+.dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 6px; }
+.perm-group h4 { margin: 4px 0 6px; font-size: .8rem; color: var(--muted, #999); font-weight: 600; }
+.perm { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: .9rem; }
+.ow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; max-height: 50vh; overflow: auto; }
+.ow-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: .9rem; }
+.tri { display: inline-flex; border: 1px solid var(--line, #2a2b31); border-radius: 8px; overflow: hidden; flex: none; }
+.tri-b { background: transparent; border: 0; color: var(--muted, #999); width: 30px; height: 26px; cursor: pointer; font: inherit; }
+.tri-b + .tri-b { border-left: 1px solid var(--line, #2a2b31); }
+.tri-b.on.allow { background: rgba(89, 252, 179, .18); color: var(--accent, #59fcb3); }
+.tri-b.on.deny { background: rgba(241, 107, 120, .18); color: #f16b78; }
+.tri-b.on.inherit { background: rgba(255, 255, 255, .06); color: var(--text, #eee); }
+.tri-b:focus-visible { outline: 2px solid var(--accent, #59fcb3); outline-offset: -2px; }
+.input.swatch { width: 64px; height: 36px; padding: 2px; }

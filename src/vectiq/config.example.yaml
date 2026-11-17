@@ -33,8 +33,16 @@ modules:              # every feature is a module: on or off. Only modules that 
   music: false        # music in voice channels (needs: pip install "vectiq[music]" and ffmpeg)
   # Integrations
   webhooks: true
+  mcp: false          # MCP server: Claude and other AI assistants manage your communities (pip install "vectiq[mcp]")
   dashboard: false    # the web dashboard (needs: pip install "vectiq[dashboard]")
   # Plugins you install appear here too (`vectiq --modules` lists them). They start switched off.
+
+mcp:                  # modules.mcp: Vectiq as an MCP server (see the MCP guide)
+  host: 127.0.0.1             # keep it on this computer; put HTTPS in front to reach it from elsewhere
+  port: 8770
+  path: /mcp
+  token_env: VECTIQ_MCP_TOKEN # the token assistants must send; blank or unset = one made in data/mcp-token
+  read_only: false            # true = assistants can look but not change anything
 
 plugins:              # modules that don't ship with Vectiq (see the "Writing modules" guide)
   dirs: [modules]             # folders with plugin modules, relative to this file (data/modules is always read)

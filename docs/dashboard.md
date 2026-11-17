@@ -91,3 +91,17 @@ The dashboard works on a narrow screen: the menu folds away and tables become li
 ## Settings
 
 {{config:dashboard}}
+
+## Channels & roles
+
+The **Channels & roles** page lets you shape a community without leaving the dashboard:
+
+- **Channels and categories:** create text, voice and forum channels, rename them, move them between categories, make them private or read-only, and delete them.
+- **Per-channel and per-category permissions:** for @everyone, a role or a member, with ✓ allow, / inherit and ✕ deny for each permission.
+- **Roles:** create and edit them (name, colour, shown separately, mentionable, permissions), reorder them, delete them, and set what @everyone may do.
+
+Giving members roles is on the **Members** page. The same actions are available to AI assistants through the [MCP server](mcp.md). Everything is written to the audit log.
+
+## Module pages
+
+Modules can add their own pages under **Modules** in the menu: [Sentire](sentire.md), [MCP](mcp.md), and any plugin that describes one (see [Writing modules](writing-modules.md#a-page-on-the-dashboard)).

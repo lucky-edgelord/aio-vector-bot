@@ -34,6 +34,11 @@ GROUPS: list[dict[str, Any]] = [
               "settings and manage webhooks."),
     ]},
     {"id": "modules", "title": "Modules", "fields": []},          # filled by refresh(): every module, plugins too
+    {"id": "mcp", "title": "MCP server", "fields": [
+        field("mcp.read_only", "Read-only", "bool", "Assistants can look but not change anything"),
+        field("mcp.host", "Listen on", "text", "127.0.0.1 keeps it on this computer"),
+        field("mcp.port", "Port", "int", minimum=1, maximum=65535),
+    ]},
     {"id": "plugins", "title": "Plugins", "fields": [
         field("plugins.dirs", "Plugin folders", "list", "Folders with plugin modules, relative to config.yaml",
               restart=True),
