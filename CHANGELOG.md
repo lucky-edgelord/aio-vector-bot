@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Docker: a `Dockerfile` and `docker-compose.yml` (settings in `docker-config/`, data in `docker-data/`), a CI image build, `VECTIQ_DASHBOARD_HOST`, and a Docker guide.
 - Verification, with ideas from GateBot (henk.tech, MIT): a `captcha` mode with a personal one-time link and a
   CAPTCHA page (Turnstile, hCaptcha or reCAPTCHA); lasting verification records with the role restored on rejoin
   or the next message; one verification per device (keyed hashes of IP, cookie and browser, expiring after

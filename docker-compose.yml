@@ -1,0 +1,16 @@
+# docker compose up -d         start the bot
+# docker compose logs -f       watch it
+# docker compose run --rm -it vectiq python -m vectiq --setup    friendly setup wizard
+# Put VECTOR_NSEC (and optionally VECTIQ_INVITE_URLS) in a .env file next to this one.
+services:
+  vectiq:
+    build: .
+    image: vectiq:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./docker-config:/config      # config.yaml lives here (created on first start)
+      - ./docker-data:/data          # database, restore points, logs
+    ports:
+      - "127.0.0.1:8090:8090"        # dashboard (this computer only; put HTTPS in front for remote use)
+      # - "8080:8080"                # webhook server / CAPTCHA page, if you turn them on

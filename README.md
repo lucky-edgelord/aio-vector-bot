@@ -50,6 +50,15 @@ cd aio-vector-bot
 It asks for the bot's key (blank generates a new account) and optional community invite links. Then, in your Vector community, give the bot's account a role with the permissions it needs (Manage Roles, Manage Channels, Manage Messages, Moderate Members, Kick/Ban). Without them Vectiq still runs and tells you which permission is missing. Type `!help` anywhere.
 
 Manual start: `./run.sh` (foreground), `./run.sh --check` (validate `config.yaml`), `./uninstall.sh`.
+### Docker
+
+```sh
+echo 'VECTOR_NSEC=nsec1...' > .env
+docker compose up -d          # settings in ./docker-config, data in ./docker-data
+```
+
+See the [Docker guide](docs/docker.md) for the setup wizard, ports and backups.
+
 ### Linux
 
 ```sh
