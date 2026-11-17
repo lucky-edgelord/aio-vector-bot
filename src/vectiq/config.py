@@ -135,6 +135,8 @@ class Config:
             if not isinstance(raw, Mapping):
                 raise ConfigError(f"{path}: the top level must be a mapping")
         data = _merge(DEFAULTS, raw)
+        if env.get("VECTIQ_DASHBOARD_HOST"):          # lets a container listen on 0.0.0.0 without editing config.yaml
+            data["dashboard"] = {**data["dashboard"], "host": env["VECTIQ_DASHBOARD_HOST"]}
         cfg = cls(
             data=data,
             nsec=env.get("VECTOR_NSEC", ""),

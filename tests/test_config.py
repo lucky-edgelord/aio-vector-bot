@@ -68,3 +68,11 @@ def test_dotenv_reads_without_overriding(tmp_path):
     assert load_dotenv(f, env) == 3
     assert env == {"KEEP": "old", "A": "1", "B": "two words", "C": "3"}
     assert load_dotenv(tmp_path / "missing", env) == 0
+
+
+def test_dashboard_host_env_override(tmp_path):
+    from vectiq.config import DEFAULTS, Config
+
+    cfg = Config.load(tmp_path / "none.yaml", env={"VECTIQ_DASHBOARD_HOST": "0.0.0.0"})
+    assert cfg.data["dashboard"]["host"] == "0.0.0.0"
+    assert DEFAULTS["dashboard"]["host"] == "127.0.0.1"   # the shared defaults are not touched
