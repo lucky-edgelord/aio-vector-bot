@@ -1,0 +1,15 @@
+[project]
+name = "vectiq-ai-automod"
+version = "0.1.0"
+description = "An AI automod module for Vectiq: an LLM reads each message against your community's rules."
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = []          # Vectiq itself provides everything; the HTTP call uses the standard library
+
+# This line is what makes it a Vectiq module: Vectiq looks for entry points in the "vectiq.modules" group.
+[project.entry-points."vectiq.modules"]
+ai_automod = "vectiq_ai_automod:MODULE"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

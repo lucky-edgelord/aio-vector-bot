@@ -33,6 +33,11 @@ modules:              # every feature is a module: on or off. Only modules that 
   # Integrations
   webhooks: true
   dashboard: false    # the web dashboard (needs: pip install "vectiq[dashboard]")
+  # Plugins you install appear here too (`vectiq --modules` lists them). They start switched off.
+
+plugins:              # modules that don't ship with Vectiq (see the "Writing modules" guide)
+  dirs: [modules]             # folders with plugin modules, relative to this file (data/modules is always read)
+  allow_install: false        # let owners run `!module install <package>` from chat (runs pip on this computer)
 
 
 backup:

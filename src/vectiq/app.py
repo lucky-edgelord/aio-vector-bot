@@ -12,7 +12,7 @@ from vector.ext import commands
 
 from .config import Config
 from .db import Database
-from .modules import CORE_COGS, REGISTRY
+from .modules import CORE_COGS, REGISTRY, owner_of, prime
 from .stores import Stores
 from .utils.embeds import embed
 
@@ -67,25 +67,31 @@ class VectiqBot(commands.Bot):
                     await self.load_extension(cog)
             want: dict[str, str] = {}
             problems: dict[str, str] = {}
+            taken: dict[str, str] = {}
             for m in REGISTRY:
                 if not self.config.enabled(m.name):
                     continue
+                if m.slot in taken:                    # config validation stops this; be safe anyway
+                    problems[m.name] = f"{taken[m.slot]} already does {m.slot}; switch one off"
+                    continue
+                taken[m.slot] = m.name
                 if (missing := m.missing()):
                     problems[m.name] = f"needs {', '.join(missing)}: {m.install_hint()}"
                     continue
                 want.update({c: m.name for c in m.cogs})
-            for ext in [e for e in self.extensions if e.startswith("vectiq.cogs.") and e not in CORE_COGS]:
+            for ext in [e for e in self.extensions if e not in CORE_COGS]:
                 if ext not in want:
                     try:
                         await self.unload_extension(ext)
-                        done["unloaded"].append(ext.rsplit(".", 1)[1])
-                        log.info("module off: %s", ext.rsplit(".", 1)[1])
+                        done["unloaded"].append(owner_of(ext))
+                        log.info("module off: %s", owner_of(ext))
                     except Exception as exc:  # noqa: BLE001
                         log.error("could not unload %s: %s", ext, exc)
             for ext, name in want.items():
                 if ext in self.extensions:
                     continue
                 try:
+                    prime(ext)
                     await self.load_extension(ext)
                     done["loaded"].append(name)
                     log.info("module on: %s", name)
@@ -123,19 +129,64 @@ class VectiqBot(commands.Bot):
         return result
 
     async def set_module(self, name: str, on: bool, by: str) -> dict[str, list[str]]:
-        """Switch a module on or off from a command, kept like a dashboard change (survives restarts)."""
-        path = f"modules.{name}"
+        """Switch a module on or off from a command, kept like a dashboard change (survives restarts).
+
+        Switching one on switches off any module filling the same slot, so this also swaps modules."""
+        from .modules import same_slot
+
+        changes = {name: on}
+        if on:
+            changes.update({m.name: False for m in same_slot(name) if self.config.enabled(m.name)})
         merged = dict(self.config.overrides)
-        if on == bool(self.config.from_file(path, False)):
-            merged.pop(path, None)
-        else:
-            merged[path] = on
+        for mod, value in changes.items():
+            path = f"modules.{mod}"
+            if value == bool(self.config.from_file(path, False)):
+                merged.pop(path, None)
+            else:
+                merged[path] = value
         self.config.apply_overrides(merged)
-        if path in merged:
-            await self.stores.dashboard.set_override(path, on, by)
-        else:
-            await self.stores.dashboard.clear_override(path)
+        for mod in changes:
+            path = f"modules.{mod}"
+            if path in merged:
+                await self.stores.dashboard.set_override(path, merged[path], by)
+            else:
+                await self.stores.dashboard.clear_override(path)
         return await self.apply_settings()
+
+    async def reload_module(self, name: str) -> list[str]:
+        """Load a module's code again from disk (for plugin authors and updated plugins). Returns its cogs."""
+        from .modules import BY_NAME, drop_bytecode
+
+        m = BY_NAME[name]
+        drop_bytecode(name)
+        async with self._modules_lock:
+            for ext in m.cogs:
+                if ext in self.extensions:
+                    await self.unload_extension(ext)
+            for ext in m.cogs:
+                prime(ext)
+                await self.load_extension(ext)
+            for cog in self.cogs.values():
+                guard_subcommands(cog)
+        return list(m.cogs)
+
+    def rescan_plugins(self) -> list[str]:
+        """Look for newly installed or added plugins. Returns the names of new ones."""
+        from .config import plugin_dirs
+        from .modules import BY_NAME, NAMES, discover
+
+        before = set(NAMES)
+        raw = {"plugins": self.config.get("plugins", {})}
+        discover(plugin_dirs(raw, Path(self.config.path or "config.yaml").resolve(), self.config.data_dir), force=True)
+        for name in NAMES:
+            if name not in before:
+                self.config.data["modules"].setdefault(name, False)
+                self.config.file_data.setdefault("modules", {}).setdefault(name, False)
+                m = BY_NAME[name]
+                if m.defaults:
+                    self.config.data.setdefault(name, dict(m.defaults))
+                    self.config.file_data.setdefault(name, dict(m.defaults))
+        return [n for n in NAMES if n not in before]
 
     def when_ready(self, coro_fn) -> None:
         """Run ``coro_fn()`` once the bot is ready, or now if it already is (modules can start later)."""

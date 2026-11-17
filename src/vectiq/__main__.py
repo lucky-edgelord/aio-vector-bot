@@ -28,6 +28,11 @@ def main(argv=None) -> int:
                     help="make a restore point now, with an optional description")
     bk.add_argument("--list-backups", action="store_true", help="list restore points, newest first")
     bk.add_argument("--restore", metavar="POINT", help="roll back to a restore point (its number or id). Stop the bot first.")
+    pl = ap.add_argument_group("modules and plugins")
+    pl.add_argument("--modules", action="store_true", help="list every module, plugins included, and exit")
+    pl.add_argument("--install-module", metavar="PACKAGE", help="pip install a plugin package (name, name==1.2, git+https://...)")
+    pl.add_argument("--uninstall-module", metavar="NAME", help="uninstall the package a plugin module came from")
+    pl.add_argument("--new-module", metavar="NAME", help="create a starter plugin in modules/NAME to edit")
     ap.add_argument("-v", "--verbose", action="store_true")
     users = ap.add_argument_group("dashboard logins")
     users.add_argument("--add-user", metavar="USERNAME", help="create a dashboard login (asks for the password)")
@@ -50,6 +55,38 @@ def main(argv=None) -> int:
             print(f"{'created' if created else 'kept   '} {path}")
         print("\nNext: put the bot's VECTOR_NSEC in .env, run `vectiq --setup` to fill in config.yaml, then `vectiq`.")
         return 0
+    if args.new_module:
+        from .plugin_template import create
+
+        try:
+            path = create(args.new_module, args.config)
+        except ValueError as exc:
+            print(f"❌ {exc}", file=sys.stderr)
+            return 2
+        print(f"created {path}\nEdit it, then in chat: `module scan` and `module on {args.new_module}` "
+              f"(after changes: `module reload {args.new_module}`).")
+        return 0
+    if args.install_module or args.uninstall_module:
+        from .plugin_install import InstallError, install, uninstall
+
+        load_dotenv(os.environ.get("VECTIQ_ENV", ".env"))
+        try:
+            if args.install_module:
+                install(args.install_module)
+                Config.load(args.config) if os.path.exists(args.config or "config.yaml") else None
+                from . import modules
+
+                print("installed. plugins now available:",
+                      ", ".join(m.name for m in modules.plugins()) or "(none found: is it a Vectiq plugin?)")
+                print("switch one on with `!module on <name>` (or `!module scan` first if the bot is running)")
+            else:
+                Config.load(args.config)
+                uninstall(args.uninstall_module)
+                print(f"uninstalled {args.uninstall_module}")
+        except (InstallError, ConfigError) as exc:
+            print(f"❌ {exc}", file=sys.stderr)
+            return 2
+        return 0
     load_dotenv(os.environ.get("VECTIQ_ENV", ".env"))
     if args.setup:
         from .wizard import run as setup
@@ -64,6 +101,22 @@ def main(argv=None) -> int:
     except ConfigError as exc:
         print(f"config error: {exc}", file=sys.stderr)
         return 2
+    if args.modules:
+        from . import modules
+
+        for g in modules.GROUPS:
+            ms = [m for m in modules.REGISTRY if m.group == g]
+            if ms:
+                print(g)
+            for m in ms:
+                state = "on " if config.enabled(m.name) else "off"
+                extra = "" if m.builtin else f"  [plugin: {m.source}]"
+                swap = f"  (does {m.slot})" if m.slot != m.name else ""
+                need = f"  needs: {m.install_hint()}" if m.missing() else ""
+                print(f"  {state} {m.name:<16} {m.label}{swap}{extra}{need}")
+        for where, why in modules.PROBLEMS.items():
+            print(f"  ⚠ {where}: {why}")
+        return 0
     if args.check:
         print(f"config ok: {config.path} ({sum(config.enabled(m) for m in config['modules'])} modules on, "
               f"{len(config.hooks)} webhooks)")

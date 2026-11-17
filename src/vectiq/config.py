@@ -10,7 +10,8 @@ from typing import Any
 
 import yaml
 
-from .modules import NAMES as MODULES
+from . import modules as _modules
+from .modules import NAMES as MODULES  # a live list: plugins found later appear in it too
 from .modules import REGISTRY
 
 SAFETY_ACTIONS = ("delete", "warn", "timeout", "log")
@@ -89,6 +90,7 @@ DEFAULTS: dict[str, Any] = {
     "webhooks": {"server": {"enabled": False, "host": "0.0.0.0", "port": 8080,
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
+    "plugins": {"dirs": ["modules"], "allow_install": False},
     "backup": {"every_hours": 24, "keep_automatic": 14, "keep_manual": 20, "dir": "", "include_pictures": True},
     "events": {"timezone": "UTC", "channel": "announcements", "banner_image": True,
                "default_minutes": 60, "reminders": [60, 15], "dm_reminders": True,
@@ -98,6 +100,24 @@ DEFAULTS: dict[str, Any] = {
     "dashboard": {"host": "127.0.0.1", "port": 8090, "base_url": "http://localhost:8090",
                   "session_days": 7, "code_minutes": 10, "vector_code_login": True},
 }
+
+
+def defaults() -> dict[str, Any]:
+    """DEFAULTS plus every known module's switch and the settings sections plugins bring."""
+    out = dict(DEFAULTS)
+    out["modules"] = {m.name: m.default for m in REGISTRY}
+    for m in REGISTRY:
+        if m.defaults and m.name not in DEFAULTS:
+            out[m.name] = _merge(m.defaults, {})
+    return out
+
+
+def plugin_dirs(raw: Mapping, config_path: Path, data_dir: str) -> list[Path]:
+    """Where folder plugins live: plugins.dirs (relative to config.yaml) and <data dir>/modules."""
+    dirs = ((raw.get("plugins") or {}) if isinstance(raw.get("plugins"), Mapping) else {}).get("dirs", ["modules"])
+    out = [(config_path.parent / str(d)).resolve() for d in (dirs or [])]
+    out.append((Path(data_dir) / "modules").resolve())
+    return out
 
 
 def unflatten(flat: Mapping[str, Any]) -> dict:
@@ -184,7 +204,8 @@ class Config:
             if not isinstance(raw, Mapping):
                 raise ConfigError(f"{path}: the top level must be a mapping")
         raw = upgrade_legacy(raw)
-        data = _merge(DEFAULTS, raw)
+        _modules.discover(plugin_dirs(raw, path.resolve(), env.get("VECTIQ_DATA_DIR", "data")), force=True)
+        data = _merge(defaults(), raw)
         if env.get("VECTIQ_DASHBOARD_HOST"):          # lets a container listen on 0.0.0.0 without editing config.yaml
             data["dashboard"] = {**data["dashboard"], "host": env["VECTIQ_DASHBOARD_HOST"]}
         cfg = cls(
@@ -230,7 +251,16 @@ class Config:
             raise ConfigError("prefix must not be empty")
         for name in d["modules"]:
             if name not in MODULES:
-                raise ConfigError(f"modules.{name}: unknown module (known: {', '.join(MODULES)})")
+                hint = " Is the plugin installed? `vectiq --modules` lists what was found." if name else ""
+                raise ConfigError(f"modules.{name}: unknown module (known: {', '.join(MODULES)}).{hint}")
+        slots: dict[str, list[str]] = {}
+        for m in REGISTRY:
+            if d["modules"].get(m.name):
+                slots.setdefault(m.slot, []).append(m.name)
+        for slot, names in slots.items():
+            if len(names) > 1:
+                raise ConfigError(f"modules: {' and '.join(names)} both do {slot}; switch all but one off "
+                                  f"(or use `module on {names[-1]}`, which swaps them)")
         if d["moderation"]["warn_action"] not in ("timeout", "kick", "ban", "none"):
             raise ConfigError("moderation.warn_action must be timeout, kick, ban or none")
         vf = d["verification"]

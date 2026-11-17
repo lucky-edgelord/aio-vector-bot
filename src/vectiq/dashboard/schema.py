@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any
 
 from .. import modules
-from ..config import MODULES
 
 # type: bool | int | number | text | channel | longtext | enum | list | emoji_map
 # (channel is text, matched loosely; the dashboard offers the community's channels to pick from)
@@ -22,9 +21,8 @@ def field(path: str, label: str, kind: str, help: str = "", *, options: tuple = 
             "min": minimum, "max": maximum}
 
 
-MODULE_LABEL = {m.name: m.label for m in modules.REGISTRY}
-MODULE_HELP = {m.name: m.help + (f" (needs {m.install_hint()})" if m.extra and m.imports else "")
-               for m in modules.REGISTRY}
+MODULE_LABEL: dict[str, str] = {}
+MODULE_HELP: dict[str, str] = {}
 ACTIONS = ("delete", "warn", "timeout", "log")
 
 GROUPS: list[dict[str, Any]] = [
@@ -35,9 +33,12 @@ GROUPS: list[dict[str, Any]] = [
         field("owners", "Bot owners", "list", "npubs, one per line. Owners can use owner commands, change these "
               "settings and manage webhooks."),
     ]},
-    {"id": "modules", "title": "Modules", "fields": [
-        field(f"modules.{m}", MODULE_LABEL.get(m, m.capitalize()), "bool", MODULE_HELP.get(m, ""))
-        | {"group": modules.BY_NAME[m].group} for m in MODULES
+    {"id": "modules", "title": "Modules", "fields": []},          # filled by refresh(): every module, plugins too
+    {"id": "plugins", "title": "Plugins", "fields": [
+        field("plugins.dirs", "Plugin folders", "list", "Folders with plugin modules, relative to config.yaml",
+              restart=True),
+        field("plugins.allow_install", "Owners may install plugins from chat", "bool",
+              "`!module install <package>` runs pip on the bot's computer. Only turn on if you trust every owner."),
     ]},
     {"id": "moderation", "title": "Moderation", "fields": [
         field("moderation.log_channel", "Mod log channel", "channel", "Channel name or id (blank = none)"),
@@ -264,7 +265,7 @@ WIZARD: list[dict[str, Any]] = [
     {"id": "basics", "title": "The basics", "say": "First, the basics: how people talk to me, and who's in charge.",
      "paths": ["prefix", "owners", "communities"]},
     {"id": "features", "title": "Features", "say": "Pick what I should do. Tick as many as you like; you can change "
-     "your mind later.", "paths": [f"modules.{m}" for m in MODULES]},
+     "your mind later.", "paths": []},                            # filled by refresh()
     {"id": "channels", "title": "Channels", "say": "Now, where should I post things? Pick a channel or leave it on "
      "the default. Names match loosely, so \"mod-log\" finds \"🛡┊mod-log\".",
      "paths": ["moderation.log_channel", "verification.channel", "verification.log_channel", "welcome.channel",
@@ -450,6 +451,38 @@ def applies(path_or_step: Any, value) -> bool:
     when = path_or_step.get("when") if isinstance(path_or_step, dict) else WIZARD_WHEN.get(path_or_step)
     return all(value(p) in ok for p, ok in (when or {}).items())
 
+
+def refresh() -> None:
+    """Rebuild everything that lists modules, after plugins were found. Lists are changed in place."""
+    MODULE_LABEL.clear()
+    MODULE_HELP.clear()
+    for m in modules.REGISTRY:
+        MODULE_LABEL[m.name] = m.label
+        hint = m.install_hint() if m.imports else ""
+        who = "" if m.builtin else f" (plugin{', ' + m.version if m.version else ''})"
+        MODULE_HELP[m.name] = m.help + who + (f" (needs {hint})" if hint else "")
+    next(g for g in GROUPS if g["id"] == "modules")["fields"][:] = [
+        field(f"modules.{m.name}", m.label, "bool", MODULE_HELP[m.name]) | {"group": m.group, "slot": m.slot}
+        for m in modules.REGISTRY]
+    GROUPS[:] = [g for g in GROUPS if not g.get("plugin")]
+    WIZARD[:] = [st for st in WIZARD if not st.get("plugin")]
+    at = next(i for i, st in enumerate(WIZARD) if st["id"] == "welcome")
+    for m in modules.plugins():
+        fields = [f for f in m.settings if isinstance(f, dict) and str(f.get("path", "")).startswith(m.name + ".")]
+        if not fields:
+            continue
+        GROUPS.append({"id": f"plugin-{m.name}", "title": m.label, "fields": fields, "plugin": True})
+        WIZARD.insert(at, {"id": f"plugin-{m.name}", "title": m.label, "plugin": True,
+                           "say": m.wizard or f"Now {m.label}.", "when": {f"modules.{m.name}": [True]},
+                           "paths": [f["path"] for f in fields]})
+        at += 1
+    FIELDS.clear()
+    FIELDS.update({f["path"]: f for g in GROUPS for f in g["fields"]})
+    next(st for st in WIZARD if st["id"] == "features")["paths"][:] = [f"modules.{n}" for n in modules.NAMES]
+
+
+refresh()
+modules.on_change(refresh)
 
 assert all(p in FIELDS for step in WIZARD for p in step["paths"]), "wizard path missing from GROUPS"
 assert all(p in FIELDS for p in WIZARD_WHEN) and all(p in FIELDS for p in OPTION_HELP)
