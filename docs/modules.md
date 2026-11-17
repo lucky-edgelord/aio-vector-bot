@@ -18,6 +18,22 @@ Switching a module on or off takes effect **straight away**. There's no restart.
 
 A switch made in chat or on the dashboard is kept in the database and survives restarts. It sits on top of `config.yaml` until you reset it.
 
+## Adding and swapping modules
+
+Modules don't have to come with Vectiq. Drop a plugin into the `modules/` folder or install one with pip, and it appears alongside the built-in ones. A plugin can add a new feature or **replace** a built-in one: an AI automod, a different verification, another music player. Only one module does each job, so switching on the replacement switches the built-in off, without a restart.
+
+| Command | Does |
+|---|---|
+| `!module info <name>` | where a module comes from, and what it can replace |
+| `!module scan` | finds plugins you just added |
+| `!module reload <name>` | loads a module's code again from disk |
+| `!module install <package>` | installs a plugin with pip (only with `plugins.allow_install: true`) |
+| `vectiq --modules` | lists everything, plugins included, in the terminal |
+| `vectiq --install-module <package>` | installs a plugin |
+| `vectiq --new-module <name>` | starts a plugin of your own |
+
+See [Writing modules](writing-modules.md) for how to make one.
+
 ## The modules
 
 {{modules}}

@@ -279,6 +279,11 @@ def run(path: str | Path | None = None, *, ask: Callable[[str], str] = input,
                     for x in nums:
                         p = paths[int(x) - 1]
                         keep(p, not value(p))
+                        slot = schema.FIELDS[p].get("slot")
+                        if value(p) and slot:          # one module per job: ticking one unticks its rivals
+                            for q in paths:
+                                if q != p and schema.FIELDS[q].get("slot") == slot and value(q):
+                                    keep(q, False)
                 else:
                     note = f"Hmm, I need numbers from 1 to {len(paths)}."
             continue

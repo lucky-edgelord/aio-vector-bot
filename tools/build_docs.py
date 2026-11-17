@@ -222,6 +222,7 @@ def build_page(pages: list[Page], page: Page) -> str:
 
 FEATURES = [
     ("modules", "Modules", "Every feature is a module. Switch any of them on or off while the bot runs; only what's on is loaded."),
+    ("writing-modules", "Writing modules", "Add your own feature, or replace a built-in one, as a plugin from a folder or pip."),
     ("moderation", "Moderation", "Warnings that escalate, timeouts, bans that lift themselves, softbans, purge, lock, a mod log."),
     ("automod", "Automod", "Spam, mass mentions, shouting, banned words, invites, floods and risky files, each on its own switch."),
     ("link-safety", "Link safety", "Links checked against oisd.nl blocklists (and optionally Google Safe Browsing)."),

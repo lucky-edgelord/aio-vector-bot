@@ -41,3 +41,25 @@ SETTINGS = {"winner_coins": 50, "draw_coins": 10, "trivia_coins_per_point": 10, 
 @pytest.fixture
 def settings():
     return dict(SETTINGS)
+
+
+@pytest.fixture
+async def make_bot(db):
+    """Build VectiqBots for a test and unload their modules afterwards, so no loop outlives the test."""
+    from vectiq.app import VectiqBot
+
+    bots = []
+
+    def make(cfg):
+        cfg.data["linksafety"]["lists"] = []        # never download blocklists in tests
+        bot = VectiqBot(cfg, db)
+        bots.append(bot)
+        return bot
+
+    yield make
+    for bot in bots:
+        for ext in list(bot.extensions):
+            try:
+                await bot.unload_extension(ext)
+            except Exception:  # noqa: BLE001
+                pass

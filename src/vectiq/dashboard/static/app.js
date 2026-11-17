@@ -961,7 +961,14 @@ async function setup(main) {
 
   const features = (st) => h("div", { class: "wiz-checklist", role: "group", "aria-label": "Features" }, st.paths.flatMap((p, n) => {
     const f = fields[p];
-    const box = h("input", { type: "checkbox", checked: !!value(p), onchange: () => set(p, box.checked) });
+    const box = h("input", { type: "checkbox", checked: !!value(p), "data-path": p, onchange: () => {
+      set(p, box.checked);
+      if (box.checked && f.slot) st.paths.filter((q) => q !== p && fields[q].slot === f.slot && value(q)).forEach((q) => {
+        set(q, false);
+        const other = box.closest(".wiz-checklist")?.querySelector(`input[data-path="${q}"]`);
+        if (other) other.checked = false;
+      });
+    } });
     const head = f.group && (n === 0 || fields[st.paths[n - 1]].group !== f.group) ? [h("h4", { class: "wiz-group" }, f.group)] : [];
     return [...head, h("label", { class: "wiz-check" }, box, h("span", null, h("b", null, f.label), h("small", null, f.help)))];
   }));

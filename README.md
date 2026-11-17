@@ -11,7 +11,7 @@ A community-management bot for [Vector](https://vectorapp.io), in the spirit of 
 
 Moderation, **automod**, **link safety** (oisd.nl blocklists), an **image guard** (picture blocklist plus optional nudity detection), leveling with image rank cards, an economy and shop, tickets, **CAPTCHA verification**, onboarding, reaction roles, giveaways, an event calendar, **YouTube / Twitch / RSS alerts**, **music in voice channels**, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, a **web dashboard**, a **setup wizard** (dashboard and terminal), settings **import and export**, and **restore points** you can roll back to.
 
-**Everything is a module.** Switch any feature on or off while the bot runs (`!module on music`, the dashboard or the wizard); only what's on is loaded, and features with heavy dependencies are optional installs. See [Modules](https://lucky-edgelord.github.io/aio-vector-bot/modules.html).
+**Everything is a module, and modules are pluggable.** Switch any feature on or off while the bot runs (`!module on music`, the dashboard or the wizard); only what's on is loaded. Add your own, or replace a built-in one (an AI automod instead of automod, say), by dropping a plugin into `modules/` or `pip install`ing it; swap and reload them live. See [Modules](https://lucky-edgelord.github.io/aio-vector-bot/modules.html) and [Writing modules](https://lucky-edgelord.github.io/aio-vector-bot/writing-modules.html); [`examples/vectiq-ai-automod`](examples/vectiq-ai-automod) is a complete plugin.
 
 ![The web dashboard's overview page: member, message and moderation stats, a 30-day activity chart and the busiest channels](docs/images/dashboard-overview.png)
 
@@ -212,7 +212,7 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 
 | Area | Commands |
 |---|---|
-| Modules | `modules` `module on/off <name>` |
+| Modules | `modules` `module on/off/info/reload <name>` `module scan` `module install/uninstall` |
 | Automod & safety | `automod` `linksafety` `linksafety check/update` `imageguard` `imageguard block/unblock/list/test` |
 | Music | `play` `search` `playnext` `queue` `nowplaying` `skip` `forceskip` `skipto` `back` `replay` `seek` `pause` `resume` `loop` `shuffle` `move` `remove` `clearqueue` `removedupes` `leavecleanup` `volume` `filter` `247` `join` `leave` |
 | Alerts | `notify` `notify add youtube/twitch/rss` `notify remove` `notify check` |

@@ -1215,6 +1215,10 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
             fail(400, str(exc))
         if "owners" in coerced and cfg.owners and npub.lower() not in [o.lower() for o in coerced["owners"]]:
             fail(400, "You can't remove yourself from the owners here; edit config.yaml for that.")
+        for path, value in list(coerced.items()):       # switching a module on swaps out its rivals
+            if path.startswith("modules.") and value is True:
+                for rival in modules.same_slot(path.split(".", 1)[1]):
+                    coerced.setdefault(f"modules.{rival.name}", False)
         before = {p: cfg.get(p) for p in coerced}
         if data.get("checkpoint") and getattr(bot, "restore_points", None):
             await bot.restore_points.create(str(data["checkpoint"])[:120], "automatic")

@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased
+- Plugin modules: modules can come from a `modules/` folder or from pip packages (entry point group
+  `vectiq.modules`), with their own commands, settings (dashboard and wizard) and config section. A module fills a
+  job (`provides`): a plugin can replace a built-in, and switching one on swaps the other off, live. New:
+  `!module info|reload|scan|install|uninstall`, `vectiq --modules|--install-module|--uninstall-module|--new-module`,
+  `vectiq.plugin` (the stable plugin API), `plugins.dirs` and `plugins.allow_install`. Example plugin:
+  `examples/vectiq-ai-automod` (an LLM automod for any OpenAI-compatible API, local Ollama by default).
 - Everything is a module: one registry of every feature, grouped (Safety, Members, Community, Fun, Integrations).
   Only modules that are on are imported. Switching one on or off applies live, with no restart, from `!module on|off`,
   `!modules`, the dashboard, both setup wizards, settings import, rollback or `!vectiq reload`. A module whose
