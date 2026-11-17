@@ -40,6 +40,10 @@ git pull && docker compose up -d --build                                   # upd
 
 Restore points are saved in `docker-data/restore-points`; copy that folder off the machine for a real backup. Stop the bot before `--restore`.
 
+## Optional modules
+
+The image includes the dashboard, webhooks and music (with ffmpeg). To add more, change `EXTRAS` in `docker-compose.yml`, for example `dashboard,webhooks,music,nudenet`, then `docker compose up -d --build`. See [Modules](modules.md).
+
 ## Settings
 
 | Variable | Meaning |

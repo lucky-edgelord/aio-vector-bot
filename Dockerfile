@@ -9,9 +9,13 @@ RUN python -m venv /opt/venv
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
-RUN pip install --no-cache-dir ".[dashboard,webhooks]"
+# Optional modules: e.g. docker build --build-arg EXTRAS=dashboard,webhooks,music,nudenet .
+ARG EXTRAS=dashboard,webhooks,music
+RUN pip install --no-cache-dir ".[${EXTRAS}]"
 
 FROM python:3.12-slim
+# ffmpeg plays music in voice channels
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --uid 10001 vectiq \
     && mkdir -p /config /data && chown vectiq /config /data
 COPY --from=build /opt/venv /opt/venv

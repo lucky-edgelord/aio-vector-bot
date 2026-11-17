@@ -844,8 +844,8 @@ function control(f, editable, onchange) {
   const dis = !editable;
   if (f.type === "bool") return h("div", { class: "row", style: { justifyContent: "flex-end" } }, toggle(!!f.value, onchange, { disabled: dis }));
   if (f.type === "enum") { const s = select(f.options.map((o) => [o, o]), f.value, { disabled: dis }); s.addEventListener("change", () => onchange(s.value)); return s; }
-  if (f.type === "int") {
-    const i = input({ type: "number", value: f.value ?? "", min: f.min ?? null, max: f.max ?? null, disabled: dis });
+  if (f.type === "int" || f.type === "number") {
+    const i = input({ type: "number", value: f.value ?? "", min: f.min ?? null, max: f.max ?? null, step: f.type === "number" ? "any" : "1", disabled: dis });
     i.addEventListener("input", () => onchange(i.value === "" ? null : Number(i.value))); return i;
   }
   if (f.type === "longtext") { const t = textarea({ value: f.value || "", rows: "3", disabled: dis }); t.addEventListener("input", () => onchange(t.value)); return t; }
@@ -959,10 +959,11 @@ async function setup(main) {
     return control(f, true, (v) => set(p, v));
   };
 
-  const features = (st) => h("div", { class: "wiz-checklist", role: "group", "aria-label": "Features" }, st.paths.map((p) => {
+  const features = (st) => h("div", { class: "wiz-checklist", role: "group", "aria-label": "Features" }, st.paths.flatMap((p, n) => {
     const f = fields[p];
     const box = h("input", { type: "checkbox", checked: !!value(p), onchange: () => set(p, box.checked) });
-    return h("label", { class: "wiz-check" }, box, h("span", null, h("b", null, f.label), h("small", null, f.help)));
+    const head = f.group && (n === 0 || fields[st.paths[n - 1]].group !== f.group) ? [h("h4", { class: "wiz-group" }, f.group)] : [];
+    return [...head, h("label", { class: "wiz-check" }, box, h("span", null, h("b", null, f.label), h("small", null, f.help)))];
   }));
 
   const summary = () => {

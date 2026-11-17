@@ -489,7 +489,25 @@ async def main(chrome: str | None) -> None:
     ]
     (OUT / "leaderboard-card.png").write_bytes(leaderboard_card(entries, community=guild.name))
     (OUT / "rank-card.png").write_bytes(rank_card(entries[1], community=guild.name))
+    music_cards(guild.name)
     print("wrote cards")
+
+
+def music_cards(community: str) -> None:
+    """Made-up songs with generated cover art (no real artwork)."""
+    from vectiq.render.music import CardTrack, PlayerState, now_playing_card, queue_card
+
+    songs = [("Midnight Relay", "The Nostr Notes", 247), ("Paper Lanterns", "Kai Okafor", 198),
+             ("Green Accent", "Studio Vector", 223), ("Slow Orbit", "Lumen & Vale", 305),
+             ("Late Train Home", "Mira Sol", 181), ("Static Bloom", "Northbound", 236),
+             ("Copper Skies", "The Tidal Club", 262), ("After Hours", "June Park", 214)]
+    tracks = [CardTrack(t, a, d, requester=["alex", "sam", "rio"][i % 3], cover=make_avatar(i + 3), ident=t)
+              for i, (t, a, d) in enumerate(songs)]
+    st = PlayerState(position=96, volume=80, loop="queue", up_next=len(tracks) - 1,
+                     queue_seconds=sum(t.duration for t in tracks[1:]), next_title=tracks[1].title)
+    (OUT / "music-now-playing.png").write_bytes(now_playing_card(tracks[0], st, community=community))
+    (OUT / "music-queue.png").write_bytes(queue_card(tracks[0], st, list(enumerate(tracks[1:], 1)),
+                                                     community=community))
 
 
 if __name__ == "__main__":

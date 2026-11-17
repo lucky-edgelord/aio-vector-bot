@@ -1,6 +1,6 @@
 """WebXDC mini games.
 
-``play <game>`` shares a small web app into the chat. People open it, and Vectiq joins the app's realtime
+``game <name>`` shares a small web app into the chat. People open it, and Vectiq joins the app's realtime
 channel as the referee: it owns every rule, the clock and the coins, so a modified client can't cheat.
 """
 
@@ -56,15 +56,22 @@ class Games(commands.Cog, name="Games"):
     @commands.command(name="games")
     async def games_(self, ctx):
         """List the mini games."""
-        lines = [f"**{g.title}** (`play {name}`): {BLURB.get(name, '')}" for name, g in GAMES.items()]
+        lines = [f"**{g.title}** (`game {name}`): {BLURB.get(name, '')}" for name, g in GAMES.items()]
         await ctx.send(embed=embed("Mini games", "\n".join(lines), footer="They open as Mini Apps in the chat"))
 
-    @commands.command()
-    async def play(self, ctx, game: str = ""):
-        """Share a game: `play tictactoe`, `connect4`, `trivia` or `slots`."""
+    @commands.command(name="game", aliases=["playgame", "minigame"])
+    async def game_cmd(self, ctx, *, game: str = ""):
+        """Share a mini game: `game tictactoe`, `connect4`, `trivia` or `slots`."""
+        import difflib
+
         game = game.lower().replace("-", "").replace(" ", "")
+        aliases = {"ttt": "tictactoe", "xo": "tictactoe", "c4": "connect4", "connectfour": "connect4"}
+        game = aliases.get(game, game)
         if game not in GAMES:
-            return await ctx.send(fail(f"Pick one of: {', '.join(GAMES)}."))
+            guess = difflib.get_close_matches(game, list(GAMES), n=1, cutoff=0.6) if game else []
+            if not guess:
+                return await ctx.send(fail(f"Pick one of: {', '.join(GAMES)}. Example: `game tictactoe`."))
+            game = guess[0]
         await self.post_game(ctx.channel, game)
         await ctx.send(f"🎮 **{GAMES[game].title}** is ready. Tap the app above to play.")
 
@@ -116,8 +123,20 @@ class Games(commands.Cog, name="Games"):
         """Register the referee. ``games.join_when``: ``opened`` (the bot joins when a player opens the app, the
         default) or ``shared`` (it joins as soon as the app is posted, and stays until idle)."""
         g = self.cfg["games"]
+        if getattr(self.bot, "_games_router", False):
+            return                # registered by an earlier load; the router finds this cog by name
+        self.bot._games_router = True
+        bot = self.bot
+
+        async def route(session):
+            cog = bot.get_cog("Games")
+            if cog is None:       # the games module was switched off
+                await session.leave()
+                return
+            await cog.referee(session)
+
         self.bot.xdc_app("*", join_when=g.get("join_when", "opened"), idle_timeout=float(g["idle_timeout_seconds"]),
-                         quiet_timeout=1800.0, max_per_chat=8)(self.referee)
+                         quiet_timeout=1800.0, max_per_chat=8)(route)
 
     async def referee(self, session: vector.XdcSession):
         """Router handler: someone opened a Mini App. Referee it if it is one of ours."""

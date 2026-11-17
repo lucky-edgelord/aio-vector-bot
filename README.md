@@ -9,7 +9,9 @@ An all-in-one community bot for any Vector community. Clone it, give it its own 
 
 A community-management bot for [Vector](https://vectorapp.io), in the spirit of [Logiq](https://github.com/programmify/Logiq) (a Discord MEE6 alternative), written from scratch on `vector-sdk-py` with **SQLite** instead of MongoDB.
 
-Moderation, leveling with image rank cards, an economy and shop, tickets, **CAPTCHA verification**, onboarding, reaction roles, giveaways, an event calendar, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, a **web dashboard**, a **setup wizard** (dashboard and terminal), settings **import and export**, and **restore points** you can roll back to.
+Moderation, **automod**, **link safety** (oisd.nl blocklists), an **image guard** (picture blocklist plus optional nudity detection), leveling with image rank cards, an economy and shop, tickets, **CAPTCHA verification**, onboarding, reaction roles, giveaways, an event calendar, **YouTube / Twitch / RSS alerts**, **music in voice channels**, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, a **web dashboard**, a **setup wizard** (dashboard and terminal), settings **import and export**, and **restore points** you can roll back to.
+
+**Everything is a module.** Switch any feature on or off while the bot runs (`!module on music`, the dashboard or the wizard); only what's on is loaded, and features with heavy dependencies are optional installs. See [Modules](https://lucky-edgelord.github.io/aio-vector-bot/modules.html).
 
 ![The web dashboard's overview page: member, message and moderation stats, a 30-day activity chart and the busiest channels](docs/images/dashboard-overview.png)
 
@@ -210,14 +212,18 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 
 | Area | Commands |
 |---|---|
-| Moderation | `warn` `warnings` `delwarn` `clearwarns` `timeout` `untimeout` `kick` `ban` `tempban` `unban` `case` `history` `modlog` `purge` `lock` `unlock` `slowmode` |
+| Modules | `modules` `module on/off <name>` |
+| Automod & safety | `automod` `linksafety` `linksafety check/update` `imageguard` `imageguard block/unblock/list/test` |
+| Music | `play` `search` `playnext` `queue` `nowplaying` `skip` `forceskip` `skipto` `back` `replay` `seek` `pause` `resume` `loop` `shuffle` `move` `remove` `clearqueue` `removedupes` `leavecleanup` `volume` `filter` `247` `join` `leave` |
+| Alerts | `notify` `notify add youtube/twitch/rss` `notify remove` `notify check` |
+| Moderation | `softban` `warn` `warnings` `delwarn` `clearwarns` `timeout` `untimeout` `kick` `ban` `tempban` `unban` `case` `history` `modlog` `purge` `lock` `unlock` `slowmode` |
 | Leveling | `rank` `leaderboard` `levelreward add/remove` `givexp` `resetxp` `levelcurve` |
 | Economy | `balance` `daily` `work` `pay` `deposit` `withdraw` `richest` `transactions` `shop` `buy` `inventory` `addmoney` |
 | Dashboard | `dashboard` (DMs you a one-time sign-in link) |
 | Tickets | `ticket open/close/claim/list/transcript`, or react 🔒 in the ticket to close (`tickets.close_emoji`) |
 | Roles & access | `rolemenu create/list/delete` `verify` `forceverify` `onboarding` |
 | Giveaways | `giveaway start/end/reroll/cancel/list` |
-| Games | `games` `play <game>` `gamestats` `gameboard` |
+| Games | `games` `game <name>` `gamestats` `gameboard` |
 | Utility | `userinfo` `communityinfo` `poll` `analytics` `testwelcome` `about` `ping` |
 | Events | `event create` `event list` `event info` `event edit` `event rsvp` `event who` `event cancel` `event delete` `event repost` `event ics` `event timezone` `calendar` |
 | Security cam | `securitycam` `securitycam set [channel]` `securitycam off` |
@@ -227,7 +233,7 @@ Moderation commands are gated by the matching Vector permission. Owner commands 
 
 ## Mini games (WebXDC)
 
-`!play tictactoe | connect4 | trivia | slots` posts a small web app into the chat. Players open it in Vector and **the bot joins the app's realtime channel as the referee**: it owns the board, the clock, the random numbers and the coins, so a modified client can't cheat.
+`!game tictactoe | connect4 | trivia | slots` posts a small web app into the chat. Players open it in Vector and **the bot joins the app's realtime channel as the referee**: it owns the board, the clock, the random numbers and the coins, so a modified client can't cheat.
 
 - Tic-Tac-Toe and Connect Four: two seats, spectators welcome, rematch.
 - Trivia: lobby, 8 timed questions, faster correct answers score more; coins per correct answer.
@@ -253,6 +259,7 @@ pip install -e ".[dev]" && pytest && ruff check .
 
 - **[GateBot](https://gitworkshop.dev/henk.tech/Gatebot)** by henk.tech (MIT): the CAPTCHA verification flow (personal one-time links, the domain-only public notice, the age step), one verification per device with expiring hashed IP, cookie and browser marks, the message gate with a spam limit, the invite-gate lobby, softbans that kick on sight and escalate to a real ban, lasting verification records with role restore on rejoin, and the permission check. Vectiq's version is a Python rewrite of those ideas, not a copy of the code.
 - **[Logiq](https://github.com/programmify/Logiq)**: the feature set Vectiq started from.
+- **[oisd](https://oisd.nl)** for the domain blocklists link safety downloads; **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** and **[FFmpeg](https://ffmpeg.org)** for music; **[NudeNet](https://github.com/notAI-tech/NudeNet)** and **[nsfw_model / nsfw-detector](https://github.com/GantMan/nsfw_model)** as optional image detectors (installed separately, not bundled).
 
 ## Contributing
 
@@ -264,4 +271,5 @@ Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 - Communities still on Vector's legacy roster don't accept per-channel permission overwrites. Tickets fall back to a private channel with per-member access; `lock`/`unlock` may need the community upgraded.
 - The rank and leaderboard colours approximate Vector's look (dark canvas, green accent, ◤◢ motif); change them in `render/cards.py`.
 - Games were verified with the real rules driven through a headless browser and with the cog tested against a fake session. A full two-player round trip over Vector's network has not yet been confirmed from a real Vector client.
+- Automod, link safety, the image guard, alerts, live module switching and the music cards were tested live in a Vector community. Music **audio** hasn't been heard yet: from the cloud test machine, Vector's voice connection (and the Mini App realtime channel) never connects to other people, even with the bare SDK, so audio playback and a two-player game round trip still need a test from a normal computer.
 - Fonts: Inter (SIL OFL) is bundled for the cards; see `assets/fonts/Inter-OFL.txt`.

@@ -93,11 +93,26 @@ def expand(md: str) -> str:
             return docsgen.commands_markdown(arg or None)
         if kind == "config":
             return docsgen.config_markdown(arg)
+        if kind == "modules":
+            from vectiq import modules
+
+            slug = {"moderation": "moderation", "automod": "automod", "linksafety": "link-safety",
+                    "imageguard": "image-guard", "verification": "verification", "securitycam": "security-cam",
+                    "welcome": "onboarding", "onboarding": "onboarding", "roles": "role-menus", "tickets": "tickets",
+                    "events": "events", "notifications": "notifications", "utility": "utility",
+                    "leveling": "leveling", "economy": "economy", "giveaways": "giveaways", "music": "music",
+                    "games": "games", "webhooks": "webhooks", "dashboard": "dashboard"}
+            rows = ["| Module | Name | What it does | On at first | Extra install |", "|---|---|---|---|---|"]
+            for g in modules.GROUPS:
+                for mod in (x for x in modules.REGISTRY if x.group == g):
+                    rows.append(f"| [{mod.label}]({slug[mod.name]}.md) | `{mod.name}` | {mod.help} | "
+                                f"{'yes' if mod.default else 'no'} | {('`' + mod.extra + '`') if mod.imports else ''} |")
+            return "\n".join(rows)
         if kind == "changelog":
             text = (ROOT / "CHANGELOG.md").read_text()
             return re.sub(r"^# .*\n+", "", text).replace("\n## ", "\n\n## ").replace("## ", "## ", 1)
         raise SystemExit(f"unknown placeholder {{{{{m.group(1)}}}}}")
-    return re.sub(r"\{\{([a-z]+(?::[A-Za-z_ ]+)?)\}\}", sub, md)
+    return re.sub(r"\{\{([a-z]+(?::[A-Za-z_ &]+)?)\}\}", sub, md)
 
 
 def load_pages() -> list[Page]:
@@ -206,7 +221,13 @@ def build_page(pages: list[Page], page: Page) -> str:
 # -- landing page ----------------------------------------------------------------------------------------
 
 FEATURES = [
-    ("moderation", "Moderation", "Warnings that escalate, timeouts, bans that lift themselves, purge, lock, automod, a mod log."),
+    ("modules", "Modules", "Every feature is a module. Switch any of them on or off while the bot runs; only what's on is loaded."),
+    ("moderation", "Moderation", "Warnings that escalate, timeouts, bans that lift themselves, softbans, purge, lock, a mod log."),
+    ("automod", "Automod", "Spam, mass mentions, shouting, banned words, invites, floods and risky files, each on its own switch."),
+    ("link-safety", "Link safety", "Links checked against oisd.nl blocklists (and optionally Google Safe Browsing)."),
+    ("image-guard", "Image guard", "A blocklist of known pictures, plus optional nudity detection: local models or an API."),
+    ("notifications", "Stream & video alerts", "Posts when a YouTube channel uploads, a Twitch channel goes live or a feed updates."),
+    ("music", "Music", "Voice music with a queue, loops, filters, vote-skips, a DJ role and 24/7 mode."),
     ("leveling", "Leveling", "XP for chatting on the familiar MEE6 curve, role rewards, and rank and leaderboard cards as images."),
     ("economy", "Economy", "Coins, daily streaks, work, a bank and a shop that sells roles."),
     ("tickets", "Tickets", "A private channel per request. Staff claim it; anyone closes it with a 🔒 reaction. Transcripts are kept."),

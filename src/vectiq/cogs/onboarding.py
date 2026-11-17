@@ -85,8 +85,11 @@ class Onboarding(commands.Cog, name="Onboarding"):
                 except Exception as exc:  # noqa: BLE001 - a missing permission must not stop onboarding
                     log.warning("could not set up the role menu in %s: %s", guild.name, exc)
 
+    async def cog_unload(self):
+        self.bot.remove_listener(self._on_ready_once, "on_ready")
+
     async def cog_load(self):
-        self.bot.add_listener(self._on_ready_once, "on_ready")
+        self.bot.when_ready(self._on_ready_once)
 
     async def _on_ready_once(self):
         if not self._ensured:

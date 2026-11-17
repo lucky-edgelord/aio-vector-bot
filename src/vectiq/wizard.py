@@ -255,8 +255,13 @@ def run(path: str | Path | None = None, *, ask: Callable[[str], str] = input,
 
         if sc["key"] == "features":
             paths = [p for p in sc["st"]["paths"] if schema.applies(p, value)]
-            body = [f"{n:>2}. [{'x' if value(p) else ' '}] {schema.FIELDS[p]['label']}  "
-                    + scr.dim(schema.FIELDS[p]["help"]) for n, p in enumerate(paths, 1)]
+            body, group = [], None
+            for n, p in enumerate(paths, 1):
+                f = schema.FIELDS[p]
+                if f.get("group") and f["group"] != group:
+                    group = f["group"]
+                    body.append(scr.b(group))
+                body.append(f"{n:>2}. [{'x' if value(p) else ' '}] {f['label']}  " + scr.dim(f["help"]))
             scr.draw(sc["stage"], idx, total, [sc["st"]["say"], note], body,
                      "Type numbers to tick or untick (e.g. 3 9). Enter: continue   <: back   q: quit")
             note = ""

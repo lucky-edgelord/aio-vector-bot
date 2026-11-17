@@ -34,9 +34,10 @@ class Dashboard(commands.Cog, name="Dashboard"):
         from ..dashboard.server import create_app
 
         self.app = create_app(self.bot)
-        self.bot.add_listener(self._start_once, "on_ready")
+        self.bot.when_ready(self._start_once)
 
     async def cog_unload(self):
+        self.bot.remove_listener(self._start_once, "on_ready")
         if self._server is not None:
             self._server.should_exit = True
 

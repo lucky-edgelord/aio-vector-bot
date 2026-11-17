@@ -18,6 +18,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from .. import modules
 from ..config import ConfigError
 from ..games.registry import GAMES
 from ..render import Entry, leaderboard_card
@@ -1171,6 +1172,24 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
                 await store.clear_override(path)
         if "prefix" in changes:
             bot.command_prefix = cfg.prefix
+        apply_soon()
+
+    def apply_soon() -> None:
+        """Switch modules on/off and tell them about new settings, after this response has been sent
+        (the dashboard itself may be one of the modules switched off)."""
+        if hasattr(bot, "apply_settings"):
+            async def later():
+                await asyncio.sleep(0.2)
+                await bot.apply_settings()
+            asyncio.get_running_loop().create_task(later())
+
+    def module_note(before: dict[str, bool]) -> str:
+        on = [modules.BY_NAME[m].label for m in modules.NAMES if cfg.enabled(m) and not before.get(m)]
+        off = [modules.BY_NAME[m].label for m in modules.NAMES if not cfg.enabled(m) and before.get(m)]
+        missing = [f"{modules.BY_NAME[m].label} ({modules.BY_NAME[m].install_hint()})" for m in modules.NAMES
+                   if cfg.enabled(m) and modules.BY_NAME[m].missing()]
+        return ((f" Switching on: {', '.join(on)}." if on else "") + (f" Switching off: {', '.join(off)}." if off else "")
+                + (f" Not installed: {', '.join(missing)}." if missing else ""))
 
     @app.get("/api/settings")
     async def settings(npub: str = Depends(current)):
@@ -1199,12 +1218,14 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         before = {p: cfg.get(p) for p in coerced}
         if data.get("checkpoint") and getattr(bot, "restore_points", None):
             await bot.restore_points.create(str(data["checkpoint"])[:120], "automatic")
+        was_on = {m: cfg.enabled(m) for m in modules.NAMES}
         await save_overrides(coerced, npub)
         restart = sorted({schema.FIELDS[p]["label"] for p in coerced if schema.FIELDS[p]["restart"]
                           and before[p] != coerced[p]})
         await audit(npub, "changed settings", ", ".join(sorted(coerced))[:480])
         return {"ok": True, "restart": restart,
-                "message": "Saved." + (f" Restart the bot to apply: {', '.join(restart)}." if restart else "")}
+                "message": "Saved." + module_note(was_on)
+                + (f" Restart the bot to apply: {', '.join(restart)}." if restart else "")}
 
     @app.delete("/api/settings/{path}")
     async def settings_reset(path: str, npub: str = Depends(owner)):
@@ -1248,10 +1269,11 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
             fail(400, "That file would remove you from the owners. Edit config.yaml for that.")
         if getattr(bot, "restore_points", None):
             await bot.restore_points.create("Before importing settings", "automatic")
+        was_on = {m: cfg.enabled(m) for m in modules.NAMES}
         await save_overrides(p.changes, npub)
         await audit(npub, "imported settings", ", ".join(sorted(p.changes))[:480])
         restart = sorted({schema.FIELDS[k]["label"] for k in p.changes if schema.FIELDS[k]["restart"]})
-        return preview | {"ok": True, "message": f"Imported {len(p.changes)} setting(s)."
+        return preview | {"ok": True, "message": f"Imported {len(p.changes)} setting(s)." + module_note(was_on)
                           + (f" Restart the bot to apply: {', '.join(restart)}." if restart else "")}
 
     # -- restore points (owners) ---------------------------------------------------------------
@@ -1289,8 +1311,9 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
             fail(400, f"Can't roll back: {exc}")
         await audit(npub, "rolled back", f"{p.when} {p.label}")
         bot.command_prefix = cfg.prefix
+        apply_soon()
         return {"ok": True, "result": r, "message": f"Rolled back to {p.when}."
-                + (" Restart the bot to finish: some features were switched on or off." if r["restart"] else "")}
+                + (" Features that were switched on or off there are being switched back." if r["restart"] else "")}
 
     @app.delete("/api/restore-points/{pid}")
     async def restore_point_delete(pid: str, npub: str = Depends(owner)):

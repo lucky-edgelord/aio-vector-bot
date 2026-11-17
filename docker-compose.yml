@@ -4,7 +4,10 @@
 # Put VECTOR_NSEC (and optionally VECTIQ_INVITE_URLS) in a .env file next to this one.
 services:
   vectiq:
-    build: .
+    build:
+      context: .
+      args:
+        EXTRAS: dashboard,webhooks,music   # add nudenet for local nudity detection
     image: vectiq:latest
     restart: unless-stopped
     env_file: .env

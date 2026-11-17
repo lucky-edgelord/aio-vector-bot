@@ -10,9 +10,11 @@ from typing import Any
 
 import yaml
 
-MODULES = ("moderation", "leveling", "economy", "tickets", "verification", "roles",
-           "giveaways", "games", "welcome", "onboarding", "utility", "webhooks", "events", "securitycam", "dashboard")
-OFF_BY_DEFAULT = ("securitycam", "dashboard")
+from .modules import NAMES as MODULES
+from .modules import REGISTRY
+
+SAFETY_ACTIONS = ("delete", "warn", "timeout", "log")
+DETECTORS = ("off", "nudenet", "nsfw-detector", "sightengine", "http")
 
 
 def _merge(base: dict, over: Mapping) -> dict:
@@ -29,11 +31,37 @@ DEFAULTS: dict[str, Any] = {
     "prefix": "!",
     "communities": [],
     "owners": [],
-    "modules": {name: name not in OFF_BY_DEFAULT for name in MODULES},
+    "modules": {m.name: m.default for m in REGISTRY},
     "moderation": {"mute_max_days": 28, "warn_threshold": 3, "warn_action": "timeout",
-                   "warn_action_minutes": 60, "log_channel": "",
-                   "automod": {"enabled": False, "max_mentions": 6, "max_caps_percent": 80, "caps_min_length": 12,
-                               "block_links": False, "banned_words": [], "action": "delete"}},
+                   "warn_action_minutes": 60, "log_channel": ""},
+    "automod": {"action": "delete", "timeout_minutes": 10, "exempt_roles": [], "exempt_channels": [],
+                "mentions": {"enabled": True, "max": 6},
+                "caps": {"enabled": True, "percent": 80, "min_length": 12},
+                "words": {"enabled": False, "list": [], "partial": False},
+                "links": {"enabled": False, "allow": []},
+                "invites": {"enabled": True, "allow": [], "extra": []},
+                "flood": {"enabled": True, "messages": 6, "seconds": 8},
+                "duplicates": {"enabled": True, "repeats": 3, "seconds": 60},
+                "files": {"enabled": True, "block": ["exe", "scr", "bat", "cmd", "com", "msi", "vbs", "js", "jar",
+                                                      "ps1", "lnk", "apk", "dll", "hta", "reg"]},
+                "zalgo": {"enabled": False, "max_marks": 10}},
+    "linksafety": {"lists": ["https://big.oisd.nl/domainswild2"], "nsfw": False, "refresh_hours": 24,
+                   "allow": [], "block": [], "action": "delete", "timeout_minutes": 10,
+                   "exempt_roles": [], "exempt_channels": [], "safe_browsing_key_env": ""},
+    "imageguard": {"detector": "off", "threshold": 0.7, "action": "delete", "timeout_minutes": 10,
+                   "blocklist": True, "match_distance": 6, "remember": True, "max_mb": 15,
+                   "allow_channels": [], "exempt_roles": [], "exempt_channels": [],
+                   "nsfw_detector": {"model_path": "", "count_sexy": False},
+                   "sightengine": {"user_env": "SIGHTENGINE_USER", "secret_env": "SIGHTENGINE_SECRET",
+                                   "models": "nudity-2.1", "strict": False},
+                   "http": {"url": "", "score_field": "score", "header": "", "header_env": ""}},
+    "music": {"dj_role": "DJ", "default_volume": 80, "max_volume": 150, "max_queue": 500, "max_track_minutes": 0,
+              "vote_skip_ratio": 0.5, "leave_when_alone_seconds": 60, "leave_when_idle_seconds": 300,
+              "stay_247": False, "announce": True, "cards": True, "controls": True, "search": "ytsearch", "allow_playlists": True,
+              "max_playlist": 100, "ffmpeg": "ffmpeg", "cookies_file": ""},
+    "notifications": {"channel": "announcements", "check_minutes": 5, "max_per_check": 3, "messages": {},
+                      "feeds": [], "twitch": {"client_id_env": "TWITCH_CLIENT_ID",
+                                              "client_secret_env": "TWITCH_CLIENT_SECRET"}},
     "leveling": {"cards": True, "xp_min": 15, "xp_max": 25, "cooldown_seconds": 60, "announce": True,
                  "announce_channel": "", "no_xp_channels": [], "rewards": {}},
     "economy": {"currency_name": "coins", "currency_symbol": "🪙", "daily_amount": 200,
@@ -88,6 +116,27 @@ class ConfigError(ValueError):
     pass
 
 
+def upgrade_legacy(raw: Mapping) -> Mapping:
+    """Older config.yaml files kept automod under ``moderation.automod``; read them as the automod module."""
+    old = (raw.get("moderation") or {}).get("automod") if isinstance(raw.get("moderation"), Mapping) else None
+    if not isinstance(old, Mapping):
+        return raw
+    raw = dict(raw)
+    raw["moderation"] = {k: v for k, v in raw["moderation"].items() if k != "automod"}
+    if "automod" not in raw:
+        words = list(old.get("banned_words") or [])
+        raw["automod"] = {"action": old.get("action", "delete"),
+                          "mentions": {"enabled": True, "max": old.get("max_mentions", 6)},
+                          "caps": {"enabled": True, "percent": old.get("max_caps_percent", 80),
+                                   "min_length": old.get("caps_min_length", 12)},
+                          "words": {"enabled": bool(words), "list": words},
+                          "links": {"enabled": bool(old.get("block_links"))}}
+    mods = dict(raw.get("modules") or {})
+    mods.setdefault("automod", bool(old.get("enabled")))
+    raw["modules"] = mods
+    return raw
+
+
 def load_dotenv(path: str | Path = ".env", env: dict | None = None) -> int:
     """Read ``KEY=VALUE`` lines into the environment without overriding what is already set. Returns how many."""
     target = os.environ if env is None else env
@@ -134,6 +183,7 @@ class Config:
                 raise ConfigError(f"{path}: not valid YAML ({exc})") from exc
             if not isinstance(raw, Mapping):
                 raise ConfigError(f"{path}: the top level must be a mapping")
+        raw = upgrade_legacy(raw)
         data = _merge(DEFAULTS, raw)
         if env.get("VECTIQ_DASHBOARD_HOST"):          # lets a container listen on 0.0.0.0 without editing config.yaml
             data["dashboard"] = {**data["dashboard"], "host": env["VECTIQ_DASHBOARD_HOST"]}
@@ -197,6 +247,32 @@ class Config:
                 raise ConfigError("verification.captcha.site_key is needed for mode: captcha")
             if not str(vf["public_url"] or d["dashboard"]["base_url"]).strip():
                 raise ConfigError("verification.public_url is needed for mode: captcha")
+        for section in ("automod", "linksafety", "imageguard"):
+            if d[section]["action"] not in SAFETY_ACTIONS:
+                raise ConfigError(f"{section}.action must be one of {', '.join(SAFETY_ACTIONS)}")
+        for rule, r in d["automod"].items():
+            if isinstance(r, Mapping) and r.get("action") and r["action"] not in SAFETY_ACTIONS:
+                raise ConfigError(f"automod.{rule}.action must be one of {', '.join(SAFETY_ACTIONS)}")
+        ig = d["imageguard"]
+        if ig["detector"] not in DETECTORS:
+            raise ConfigError(f"imageguard.detector must be one of {', '.join(DETECTORS)}")
+        if not isinstance(ig["threshold"], (int, float)) or not 0 < float(ig["threshold"]) <= 1:
+            raise ConfigError("imageguard.threshold must be between 0 and 1, e.g. 0.7")
+        if not isinstance(d["linksafety"]["lists"], list):
+            raise ConfigError("linksafety.lists must be a list of blocklist links")
+        mu = d["music"]
+        if mu["search"] not in ("ytsearch", "scsearch", "ytmsearch"):
+            raise ConfigError("music.search must be ytsearch (YouTube), ytmsearch (YouTube Music) or scsearch (SoundCloud)")
+        if not 0 < float(mu["vote_skip_ratio"]) <= 1:
+            raise ConfigError("music.vote_skip_ratio must be more than 0 and at most 1, e.g. 0.5")
+        if not 0 <= int(mu["default_volume"]) <= int(mu["max_volume"]):
+            raise ConfigError("music.default_volume must be between 0 and max_volume")
+        feeds = d["notifications"]["feeds"]
+        if not isinstance(feeds, list):
+            raise ConfigError("notifications.feeds must be a list")
+        for i, f in enumerate(feeds):
+            if not isinstance(f, Mapping) or f.get("type") not in ("youtube", "twitch", "rss") or not f.get("source"):
+                raise ConfigError(f"notifications.feeds[{i}]: needs type (youtube, twitch or rss) and source")
         port = d["dashboard"]["port"]
         if not isinstance(port, int) or not 1 <= port <= 65535:
             raise ConfigError("dashboard.port must be a port number")

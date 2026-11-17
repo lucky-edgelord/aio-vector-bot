@@ -5,6 +5,7 @@ from .gate import GateStore
 from .levels import LevelStore, level_for_xp, xp_for_level
 from .misc import ActivityStore, GameStatsStore, GiveawayStore, OnboardingStore, RoleMenuStore, SettingsStore, VerificationStore
 from .moderation import ModerationStore
+from .safety import ImageBlockStore, NotifyStore
 from .tickets import TicketStore
 
 __all__ = (
@@ -17,6 +18,8 @@ __all__ = (
     "GameStatsStore",
     "GateStore",
     "GiveawayStore",
+    "ImageBlockStore",
+    "NotifyStore",
     "InsufficientFunds",
     "LevelStore",
     "ModerationStore",
@@ -49,3 +52,5 @@ class Stores:
         self.dashboard = DashboardStore(db)
         self.events = EventStore(db)
         self.gate = GateStore(db)
+        self.image_blocks = ImageBlockStore(db)
+        self.notify = NotifyStore(db)

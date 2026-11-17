@@ -1,0 +1,97 @@
+"""Every feature is a module that loads only when on, and can be switched on and off while running."""
+
+import subprocess
+import sys
+
+from vectiq import modules
+from vectiq.app import VectiqBot
+from vectiq.config import DEFAULTS, Config, upgrade_legacy
+from vectiq.dashboard import schema
+
+
+def test_registry_matches_config_and_dashboard():
+    assert set(DEFAULTS["modules"]) == set(modules.NAMES)
+    assert all(f"modules.{m}" in schema.FIELDS for m in modules.NAMES)
+    assert all(m.group in modules.GROUPS for m in modules.REGISTRY)
+    wizard_features = next(s for s in schema.WIZARD if s["id"] == "features")["paths"]
+    assert wizard_features == [f"modules.{m}" for m in modules.NAMES]
+
+
+def test_example_config_lists_every_module():
+    cfg = Config.load("config.yaml", env={})
+    import yaml
+
+    raw = yaml.safe_load(open("config.yaml"))
+    assert set(raw["modules"]) == set(modules.NAMES)
+    assert cfg.get("automod.flood.enabled") is True
+
+
+async def test_switch_every_module_on_off_and_on_again(db, tmp_path):
+    cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
+    bot = VectiqBot(cfg, db)
+    for m in modules.NAMES:
+        cfg.data["modules"][m] = True
+    r = await bot.sync_modules()
+    assert r["problems"] == [] and len(r["loaded"]) == len(modules.NAMES)
+    assert {"Automod", "LinkSafety", "ImageGuard", "Notifications", "Music"} <= set(bot.cogs)
+    for m in modules.NAMES:
+        cfg.data["modules"][m] = False
+    r = await bot.sync_modules()
+    assert set(bot.cogs) == {"Core", "Restore points"} and len(r["unloaded"]) == len(modules.NAMES)
+    cfg.data["modules"]["music"] = True
+    r = await bot.sync_modules()
+    assert r["loaded"] == ["music"] and "Music" in bot.cogs
+    await bot.sync_modules()                         # nothing changed: nothing happens
+    assert set(bot.cogs) == {"Core", "Restore points", "Music"}
+
+
+async def test_missing_package_is_reported_not_fatal(db, tmp_path, monkeypatch):
+    cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
+    cfg.data["modules"]["music"] = True
+    monkeypatch.setattr(modules.Module, "missing", lambda self: ["yt_dlp"] if self.name == "music" else [])
+    bot = VectiqBot(cfg, db)
+    r = await bot.sync_modules()
+    assert "music" in r["problems"] and "Music" not in bot.cogs and "Moderation" in bot.cogs
+    assert 'pip install "vectiq[music]"' in bot.module_problems["music"]
+
+
+def test_modules_that_are_off_are_never_imported(tmp_path):
+    code = (
+        "import asyncio, sys\n"
+        "from vectiq.config import Config\nfrom vectiq.db import Database\nfrom vectiq.app import VectiqBot\n"
+        "async def main():\n"
+        f"    cfg = Config.load('config.yaml', env={{'VECTIQ_DATA_DIR': {str(tmp_path)!r}}})\n"
+        "    bot = VectiqBot(cfg, await Database(':memory:').connect())\n"
+        "    await bot.sync_modules()\n"
+        "    bad = [m for m in ('vectiq.cogs.music', 'vectiq.cogs.imageguard', 'vectiq.cogs.dashboard', 'yt_dlp',"
+        " 'fastapi', 'vectiq.cogs.linksafety') if m in sys.modules]\n"
+        "    print(bad)\n"
+        "asyncio.run(main())\n")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+    assert out.strip().splitlines()[-1] == "[]"
+
+
+def test_legacy_automod_settings_are_upgraded():
+    raw = {"moderation": {"warn_threshold": 2, "automod": {"enabled": True, "max_mentions": 3, "banned_words": ["x"],
+                                                             "block_links": True, "action": "warn"}}}
+    new = upgrade_legacy(raw)
+    assert new["modules"]["automod"] is True and "automod" not in new["moderation"]
+    assert new["automod"]["mentions"]["max"] == 3 and new["automod"]["words"] == {"enabled": True, "list": ["x"]}
+    assert new["automod"]["links"]["enabled"] and new["automod"]["action"] == "warn"
+
+
+async def test_group_checks_protect_subcommands(db, tmp_path):
+    """`!module off music` must be owner-only like `!module`; `!imageguard block` needs Manage Messages too."""
+    cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
+    for m in modules.NAMES:
+        cfg.data["modules"][m] = True
+    bot = VectiqBot(cfg, db)
+    await bot.sync_modules()
+    unguarded = []
+    for cog in bot.cogs.values():
+        for cmd in cog.walk_commands():
+            parent = getattr(cmd, "parent", None)
+            if parent is not None and parent.checks and not all(c in cmd.checks for c in parent.checks):
+                unguarded.append(cmd.qualified_name)
+    assert unguarded == []
+    assert bot.get_command("module off").checks and bot.get_command("vectiq reload").checks

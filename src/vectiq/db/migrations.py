@@ -327,4 +327,36 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (guild_id, user_id)
     );
     """,
+    # 8: image guard blocklist and stream/video alerts
+    """
+    CREATE TABLE image_blocks (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        hash     TEXT NOT NULL,
+        note     TEXT NOT NULL DEFAULT '',
+        by_id    TEXT NOT NULL DEFAULT '',
+        at       INTEGER NOT NULL,
+        UNIQUE (guild_id, hash)
+    );
+
+    CREATE TABLE notify_feeds (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        source     TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        message    TEXT NOT NULL DEFAULT '',
+        role       TEXT NOT NULL DEFAULT '',
+        by_id      TEXT NOT NULL DEFAULT '',
+        at         INTEGER NOT NULL,
+        UNIQUE (guild_id, kind, source, channel_id)
+    );
+
+    CREATE TABLE notify_seen (
+        feed_key TEXT NOT NULL,
+        item_id  TEXT NOT NULL,
+        at       INTEGER NOT NULL,
+        PRIMARY KEY (feed_key, item_id)
+    );
+    """,
 ]
