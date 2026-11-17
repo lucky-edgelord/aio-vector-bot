@@ -31,7 +31,7 @@ Join a voice channel, then:
 
 `play` takes search words, or a link to YouTube, YouTube Music, SoundCloud, Bandcamp, a direct audio file, or anything else yt-dlp knows, including playlists. `search` shows the top five results to pick from. `playnext` puts a song at the front.
 
-`play` is shared with [mini games](games.md): `!play tictactoe` still starts a game, and anything else is music.
+Mini games have their own command, `game`: `!game tictactoe`. See [Mini games](games.md).
 
 ## The queue
 

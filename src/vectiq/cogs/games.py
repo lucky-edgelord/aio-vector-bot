@@ -1,6 +1,6 @@
 """WebXDC mini games.
 
-``play <game>`` shares a small web app into the chat. People open it, and Vectiq joins the app's realtime
+``game <name>`` shares a small web app into the chat. People open it, and Vectiq joins the app's realtime
 channel as the referee: it owns every rule, the clock and the coins, so a modified client can't cheat.
 """
 
@@ -56,15 +56,22 @@ class Games(commands.Cog, name="Games"):
     @commands.command(name="games")
     async def games_(self, ctx):
         """List the mini games."""
-        lines = [f"**{g.title}** (`play {name}`): {BLURB.get(name, '')}" for name, g in GAMES.items()]
+        lines = [f"**{g.title}** (`game {name}`): {BLURB.get(name, '')}" for name, g in GAMES.items()]
         await ctx.send(embed=embed("Mini games", "\n".join(lines), footer="They open as Mini Apps in the chat"))
 
-    @commands.command(name="game", aliases=["playgame"])
-    async def game_cmd(self, ctx, game: str = ""):
-        """Share a game: `play tictactoe`, `connect4`, `trivia` or `slots` (also `game <name>`)."""
+    @commands.command(name="game", aliases=["playgame", "minigame"])
+    async def game_cmd(self, ctx, *, game: str = ""):
+        """Share a mini game: `game tictactoe`, `connect4`, `trivia` or `slots`."""
+        import difflib
+
         game = game.lower().replace("-", "").replace(" ", "")
+        aliases = {"ttt": "tictactoe", "xo": "tictactoe", "c4": "connect4", "connectfour": "connect4"}
+        game = aliases.get(game, game)
         if game not in GAMES:
-            return await ctx.send(fail(f"Pick one of: {', '.join(GAMES)}."))
+            guess = difflib.get_close_matches(game, list(GAMES), n=1, cutoff=0.6) if game else []
+            if not guess:
+                return await ctx.send(fail(f"Pick one of: {', '.join(GAMES)}. Example: `game tictactoe`."))
+            game = guess[0]
         await self.post_game(ctx.channel, game)
         await ctx.send(f"🎮 **{GAMES[game].title}** is ready. Tap the app above to play.")
 

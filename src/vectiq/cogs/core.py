@@ -53,21 +53,6 @@ class Core(commands.Cog, name="Core"):
         r = await self.bot.apply_settings()
         await ctx.send("✅ config.yaml reloaded." + _summary(r))
 
-    @commands.command(aliases=["p"])
-    async def play(self, ctx, *, what: str = ""):
-        """Play music (`play <song or link>`) or share a mini game (`play tictactoe`)."""
-        from ..games.registry import GAMES
-
-        games, music = self.bot.get_cog("Games"), self.bot.get_cog("Music")
-        word = what.split()[0].lower().replace("-", "") if what.split() else ""
-        if games is not None and (word in GAMES or music is None):
-            return await ctx.invoke(games.game_cmd, game=word)
-        if music is not None and what:
-            return await music.enqueue(ctx, what)
-        if music is not None:
-            return await ctx.send("What should I play? `play <song name or link>`")
-        await ctx.send("❌ Music and mini games are both off. An owner can switch one on with `module on music`.")
-
     # -- modules ------------------------------------------------------------------------
 
     @commands.command(name="modules", aliases=["features"])

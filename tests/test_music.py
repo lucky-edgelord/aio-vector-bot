@@ -181,3 +181,18 @@ async def test_reaction_buttons(monkeypatch):
     said.clear()
     await press(dj, "⏯️", msg="other")              # buttons on an old card do nothing
     assert said == []
+
+
+async def test_play_is_music_and_game_is_games(db, tmp_path):
+    """`play` belongs to music, `game` to mini games, and both can be on together."""
+    from vectiq import modules
+    from vectiq.app import VectiqBot
+    from vectiq.config import Config
+
+    cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
+    for m in modules.NAMES:
+        cfg.data["modules"][m] = True
+    bot = VectiqBot(cfg, db)
+    await bot.sync_modules()
+    assert bot.get_command("play").cog.qualified_name == "Music" and bot.get_command("p").cog.qualified_name == "Music"
+    assert bot.get_command("game").cog.qualified_name == "Games"

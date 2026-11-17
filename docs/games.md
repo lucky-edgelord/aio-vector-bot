@@ -6,13 +6,13 @@ summary: Tic-Tac-Toe, Connect Four, trivia and slots as WebXDC apps that the bot
 ---
 
 ```
-!play tictactoe
-!play connect4
-!play trivia
-!play slots
+!game tictactoe
+!game connect4
+!game trivia
+!game slots
 ```
 
-`!play` posts a small web app into the chat. Members open it inside Vector, and the bot joins the app's realtime channel as the **referee**. The bot owns the board, the clock, the random numbers and the coins, so a modified app can't cheat.
+`!game` posts a small web app into the chat. Members open it inside Vector, and the bot joins the app's realtime channel as the **referee**. The bot owns the board, the clock, the random numbers and the coins, so a modified app can't cheat.
 
 ## The games
 

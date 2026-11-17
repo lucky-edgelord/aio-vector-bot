@@ -164,7 +164,12 @@ class Music(commands.Cog, name="Music"):
 
     # -- playing ---------------------------------------------------------------------------
 
-    # `play` itself lives in Core, so it can share the word with mini games; it calls enqueue().
+    @commands.command(aliases=["p"])
+    async def play(self, ctx, *, query: str = ""):
+        """Play a song: search words, or a YouTube, SoundCloud, Bandcamp or audio link (playlists too)."""
+        if not query:
+            return await ctx.send("What should I play? `play <song name or link>`. Mini games are `game <name>`.")
+        await self.enqueue(ctx, query)
 
     @commands.command(aliases=["pn", "playtop"])
     async def playnext(self, ctx, *, query: str):

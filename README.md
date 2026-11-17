@@ -223,7 +223,7 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 | Tickets | `ticket open/close/claim/list/transcript`, or react 🔒 in the ticket to close (`tickets.close_emoji`) |
 | Roles & access | `rolemenu create/list/delete` `verify` `forceverify` `onboarding` |
 | Giveaways | `giveaway start/end/reroll/cancel/list` |
-| Games | `games` `play <game>` (or `game <game>`) `gamestats` `gameboard` |
+| Games | `games` `game <name>` `gamestats` `gameboard` |
 | Utility | `userinfo` `communityinfo` `poll` `analytics` `testwelcome` `about` `ping` |
 | Events | `event create` `event list` `event info` `event edit` `event rsvp` `event who` `event cancel` `event delete` `event repost` `event ics` `event timezone` `calendar` |
 | Security cam | `securitycam` `securitycam set [channel]` `securitycam off` |
@@ -233,7 +233,7 @@ Moderation commands are gated by the matching Vector permission. Owner commands 
 
 ## Mini games (WebXDC)
 
-`!play tictactoe | connect4 | trivia | slots` posts a small web app into the chat. Players open it in Vector and **the bot joins the app's realtime channel as the referee**: it owns the board, the clock, the random numbers and the coins, so a modified client can't cheat.
+`!game tictactoe | connect4 | trivia | slots` posts a small web app into the chat. Players open it in Vector and **the bot joins the app's realtime channel as the referee**: it owns the board, the clock, the random numbers and the coins, so a modified client can't cheat.
 
 - Tic-Tac-Toe and Connect Four: two seats, spectators welcome, rematch.
 - Trivia: lobby, 8 timed questions, faster correct answers score more; coins per correct answer.

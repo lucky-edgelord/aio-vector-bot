@@ -18,7 +18,7 @@
 - Music: voice playback through yt-dlp and a streaming ffmpeg source; play (search, links, playlists), search,
   playnext, queue, nowplaying, skip with vote-skip, forceskip, skipto, back, replay, seek, pause/resume, loop,
   shuffle, move, remove, clearqueue, removedupes, leavecleanup, volume, filters, 24/7, a DJ role and auto-leave.
-  `play` is shared with mini games (`!play tictactoe` still works; the games command is also `!game`).
+  Mini games moved from `!play <game>` to `!game <name>` (it also guesses typos), so `!play` is music only.
 - Docker image: ffmpeg included and an `EXTRAS` build argument.
 - Installers for every system: `install.sh` now also supports Linux (apt, dnf, pacman, zypper, apk; systemd user service), `install.ps1` for Windows (winget, scheduled task), with matching `uninstall` and `run.ps1` scripts.
 - pip install: `pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"`, `vectiq --init` (writes config.yaml and .env), `vectiq --version`, the example files bundled in the package, and `--setup` creating a missing config.yaml.
