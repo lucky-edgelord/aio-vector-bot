@@ -92,21 +92,21 @@ async def test_load_reload_unload_while_running(registry, tmp_path, make_bot):
 async def test_a_plugin_swaps_with_the_builtin_it_replaces(registry, tmp_path, make_bot):
     write_plugin(tmp_path / "modules", "smartmod", "Smart mod", provides="automod")
     cfg = Config.load(config_in(tmp_path), env={"VECTIQ_DATA_DIR": str(tmp_path / "data")})
-    assert "automod" in [m.name for m in modules.same_slot("smartmod")]
+    assert "sentire_official" in [m.name for m in modules.same_slot("smartmod")]
     bot = make_bot(cfg)
-    await bot.set_module("automod", True, "owner")
-    assert "Automod" in bot.cogs
+    await bot.set_module("sentire_official", True, "owner")
+    assert "Sentire (official)" in bot.cogs
     await bot.set_module("smartmod", True, "owner")             # swap
-    assert "Smart mod" in bot.cogs and "Automod" not in bot.cogs
-    assert cfg.enabled("smartmod") and not cfg.enabled("automod")
-    await bot.set_module("automod", True, "owner")              # and back
-    assert "Automod" in bot.cogs and "Smart mod" not in bot.cogs
+    assert "Smart mod" in bot.cogs and "Sentire (official)" not in bot.cogs
+    assert cfg.enabled("smartmod") and not cfg.enabled("sentire_official")
+    await bot.set_module("sentire_official", True, "owner")     # and back
+    assert "Sentire (official)" in bot.cogs and "Smart mod" not in bot.cogs
 
 
 def test_two_modules_for_one_job_is_a_config_error(registry, tmp_path):
     write_plugin(tmp_path / "modules", "smartmod", "Smart mod", provides="automod")
     path = config_in(tmp_path)
-    path.write_text(path.read_text().replace("  automod: false", "  automod: true\n  smartmod: true"))
+    path.write_text(path.read_text().replace("  sentire: false", "  sentire: true\n  smartmod: true"))
     with pytest.raises(ConfigError, match="both do automod"):
         Config.load(path, env={"VECTIQ_DATA_DIR": str(tmp_path / "data")})
 
@@ -123,7 +123,7 @@ def test_broken_plugins_are_reported_not_fatal(registry, tmp_path):
 
 def test_plugins_cant_take_a_builtin_name(registry):
     with pytest.raises(ValueError, match="built-in"):
-        modules.register(modules.Module("automod", "Fake", "x", "Safety", ("x",)))
+        modules.register(modules.Module("sentire", "Fake", "x", "Safety", ("x",)))
 
 
 def test_entry_point_plugins(registry, monkeypatch):
@@ -159,7 +159,7 @@ async def test_example_ai_automod(registry, monkeypatch, make_bot, tmp_path):
     cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
     bot = make_bot(cfg)
     await bot.set_module("ai_automod", True, "owner")
-    assert "AI automod" in bot.cogs and not cfg.enabled("automod")
+    assert "AI automod" in bot.cogs and not cfg.enabled("sentire")
     calls = []
     monkeypatch.setattr(ai, "ask_model", lambda c, t: calls.append(t) or {"flag": "scam" in t, "rule": "No scams",
                                                                               "reason": ""})

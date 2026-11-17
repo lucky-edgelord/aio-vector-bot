@@ -10,8 +10,8 @@ owners: []            # npubs that can use !vectiq admin commands everywhere
 modules:              # every feature is a module: on or off. Only modules that are on are loaded.
   # Safety                Change these live with `!module on <name>`, the dashboard or `vectiq --setup`.
   moderation: true    # warnings, timeouts, kicks, bans, softbans, purge, lock, slowmode
-  automod: false      # removes spam, mass mentions, shouting, invites, floods, risky files (section `automod`)
-  sentire: false      # runs the Sentire moderation bot beside Vectiq (does automod's job; section `sentire`)
+  sentire: false      # automod: runs the Sentire moderation bot beside Vectiq (section `sentire`)
+  sentire_official: false # automod: invites the official, already running Sentire-001 bot instead
   linksafety: false   # removes links to scam/malware/adult sites using oisd.nl blocklists (section `linksafety`)
   imageguard: false   # polices pictures: blocklist + optional nudity detector (section `imageguard`)
   verification: true
@@ -75,50 +75,11 @@ moderation:
   warn_action_minutes: 60     # how long the timeout lasts when warn_action is timeout
   log_channel: ""             # channel name or id for the mod log (blank = none)
 
-# --- Automod (modules.automod) -------------------------------------------------------------------
-# Staff (Manage Messages) are never checked. Every rule has its own switch and may set its own action.
-automod:
-  action: delete              # delete | warn (also a warning) | timeout (also a mute) | log (only tell the mod log)
-  timeout_minutes: 10         # mute length for action: timeout
-  exempt_roles: []            # roles automod skips
-  exempt_channels: []         # channels automod skips
-  mentions:                   # more mentions than `max` in one message
-    enabled: true
-    max: 6
-  caps:                       # shouting: this share of capitals in a message this long
-    enabled: true
-    percent: 80
-    min_length: 12
-  words:                      # banned words; partial: also inside other words
-    enabled: false
-    list: []
-    partial: false
-  invites:                    # Vector, Discord, Telegram, WhatsApp, Signal, Matrix invites
-    enabled: true
-    allow: []
-    extra: []
-  links:                      # remove every link except these domains
-    enabled: false
-    allow: []
-  flood:                      # more than `messages` in `seconds`
-    enabled: true
-    messages: 6
-    seconds: 8
-  duplicates:                 # the same message more than `repeats` times
-    enabled: true
-    repeats: 3
-    seconds: 60
-  files:                      # attachments with these extensions
-    enabled: true
-    block: [exe, scr, bat, cmd, com, msi, vbs, js, jar, ps1, lnk, apk, dll, hta, reg]
-  zalgo:                      # glitchy text stacked with combining marks
-    enabled: false
-    max_marks: 10
-
 # --- Sentire (modules.sentire) ---------------------------------------------------------------------
 # Sentire (github.com/VectorPrivacy/Sentire) is a separate moderation bot. With this module on, Vectiq builds or
 # finds it, writes its sentinel.toml from these settings, runs it with its own Vector identity, and can invite it
-# into your communities (`!sentire invite`). It does automod's job, so switching it on switches Automod off.
+# into your communities (`!sentire invite`). This is Vectiq's automod. modules.sentire_official instead invites
+# the official Sentire-001 that VectorPrivacy runs (nothing to build); only one of the two runs at a time.
 sentire:
   binary: ""                  # blank = data/sentire/bin/sentinel (made by `vectiq --install-sentire`), then PATH
   name: Sentire               # its Vector profile name
@@ -169,6 +130,16 @@ sentire:
   extra: {}                   # any other sentinel.toml settings, merged in as written
   config_file: ""             # use your own sentinel.toml instead of the one Vectiq writes
   log_lines: 300              # lines of its output kept for `!sentire log` and the dashboard
+
+# --- Sentire (official) (modules.sentire_official) -------------------------------------------------
+# Instead of running Sentire yourself, invite the one VectorPrivacy runs (Sentire-001,
+# npub1pc5sdve5w6wczjhhnzu4te7ayjujlprm2y4ndx044gzsqx0gq64qytz06y) with `!sentire invite`. What it may do is set
+# by the role Vectiq gives it; its rules are set with its own chat commands (/words, /links, /ladder).
+sentire_official:
+  role: Sentire               # the role Vectiq gives it
+  delete: true                # Manage Messages: it may delete what it convicts
+  kick: false                 # Kick: it may kick on its ladder and contain raids
+  ban: false                  # Ban: it may ban
 
 # --- Link safety (modules.linksafety) -------------------------------------------------------------
 linksafety:

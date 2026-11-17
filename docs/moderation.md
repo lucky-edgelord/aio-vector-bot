@@ -67,7 +67,7 @@ moderation:
 
 ## Automod
 
-Automod is its own module now, with a switch for every rule. See [Automod](automod.md). Old `moderation.automod` settings are still read and moved there automatically.
+Vectiq's automod is [Sentire](sentire.md): run your own copy, or invite the official Sentire-001. Older `config.yaml` files that switched automod on now switch Sentire on, and their banned words move to Sentire.
 
 ## Commands
 

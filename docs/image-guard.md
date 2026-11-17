@@ -42,7 +42,7 @@ The package hasn't been updated since 2021, needs TensorFlow, and is GPLv3 licen
 
 ## Exceptions and actions
 
-`allow_channels` turns checks off in channels where anything goes, such as an adults-only channel. Staff with Manage Messages and `exempt_roles` are skipped. `action` works as in [Automod](automod.md).
+`allow_channels` turns checks off in channels where anything goes, such as an adults-only channel. Staff with Manage Messages and `exempt_roles` are skipped. `action` decides what happens: `delete` removes the message and says why, `warn` also adds a warning, `timeout` also mutes the member for `timeout_minutes`, and `log` only tells the mod log.
 
 Use `!imageguard test` on a picture (attach it, or reply to it) to see its blocklist match and detector score without removing anything.
 

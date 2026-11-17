@@ -9,9 +9,9 @@ An all-in-one community bot for any Vector community. Clone it, give it its own 
 
 A community-management bot for [Vector](https://vectorapp.io), in the spirit of [Logiq](https://github.com/programmify/Logiq) (a Discord MEE6 alternative), written from scratch on `vector-sdk-py` with **SQLite** instead of MongoDB.
 
-Moderation, **automod**, **[Sentire](https://github.com/VectorPrivacy/Sentire)** run as a module, **link safety** (oisd.nl blocklists), an **image guard** (picture blocklist plus optional nudity detection), leveling with image rank cards, an economy and shop, tickets, **CAPTCHA verification**, onboarding, reaction roles, giveaways, an event calendar, **YouTube / Twitch / RSS alerts**, **music in voice channels**, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, a **web dashboard**, a **setup wizard** (dashboard and terminal), settings **import and export**, and **restore points** you can roll back to.
+Moderation, automod by **[Sentire](https://github.com/VectorPrivacy/Sentire)** (run your own, or invite the official one), **link safety** (oisd.nl blocklists), an **image guard** (picture blocklist plus optional nudity detection), leveling with image rank cards, an economy and shop, tickets, **CAPTCHA verification**, onboarding, reaction roles, giveaways, an event calendar, **YouTube / Twitch / RSS alerts**, **music in voice channels**, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, a **web dashboard**, a **setup wizard** (dashboard and terminal), settings **import and export**, and **restore points** you can roll back to.
 
-**Everything is a module, and modules are pluggable.** Switch any feature on or off while the bot runs (`!module on music`, the dashboard or the wizard); only what's on is loaded. Add your own, or replace a built-in one (an AI automod instead of automod, say), by dropping a plugin into `modules/` or `pip install`ing it; swap and reload them live. See [Modules](https://lucky-edgelord.github.io/aio-vector-bot/modules.html) and [Writing modules](https://lucky-edgelord.github.io/aio-vector-bot/writing-modules.html); [`examples/vectiq-ai-automod`](examples/vectiq-ai-automod) is a complete plugin.
+**Everything is a module, and modules are pluggable.** Switch any feature on or off while the bot runs (`!module on music`, the dashboard or the wizard); only what's on is loaded. Add your own, or replace a built-in one (an AI automod instead of Sentire, say), by dropping a plugin into `modules/` or `pip install`ing it; swap and reload them live. See [Modules](https://lucky-edgelord.github.io/aio-vector-bot/modules.html) and [Writing modules](https://lucky-edgelord.github.io/aio-vector-bot/writing-modules.html); [`examples/vectiq-ai-automod`](examples/vectiq-ai-automod) is a complete plugin.
 
 ![The web dashboard's overview page: member, message and moderation stats, a 30-day activity chart and the busiest channels](docs/images/dashboard-overview.png)
 
@@ -92,7 +92,7 @@ Use a **separate Vector account for the bot**, never your personal key.
 
 | Logiq | Vectiq | Notes |
 |---|---|---|
-| Moderation | `moderation` | warn/delwarn/clearwarns, timeout, kick, ban, tempban (auto-lifts), unban, purge, lock/unlock, soft slowmode, cases + history, automod |
+| Moderation | `moderation` | warn/delwarn/clearwarns, timeout, kick, ban, tempban (auto-lifts), unban, purge, lock/unlock, soft slowmode, cases + history |
 | Leveling | `leveling` | MEE6 curve, cooldown, level-up messages, role rewards, **image rank card and leaderboard** |
 | Economy | `economy` | wallet + bank, daily streaks, work, pay, shop with roles and stock, rich list, transaction history |
 | Tickets | `tickets` | private channel per ticket, claim, close by command or 🔒 reaction, stored transcript |
@@ -213,8 +213,8 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 | Area | Commands |
 |---|---|
 | Modules | `modules` `module on/off/info/reload <name>` `module scan` `module install/uninstall` |
-| Sentire | `sentire` `sentire invite` `sentire log` `sentire restart` `sentire install` |
-| Automod & safety | `automod` `linksafety` `linksafety check/update` `imageguard` `imageguard block/unblock/list/test` |
+| Sentire (automod) | `sentire` `sentire invite` `sentire log` `sentire restart` `sentire install` |
+| Safety | `linksafety` `linksafety check/update` `imageguard` `imageguard block/unblock/list/test` |
 | Music | `play` `search` `playnext` `queue` `nowplaying` `skip` `forceskip` `skipto` `back` `replay` `seek` `pause` `resume` `loop` `shuffle` `move` `remove` `clearqueue` `removedupes` `leavecleanup` `volume` `filter` `247` `join` `leave` |
 | Alerts | `notify` `notify add youtube/twitch/rss` `notify remove` `notify check` |
 | Moderation | `softban` `warn` `warnings` `delwarn` `clearwarns` `timeout` `untimeout` `kick` `ban` `tempban` `unban` `case` `history` `modlog` `purge` `lock` `unlock` `slowmode` |
@@ -258,9 +258,10 @@ pip install -e ".[dev]" && pytest && ruff check .
 
 ## Credits
 
+- **[Vector](https://github.com/VectorPrivacy/Vector)** by **[JSKitty](https://github.com/JSKitty)** and the [VectorPrivacy](https://github.com/VectorPrivacy) team (MIT): the private, open-source messenger Vectiq lives in, and the Rust core underneath `vector-sdk-py`. Vectiq wouldn't exist without it.
+- **[Sentire](https://github.com/VectorPrivacy/Sentire)** by JSKitty (MIT): Vectiq's automod. The Sentire module builds, configures and runs your own copy; Sentire (official) invites the Sentire-001 that VectorPrivacy runs. Vectiq doesn't include Sentire's code; it downloads and builds it when you ask.
 - **[GateBot](https://gitworkshop.dev/henk.tech/Gatebot)** by henk.tech (MIT): the CAPTCHA verification flow (personal one-time links, the domain-only public notice, the age step), one verification per device with expiring hashed IP, cookie and browser marks, the message gate with a spam limit, the invite-gate lobby, softbans that kick on sight and escalate to a real ban, lasting verification records with role restore on rejoin, and the permission check. Vectiq's version is a Python rewrite of those ideas, not a copy of the code.
 - **[Logiq](https://github.com/programmify/Logiq)**: the feature set Vectiq started from.
-- **[Sentire](https://github.com/VectorPrivacy/Sentire)** by JSKitty / VectorPrivacy (MIT): the moderation bot the Sentire module builds, configures and runs. Vectiq doesn't include its code; it downloads and builds it when you ask.
 - **[oisd](https://oisd.nl)** for the domain blocklists link safety downloads; **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** and **[FFmpeg](https://ffmpeg.org)** for music; **[NudeNet](https://github.com/notAI-tech/NudeNet)** and **[nsfw_model / nsfw-detector](https://github.com/GantMan/nsfw_model)** as optional image detectors (installed separately, not bundled).
 
 ## Contributing

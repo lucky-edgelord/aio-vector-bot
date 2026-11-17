@@ -10,7 +10,7 @@ Every Vectiq feature is a module, and you can add your own. A plugin module beha
 A plugin can:
 
 - **add something new**: a feature Vectiq doesn't have, with its own commands, listeners, settings and wizard step;
-- **replace a built-in**: set `provides="automod"` and it does automod's job instead. Switching it on switches the built-in off, and the other way round. Only one module per job runs.
+- **replace a built-in**: set `provides="automod"` and it does automod's job instead of Sentire. Switching it on switches the built-in off, and the other way round. Only one module per job runs.
 
 ## Your first module in two minutes
 
@@ -63,7 +63,7 @@ async def setup(bot):
 | `name` | Lowercase id: `modules.<name>` in config.yaml, `!module on <name>`. It can't be a built-in's name. |
 | `label`, `help`, `group` | What people see. `group` is Safety, Members, Community, Fun, Integrations, or a new one. |
 | `cogs` | Where the code is. Blank means the plugin's own file; `.cog` means `cog.py` inside a plugin folder; packages give full import paths. |
-| `provides` | The job it does. Blank means its own name. `"automod"`, `"verification"`, `"music"`... replace that built-in. |
+| `provides` | The job it does. Blank means its own name. `"automod"` (Sentire's job), `"verification"`, `"music"`... replace that built-in. |
 | `defaults` | Its settings section, `<name>:` in config.yaml. |
 | `settings` | `field(...)`s shown on the dashboard's Settings page and asked in the setup wizard. Paths start with `<name>.`. |
 | `wizard` | What the setup wizard says before asking those settings. |
@@ -78,7 +78,7 @@ Modules are [cogs](https://discordpy.readthedocs.io/en/stable/ext/commands/cogs.
 
 - `bot.config.get("<name>.setting")` reads your settings. They update live when someone changes them on the dashboard, and `on_vectiq_config_reload` fires.
 - `bot.stores.*` and `bot.db` give you the database; `bot.find_channel(guild, "mod-log")` matches names loosely; `bot.emit(guild, kind, title, text)` feeds webhooks.
-- `enforce(bot, message, source=..., reason=..., action=...)` removes, warns, times out or logs exactly as automod does. `exempt(bot, message, cfg)` skips staff and exempt roles and channels.
+- `enforce(bot, message, source=..., reason=..., action=...)` removes, warns, times out or logs exactly as link safety and the image guard do. `exempt(bot, message, cfg)` skips staff and exempt roles and channels.
 - `embed`, `ok`, `fail`, `name_of`, `is_owner`, `field` cover messages, checks and settings.
 
 Stop loops and close connections in `cog_unload`, so the module can be switched off cleanly.
@@ -133,7 +133,7 @@ Owners can also install from chat with `!module install <package>`, if `plugins.
 
 ## Example: an AI automod
 
-[`examples/vectiq-ai-automod`](https://github.com/lucky-edgelord/aio-vector-bot/tree/main/examples/vectiq-ai-automod) is a complete plugin in about 120 lines. It replaces the built-in automod: it runs the built-in rules first, then asks any OpenAI-compatible model (a local Ollama by default, so messages stay on your computer) whether a message breaks your rules.
+[`examples/vectiq-ai-automod`](https://github.com/lucky-edgelord/aio-vector-bot/tree/main/examples/vectiq-ai-automod) is a complete plugin in about 120 lines. It does automod's job instead of Sentire: it asks any OpenAI-compatible model (a local Ollama by default, so messages stay on your computer) whether a message breaks your rules.
 
 ```sh
 vectiq --install-module "git+https://github.com/lucky-edgelord/aio-vector-bot#subdirectory=examples/vectiq-ai-automod"
@@ -141,7 +141,7 @@ vectiq --install-module "git+https://github.com/lucky-edgelord/aio-vector-bot#su
 
 ```text
 !module scan
-!module on ai_automod      ✅ AI automod is on. It replaces Automod, which is now off.
+!module on ai_automod      ✅ AI automod is on. It replaces Sentire, which is now off.
 !aicheck you're all idiots
 ```
 

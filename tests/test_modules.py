@@ -8,7 +8,7 @@ from vectiq.config import DEFAULTS, Config, upgrade_legacy
 from vectiq.dashboard import schema
 
 BUILTIN = [m.name for m in modules.BUILTIN]
-ONE_PER_JOB = [m for m in BUILTIN if m != "sentire"]       # sentire does automod's job (and needs its program)
+ONE_PER_JOB = [m for m in BUILTIN if m != "sentire"]       # both Sentire modules do automod's job; one runs
 
 
 def test_registry_matches_config_and_dashboard():
@@ -25,7 +25,7 @@ def test_example_config_lists_every_module():
 
     raw = yaml.safe_load(open("config.yaml"))
     assert set(raw["modules"]) == set(BUILTIN)
-    assert cfg.get("automod.flood.enabled") is True
+    assert cfg.get("sentire.arm.warn") is False
 
 
 async def test_switch_every_module_on_off_and_on_again(make_bot, tmp_path):
@@ -35,7 +35,7 @@ async def test_switch_every_module_on_off_and_on_again(make_bot, tmp_path):
         cfg.data["modules"][m] = True
     r = await bot.sync_modules()
     assert r["problems"] == [] and len(r["loaded"]) == len(ONE_PER_JOB)
-    assert {"Automod", "LinkSafety", "ImageGuard", "Notifications", "Music"} <= set(bot.cogs)
+    assert {"Sentire (official)", "LinkSafety", "ImageGuard", "Notifications", "Music"} <= set(bot.cogs)
     for m in modules.NAMES:
         cfg.data["modules"][m] = False
     r = await bot.sync_modules()
@@ -73,13 +73,17 @@ def test_modules_that_are_off_are_never_imported(tmp_path):
     assert out.strip().splitlines()[-1] == "[]"
 
 
-def test_legacy_automod_settings_are_upgraded():
-    raw = {"moderation": {"warn_threshold": 2, "automod": {"enabled": True, "max_mentions": 3, "banned_words": ["x"],
-                                                             "block_links": True, "action": "warn"}}}
-    new = upgrade_legacy(raw)
-    assert new["modules"]["automod"] is True and "automod" not in new["moderation"]
-    assert new["automod"]["mentions"]["max"] == 3 and new["automod"]["words"] == {"enabled": True, "list": ["x"]}
-    assert new["automod"]["links"]["enabled"] and new["automod"]["action"] == "warn"
+def test_old_automod_settings_become_sentire():
+    """The built-in automod was replaced by Sentire: old configs switch Sentire on and keep their banned words."""
+    old = {"moderation": {"warn_threshold": 2, "automod": {"enabled": True, "banned_words": ["x"]}}}
+    new = upgrade_legacy(old)
+    assert new["modules"]["sentire"] is True and "automod" not in new["moderation"]
+    assert new["sentire"]["banned_words"] == ["x"]
+    newer = upgrade_legacy({"modules": {"automod": False}, "automod": {"words": {"list": ["y"]}}})
+    assert newer["modules"] == {"sentire": False} and newer["sentire"]["banned_words"] == ["y"]
+    assert "automod" not in newer
+    assert upgrade_legacy({"prefix": "!"}) == {"prefix": "!"}
+
 
 
 async def test_group_checks_protect_subcommands(make_bot, tmp_path):
@@ -97,3 +101,12 @@ async def test_group_checks_protect_subcommands(make_bot, tmp_path):
                 unguarded.append(cmd.qualified_name)
     assert unguarded == []
     assert bot.get_command("module off").checks and bot.get_command("vectiq reload").checks
+
+
+def test_old_dashboard_settings_are_upgraded_not_thrown_away():
+    from vectiq.config import upgrade_overrides
+
+    used, dropped = upgrade_overrides({"modules.automod": True, "automod.words.list": ["z"], "automod.caps.percent": 70,
+                                       "modules.gone_plugin": True, "prefix": "?"})
+    assert used == {"modules.sentire": True, "sentire.banned_words": ["z"], "prefix": "?"}
+    assert set(dropped) == {"automod.words.list", "automod.caps.percent", "modules.gone_plugin"}

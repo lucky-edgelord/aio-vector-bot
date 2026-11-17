@@ -13,6 +13,7 @@ from vector.ext import commands
 from ..sentire import config as sconf
 from ..sentire.install import build, find_binary, home, identity
 from ..sentire.process import Sidecar
+from ..sentire.roles import invite_and_grant, permissions
 from ..utils.checks import is_owner
 from ..utils.embeds import embed, fail, ok
 
@@ -131,41 +132,20 @@ class Sentire(commands.Cog, name="Sentire"):
                 "armed": [k for k, v in c["arm"].items() if v], "communities": self.communities(),
                 "vision": bool(c["vision"]["enabled"]), "log": list(sc.lines) if sc else list(self.notes)}
 
-    async def invite(self, guild) -> str:
-        """Invite Sentire into ``guild`` and give it a role with what its armed actions need."""
-        import vector
+    def perms(self):
+        arm = self.cfg["arm"]
+        return permissions(arm["delete"] or arm["warn"], arm["kick"] or arm["raid"],
+                           arm["ban"] or (arm["raid"] and self.cfg["raid"]["response"] == "ban"))
 
+    async def invite(self, guild) -> str:
+        """Invite this Sentire into ``guild`` and give it a role with what its armed actions need."""
         sc = self.sidecar
         if sc is None or not sc.npub:
             raise RuntimeError("Sentire isn't running yet, so I don't know its Vector ID")
-        arm = self.cfg["arm"]
-        perms = {"manage_messages": arm["delete"] or arm["warn"], "kick_members": arm["kick"] or arm["raid"],
-                 "ban_members": arm["ban"] or (arm["raid"] and self.cfg["raid"]["response"] == "ban")}
-        self._perms = vector.Permissions(**{k: bool(v) for k, v in perms.items()})
-        await guild.invite(sc.npub)
-        asyncio.get_running_loop().create_task(self._grant_role(guild, sc.npub))
+        await invite_and_grant(guild, sc.npub, self.cfg["name"] or "Sentire", self.perms())
         if self.cfg["communities"] and str(guild.id) not in self.communities() and self.write_config():
             await sc.restart()
         return sc.npub
-
-    async def _grant_role(self, guild, npub: str) -> None:
-        name = self.cfg["name"] or "Sentire"
-        for _ in range(60):                              # wait up to 10 minutes for it to join
-            member = guild.get_member(npub) if hasattr(guild, "get_member") else None
-            if member is not None:
-                break
-            await asyncio.sleep(10)
-        else:
-            log.warning("sentire: it didn't join %s within 10 minutes; give it a role by hand", guild.name)
-            return
-        try:
-            role = next((r for r in guild.roles if r.name == name), None)
-            if role is None:
-                role = await guild.create_role(name=name, permissions=getattr(self, "_perms", None))
-            await member.add_roles(role, reason="Sentire moderation bot (Vectiq)")
-            log.info("sentire: joined %s and has the %s role", guild.name, name)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("sentire: couldn't give it a role in %s: %s", guild.name, exc)
 
     async def install(self, say) -> Path:
         if self.building:

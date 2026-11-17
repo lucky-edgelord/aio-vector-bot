@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 
+from .app import build
 from .config import Config, ConfigError, load_dotenv
 
 
@@ -69,12 +70,12 @@ def main(argv=None) -> int:
               f"(after changes: `module reload {args.new_module}`).")
         return 0
     if args.install_sentire:
-        from .sentire.install import build
+        from .sentire.install import build as build_sentire
 
         load_dotenv(os.environ.get("VECTIQ_ENV", ".env"))
         data_dir = os.environ.get("VECTIQ_DATA_DIR", "data")
         try:
-            path = build(data_dir, tee=args.tee)
+            path = build_sentire(data_dir, tee=args.tee)
         except Exception as exc:  # noqa: BLE001
             print(f"❌ {exc}", file=sys.stderr)
             return 2

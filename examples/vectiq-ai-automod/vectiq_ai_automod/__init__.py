@@ -7,7 +7,7 @@ MODULE = Module(
     label="AI automod",
     help="An AI model reads each message against your rules and removes what breaks them",
     group="Safety",
-    provides="automod",                     # takes the built-in automod's place: one runs at a time
+    provides="automod",                     # does automod's job instead of Sentire: one runs at a time
     cogs=("vectiq_ai_automod.cog",),
     defaults={
         "base_url": "http://localhost:11434/v1",   # any OpenAI-compatible API; this is a local Ollama
@@ -17,7 +17,6 @@ MODULE = Module(
         "action": "delete",
         "timeout_minutes": 10,
         "min_chars": 12,                            # shorter messages aren't sent to the model
-        "also_rules": True,                         # run the built-in automod rules first (cheap, instant)
         "max_per_minute": 30,                       # most model calls per minute; beyond that messages pass
         "exempt_roles": [],
         "exempt_channels": [],
@@ -29,7 +28,6 @@ MODULE = Module(
         field("ai_automod.api_key_env", "API key variable", "text", "Name of the .env variable with the key"),
         field("ai_automod.rules", "Your rules", "longtext", "Plain words; the model judges messages against them"),
         field("ai_automod.action", "What to do", "enum", options=ACTIONS),
-        field("ai_automod.also_rules", "Also use the built-in rules", "bool", "Floods, invites, files... first"),
         field("ai_automod.min_chars", "Shortest message to check", "int", minimum=1, maximum=2000),
         field("ai_automod.max_per_minute", "Most checks per minute", "int", minimum=1, maximum=10000),
     ),

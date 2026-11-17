@@ -77,17 +77,17 @@ BUILTIN: tuple[Module, ...] = (
     # -- Safety
     Module("moderation", "Moderation", "Warnings, timeouts, kicks, bans, softbans, purge, lock and slowmode",
            "Safety", ("vectiq.cogs.moderation",)),
-    Module("automod", "Automod", "Removes spam, mass mentions, shouting, banned words, invites, floods and risky "
-           "files, each rule on its own switch", "Safety", ("vectiq.cogs.automod",), default=False,
-           works_with=("moderation",)),
     Module("linksafety", "Link safety", "Checks links against big blocklists (oisd.nl) and removes scam, malware "
            "and adult sites", "Safety", ("vectiq.cogs.linksafety",), default=False, works_with=("moderation",)),
     Module("imageguard", "Image guard", "Polices pictures: a blocklist of known images, and optional nudity "
            "detection on this computer", "Safety", ("vectiq.cogs.imageguard",), default=False,
            works_with=("moderation",)),
-    Module("sentire", "Sentire", "Runs the Sentire moderation bot (by VectorPrivacy) beside Vectiq: strikes that "
-           "decay, raid containment and a vision model for media", "Safety", ("vectiq.cogs.sentire",), default=False,
+    Module("sentire", "Sentire", "Automod by Sentire (VectorPrivacy), run by you: screens messages, strikes that "
+           "decay, raid containment and media checks", "Safety", ("vectiq.cogs.sentire",), default=False,
            provides="automod", works_with=("moderation",)),
+    Module("sentire_official", "Sentire (official)", "Automod by the official Sentire-001 bot that VectorPrivacy runs: "
+           "Vectiq invites it and manages its role; nothing to build", "Safety", ("vectiq.cogs.sentire_official",),
+           default=False, provides="automod"),
     Module("verification", "Verification", "New members prove they're human before they can join in",
            "Safety", ("vectiq.cogs.verification",)),
     Module("securitycam", "Security cam", "Copies every message into one staff channel", "Safety",

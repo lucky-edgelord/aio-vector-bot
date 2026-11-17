@@ -124,7 +124,7 @@ async def test_module_runs_sentire_and_draws_its_page(tmp_path, make_bot):
     p = tmp_path / "config.yaml"
     p.write_text(f"modules:\n  sentire: true\nsentire:\n  binary: {b}\n  arm:\n    warn: true\n")
     cfg = Config.load(p, env={"VECTIQ_DATA_DIR": str(tmp_path / "data")})
-    assert not cfg.enabled("automod")                    # sentire does automod's job
+    assert not cfg.enabled("sentire_official")           # one Sentire at a time
     bot = make_bot(cfg)
     bot.is_ready = lambda: True
     await bot.sync_modules()
@@ -204,3 +204,22 @@ async def test_dashboard_panel_api(stores, tmp_path):
         assert (await c.post(f"/api/panel/{name}/action/boom", json={"gid": "g1"}, headers=H)).status_code == 404
         assert (await c.get(f"/api/panel/{name}")).status_code == 400          # community page needs a community
         assert (await c.get("/api/panel/nothing?gid=g1")).status_code == 404
+
+
+def test_main_still_starts_the_bot_after_the_sentire_flag(monkeypatch, tmp_path):
+    """Regression: `from .sentire.install import build` inside main() shadowed the bot's build()."""
+    import vectiq.__main__ as entry
+
+    called = {}
+
+    async def fake_build(config):
+        called["built"] = True
+        raise SystemExit(0)
+
+    monkeypatch.setattr(entry, "build", fake_build)          # must exist at module level
+    monkeypatch.setenv("VECTOR_NSEC", "nsec1placeholder")
+    p = tmp_path / "config.yaml"
+    p.write_text("prefix: '!'\n")
+    with pytest.raises(SystemExit):
+        entry.main(["--config", str(p)])
+    assert called.get("built")

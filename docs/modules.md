@@ -5,7 +5,7 @@ order: 6
 summary: Every feature is a module. Switch any of them on or off while the bot runs; only the ones that are on are loaded.
 ---
 
-Vectiq is built from modules: moderation, automod, music, the dashboard and so on. Only modules that are switched on are loaded, so a bot that only does moderation never imports the music or dashboard code, and starts faster and uses less memory.
+Vectiq is built from modules: moderation, Sentire, music, the dashboard and so on. Only modules that are switched on are loaded, so a bot that only does moderation never imports the music or dashboard code, and starts faster and uses less memory.
 
 Switching a module on or off takes effect **straight away**. There's no restart. You can do it in four places:
 
@@ -20,7 +20,7 @@ A switch made in chat or on the dashboard is kept in the database and survives r
 
 ## Adding and swapping modules
 
-Modules don't have to come with Vectiq. Drop a plugin into the `modules/` folder or install one with pip, and it appears alongside the built-in ones. A plugin can add a new feature or **replace** a built-in one: an AI automod, a different verification, another music player. Only one module does each job, so switching on the replacement switches the built-in off, without a restart.
+Modules don't have to come with Vectiq. Drop a plugin into the `modules/` folder or install one with pip, and it appears alongside the built-in ones. A plugin can add a new feature or **replace** a built-in one: an AI automod instead of Sentire, a different verification, another music player. Only one module does each job, so switching on the replacement switches the built-in off, without a restart.
 
 | Command | Does |
 |---|---|

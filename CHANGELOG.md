@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- Automod is now Sentire (by JSKitty). The built-in automod module is gone: old configs and saved dashboard
+  settings that switched it on switch Sentire on, and banned words carry over. Two modules do the job, one at a
+  time: `sentire` runs your own copy; `sentire_official` invites the official Sentire-001
+  (npub1pc5sdve5w6wczjhhnzu4te7ayjujlprm2y4ndx044gzsqx0gq64qytz06y) and manages its role (delete/kick/ban).
+- Saved dashboard settings for modules that no longer exist are skipped one by one instead of all being ignored.
 - Sentire module: builds (`vectiq --install-sentire`) or finds the Sentire moderation bot, writes its
   sentinel.toml from Vectiq's `sentire:` settings (dashboard and wizard too), runs and supervises it with its own
   identity, invites it into communities with a role (`!sentire invite`), and shows status and log (`!sentire`,
