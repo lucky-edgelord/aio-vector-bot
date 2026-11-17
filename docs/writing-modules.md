@@ -83,6 +83,31 @@ Modules are [cogs](https://discordpy.readthedocs.io/en/stable/ext/commands/cogs.
 
 Stop loops and close connections in `cog_unload`, so the module can be switched off cleanly.
 
+## A page on the dashboard
+
+A module can add its own page to the dashboard without writing any JavaScript. Give the cog a `dashboard_page` and two methods, and the dashboard draws whatever `dashboard_panel` returns, under **Modules** in the menu. Built-in modules use the same mechanism: [Sentire](sentire.md)'s status, log and buttons are drawn this way.
+
+```python
+class Hello(commands.Cog):
+    dashboard_page = {"label": "Hello", "icon": "☺", "scope": "community"}   # "bot" for one page for the whole bot
+
+    async def dashboard_panel(self, guild, viewer):        # guild is None when scope is "bot"
+        return {"title": "Hello", "refresh": 10, "sections": [
+            {"type": "status", "items": [{"label": "Said hello", "value": 42, "tone": "green"}]},
+            {"type": "text", "text": "Anything to explain."},
+            {"type": "list", "title": "Recent", "items": [{"title": "Alex", "detail": "2 min ago", "tag": "new"}]},
+            {"type": "table", "columns": ["Who", "Count"], "rows": [["Alex", 3]]},
+            {"type": "log", "lines": ["…"]},
+            {"type": "actions", "items": [{"id": "reset", "label": "Reset", "kind": "danger",
+                                           "confirm": "Start counting again?", "owner": True}]},
+        ]}
+
+    async def dashboard_action(self, action, guild, viewer, data):   # a button was pressed
+        return "Done."                                               # shown to the person; raise to show an error
+```
+
+`refresh` redraws the page every few seconds. Buttons marked `"owner": True` only appear for bot owners, and every press is written to the audit log. `"owner_only": True` in `dashboard_page` hides the whole page from community admins. The module's settings appear under **Settings** by themselves, from `settings=(field(...), ...)` in its manifest.
+
 ## Sharing it with pip
 
 Make a package and declare an entry point in the `vectiq.modules` group:

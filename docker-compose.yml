@@ -8,6 +8,7 @@ services:
       context: .
       args:
         EXTRAS: dashboard,webhooks,music   # add nudenet for local nudity detection
+        SENTIRE: "0"                       # "1" builds the Sentire moderation bot into the image
     image: vectiq:latest
     restart: unless-stopped
     env_file: .env

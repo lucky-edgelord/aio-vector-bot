@@ -9,6 +9,12 @@ RUN python -m venv /opt/venv
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
+# The Sentire moderation bot, built into the image when SENTIRE=1
+ARG SENTIRE=0
+RUN if [ "$SENTIRE" = "1" ]; then \
+      git clone --depth 1 https://github.com/VectorPrivacy/Sentire /sentire && \
+      cd /sentire && cargo build --release --no-default-features && cp target/release/sentinel /usr/local/bin/sentinel; \
+    else touch /usr/local/bin/sentinel.none; fi
 # Optional modules: e.g. docker build --build-arg EXTRAS=dashboard,webhooks,music,nudenet .
 ARG EXTRAS=dashboard,webhooks,music
 RUN pip install --no-cache-dir ".[${EXTRAS}]"
@@ -19,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -r
 RUN useradd --create-home --uid 10001 vectiq \
     && mkdir -p /config /data && chown vectiq /config /data
 COPY --from=build /opt/venv /opt/venv
+COPY --from=build /usr/local/bin/sentinel* /usr/local/bin/
 COPY config.yaml /opt/vectiq/config.example.yaml
 COPY docker/entrypoint.sh /usr/local/bin/vectiq-entrypoint
 ENV PATH="/opt/venv/bin:$PATH" \

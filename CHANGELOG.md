@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased
+- Sentire module: builds (`vectiq --install-sentire`) or finds the Sentire moderation bot, writes its
+  sentinel.toml from Vectiq's `sentire:` settings (dashboard and wizard too), runs and supervises it with its own
+  identity, invites it into communities with a role (`!sentire invite`), and shows status and log (`!sentire`,
+  dashboard page). It does automod's job, so it swaps with Automod.
+- Module dashboard pages: any module, built-in or plugin, can add a page to the dashboard by returning data
+  (status tiles, text, lists, tables, a live log, buttons) from `dashboard_panel`; no JavaScript needed.
 - Plugin modules: modules can come from a `modules/` folder or from pip packages (entry point group
   `vectiq.modules`), with their own commands, settings (dashboard and wizard) and config section. A module fills a
   job (`provides`): a plugin can replace a built-in, and switching one on swaps the other off, live. New:

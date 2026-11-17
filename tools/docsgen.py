@@ -23,7 +23,7 @@ AREAS = {
     "Giveaways": "Giveaways", "Games": "Games", "Welcome": "Welcome", "Onboarding": "Onboarding",
     "Utility": "Utility", "Webhooks": "Webhooks", "Events": "Events", "SecurityCam": "Security cam",
     "Dashboard": "Dashboard", "Restore points": "Restore points", "Automod": "Automod", "LinkSafety": "Link safety",
-    "ImageGuard": "Image guard", "Notifications": "Stream & video alerts", "Music": "Music",
+    "ImageGuard": "Image guard", "Sentire": "Sentire", "Notifications": "Stream & video alerts", "Music": "Music",
 }
 PERMS = {
     "manage_messages": "Manage Messages", "manage_guild": "Manage Community", "manage_roles": "Manage Roles",

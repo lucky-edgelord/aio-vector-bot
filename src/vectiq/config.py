@@ -14,6 +14,13 @@ from . import modules as _modules
 from .modules import NAMES as MODULES  # a live list: plugins found later appear in it too
 from .modules import REGISTRY
 
+
+def _sentire_defaults() -> dict:
+    from .sentire.config import DEFAULTS as SENTIRE
+
+    return SENTIRE
+
+
 SAFETY_ACTIONS = ("delete", "warn", "timeout", "log")
 DETECTORS = ("off", "nudenet", "nsfw-detector", "sightengine", "http")
 
@@ -91,6 +98,7 @@ DEFAULTS: dict[str, Any] = {
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
     "plugins": {"dirs": ["modules"], "allow_install": False},
+    "sentire": _sentire_defaults(),
     "backup": {"every_hours": 24, "keep_automatic": 14, "keep_manual": 20, "dir": "", "include_pictures": True},
     "events": {"timezone": "UTC", "channel": "announcements", "banner_image": True,
                "default_minutes": 60, "reminders": [60, 15], "dm_reminders": True,
@@ -290,6 +298,10 @@ class Config:
             raise ConfigError("imageguard.threshold must be between 0 and 1, e.g. 0.7")
         if not isinstance(d["linksafety"]["lists"], list):
             raise ConfigError("linksafety.lists must be a list of blocklist links")
+        from .sentire.config import problems as sentire_problems
+
+        if (bad := sentire_problems(d["sentire"])):
+            raise ConfigError(bad[0])
         mu = d["music"]
         if mu["search"] not in ("ytsearch", "scsearch", "ytmsearch"):
             raise ConfigError("music.search must be ytsearch (YouTube), ytmsearch (YouTube Music) or scsearch (SoundCloud)")

@@ -101,7 +101,7 @@ def expand(md: str) -> str:
                     "welcome": "onboarding", "onboarding": "onboarding", "roles": "role-menus", "tickets": "tickets",
                     "events": "events", "notifications": "notifications", "utility": "utility",
                     "leveling": "leveling", "economy": "economy", "giveaways": "giveaways", "music": "music",
-                    "games": "games", "webhooks": "webhooks", "dashboard": "dashboard"}
+                    "games": "games", "webhooks": "webhooks", "dashboard": "dashboard", "sentire": "sentire"}
             rows = ["| Module | Name | What it does | On at first | Extra install |", "|---|---|---|---|---|"]
             for g in modules.GROUPS:
                 for mod in (x for x in modules.REGISTRY if x.group == g):
@@ -225,6 +225,7 @@ FEATURES = [
     ("writing-modules", "Writing modules", "Add your own feature, or replace a built-in one, as a plugin from a folder or pip."),
     ("moderation", "Moderation", "Warnings that escalate, timeouts, bans that lift themselves, softbans, purge, lock, a mod log."),
     ("automod", "Automod", "Spam, mass mentions, shouting, banned words, invites, floods and risky files, each on its own switch."),
+    ("sentire", "Sentire", "Run the Sentire moderation bot beside Vectiq, configured from Vectiq's settings and dashboard."),
     ("link-safety", "Link safety", "Links checked against oisd.nl blocklists (and optionally Google Safe Browsing)."),
     ("image-guard", "Image guard", "A blocklist of known pictures, plus optional nudity detection: local models or an API."),
     ("notifications", "Stream & video alerts", "Posts when a YouTube channel uploads, a Twitch channel goes live or a feed updates."),

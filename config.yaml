@@ -11,6 +11,7 @@ modules:              # every feature is a module: on or off. Only modules that 
   # Safety                Change these live with `!module on <name>`, the dashboard or `vectiq --setup`.
   moderation: true    # warnings, timeouts, kicks, bans, softbans, purge, lock, slowmode
   automod: false      # removes spam, mass mentions, shouting, invites, floods, risky files (section `automod`)
+  sentire: false      # runs the Sentire moderation bot beside Vectiq (does automod's job; section `sentire`)
   linksafety: false   # removes links to scam/malware/adult sites using oisd.nl blocklists (section `linksafety`)
   imageguard: false   # polices pictures: blocklist + optional nudity detector (section `imageguard`)
   verification: true
@@ -113,6 +114,61 @@ automod:
   zalgo:                      # glitchy text stacked with combining marks
     enabled: false
     max_marks: 10
+
+# --- Sentire (modules.sentire) ---------------------------------------------------------------------
+# Sentire (github.com/VectorPrivacy/Sentire) is a separate moderation bot. With this module on, Vectiq builds or
+# finds it, writes its sentinel.toml from these settings, runs it with its own Vector identity, and can invite it
+# into your communities (`!sentire invite`). It does automod's job, so switching it on switches Automod off.
+sentire:
+  binary: ""                  # blank = data/sentire/bin/sentinel (made by `vectiq --install-sentire`), then PATH
+  name: Sentire               # its Vector profile name
+  communities: []             # ids or names to watch; blank = every community Vectiq serves
+  mod_channel: ""             # where it announces sentences; blank = moderation.log_channel
+  poll_secs: 120              # how often it sweeps for floods and raids (at least 90)
+  arm:                        # nothing happens until armed: unarmed, it watches and reports
+    warn: false
+    delete: false
+    kick: false
+    ban: false
+    raid: false
+  banned_words: []            # whole words; *word* also matches inside longer ones
+  word_gravity: grave         # note | minor | serious | grave
+  blocked_links: []           # domains
+  link_gravity: serious
+  rate:                       # too many messages too fast
+    enabled: true
+    per_secs: 60
+    messages: 10
+    gravity: minor
+  repetition:                 # the same line again and again
+    enabled: true
+    times: 4
+    gravity: minor
+  mass_tagging:               # one message naming a crowd
+    enabled: true
+    times: 15
+    gravity: serious
+  ladder:                     # strike totals (they halve every decay_half_life_hours)
+    warn_at: 1
+    kick_at: 36
+    ban_at: 48
+    decay_half_life_hours: 168
+  raid:
+    response: kick            # report | kick | ban
+    min_confidence: 75
+    tripwire_accounts: 5      # this many strangers...
+    tripwire_secs: 30         # ...inside this window starts a raid check
+  vision:                     # pictures and video judged by a vision model you choose
+    enabled: false
+    provider: openai          # openai (any OpenAI-compatible API) | tee (confidential, needs a TEE build)
+    base_url: http://127.0.0.1:8080/v1
+    model: llava
+    api_key_env: ""           # name of the .env variable with the key; blank for a local model
+    allow_remote: false       # must be true for any address that isn't this computer
+    video: true               # clips become a contact sheet of frames (needs ffmpeg)
+  extra: {}                   # any other sentinel.toml settings, merged in as written
+  config_file: ""             # use your own sentinel.toml instead of the one Vectiq writes
+  log_lines: 300              # lines of its output kept for `!sentire log` and the dashboard
 
 # --- Link safety (modules.linksafety) -------------------------------------------------------------
 linksafety:

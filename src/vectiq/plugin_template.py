@@ -24,8 +24,22 @@ MODULE = Module(
 
 
 class {cls}(commands.Cog, name="{label}"):
+    # A page on the dashboard, drawn from the data dashboard_panel returns (delete these to have none)
+    dashboard_page = {{"label": "{label}", "icon": "◆", "scope": "community"}}
+
     def __init__(self, bot):
         self.bot = bot
+        self.count = 0
+
+    async def dashboard_panel(self, guild, viewer):
+        return {{"title": "{label}", "sections": [
+            {{"type": "status", "items": [{{"label": "Times used", "value": self.count}}]}},
+            {{"type": "actions", "items": [{{"id": "reset", "label": "Reset the count"}}]}},
+        ]}}
+
+    async def dashboard_action(self, action, guild, viewer, data):
+        self.count = 0
+        return "Count reset."
 
     @property
     def cfg(self) -> dict:
@@ -34,6 +48,7 @@ class {cls}(commands.Cog, name="{label}"):
     @commands.command(name="{name}")
     async def main(self, ctx):
         """Say the greeting."""
+        self.count += 1
         await ctx.send(embed=embed("{label}", self.cfg.get("greeting", "")))
 
     @commands.Cog.listener()

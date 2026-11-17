@@ -85,6 +85,9 @@ BUILTIN: tuple[Module, ...] = (
     Module("imageguard", "Image guard", "Polices pictures: a blocklist of known images, and optional nudity "
            "detection on this computer", "Safety", ("vectiq.cogs.imageguard",), default=False,
            works_with=("moderation",)),
+    Module("sentire", "Sentire", "Runs the Sentire moderation bot (by VectorPrivacy) beside Vectiq: strikes that "
+           "decay, raid containment and a vision model for media", "Safety", ("vectiq.cogs.sentire",), default=False,
+           provides="automod", works_with=("moderation",)),
     Module("verification", "Verification", "New members prove they're human before they can join in",
            "Safety", ("vectiq.cogs.verification",)),
     Module("securitycam", "Security cam", "Copies every message into one staff channel", "Safety",

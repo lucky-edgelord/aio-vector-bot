@@ -8,6 +8,7 @@ from vectiq.config import DEFAULTS, Config, upgrade_legacy
 from vectiq.dashboard import schema
 
 BUILTIN = [m.name for m in modules.BUILTIN]
+ONE_PER_JOB = [m for m in BUILTIN if m != "sentire"]       # sentire does automod's job (and needs its program)
 
 
 def test_registry_matches_config_and_dashboard():
@@ -30,15 +31,15 @@ def test_example_config_lists_every_module():
 async def test_switch_every_module_on_off_and_on_again(make_bot, tmp_path):
     cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
     bot = make_bot(cfg)
-    for m in BUILTIN:
+    for m in ONE_PER_JOB:
         cfg.data["modules"][m] = True
     r = await bot.sync_modules()
-    assert r["problems"] == [] and len(r["loaded"]) == len(BUILTIN)
+    assert r["problems"] == [] and len(r["loaded"]) == len(ONE_PER_JOB)
     assert {"Automod", "LinkSafety", "ImageGuard", "Notifications", "Music"} <= set(bot.cogs)
     for m in modules.NAMES:
         cfg.data["modules"][m] = False
     r = await bot.sync_modules()
-    assert set(bot.cogs) == {"Core", "Restore points"} and len(r["unloaded"]) == len(BUILTIN)
+    assert set(bot.cogs) == {"Core", "Restore points"} and len(r["unloaded"]) == len(ONE_PER_JOB)
     cfg.data["modules"]["music"] = True
     r = await bot.sync_modules()
     assert r["loaded"] == ["music"] and "Music" in bot.cogs
@@ -84,7 +85,7 @@ def test_legacy_automod_settings_are_upgraded():
 async def test_group_checks_protect_subcommands(make_bot, tmp_path):
     """`!module off music` must be owner-only like `!module`; `!imageguard block` needs Manage Messages too."""
     cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
-    for m in BUILTIN:
+    for m in ONE_PER_JOB:
         cfg.data["modules"][m] = True
     bot = make_bot(cfg)
     await bot.sync_modules()
