@@ -41,15 +41,21 @@ git clone https://github.com/lucky-edgelord/aio-vector-bot
 cd aio-vector-bot
 ```
 
-### macOS (e.g. a Mac mini)
+### macOS and Linux (e.g. a Mac mini)
 
 ```sh
-./install.sh            # Homebrew, Python, Rust, venv, .env, launchd login item
+./install.sh            # packages (Homebrew / apt / dnf / ...), Rust, venv, .env, launchd or systemd service
 ```
 
 It asks for the bot's key (blank generates a new account) and optional community invite links. Then, in your Vector community, give the bot's account a role with the permissions it needs (Manage Roles, Manage Channels, Manage Messages, Moderate Members, Kick/Ban). Without them Vectiq still runs and tells you which permission is missing. Type `!help` anywhere.
 
 Manual start: `./run.sh` (foreground), `./run.sh --check` (validate `config.yaml`), `./uninstall.sh`.
+### Windows
+
+```powershell
+.\install.ps1          # winget: Python, Git, CMake, Rust, C++ build tools; venv; .env; scheduled task at logon
+```
+
 ### Docker
 
 ```sh
@@ -58,6 +64,15 @@ docker compose up -d          # settings in ./docker-config, data in ./docker-da
 ```
 
 See the [Docker guide](docs/docker.md) for the setup wizard, ports and backups.
+
+### pip / pipx
+
+```sh
+pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"
+mkdir my-bot && cd my-bot && vectiq --init && vectiq --setup
+```
+
+`--init` writes `config.yaml` and `.env` in the current folder; put the bot's `VECTOR_NSEC` in `.env`, then run `vectiq`.
 
 ### Linux
 

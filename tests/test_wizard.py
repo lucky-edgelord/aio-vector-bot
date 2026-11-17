@@ -158,3 +158,24 @@ def test_channels_match_loosely():
     assert VectiqBot.find_channel(g, "#announcements") is chans[1]
     assert VectiqBot.find_channel(g, "2") is chans[1]
     assert VectiqBot.find_channel(g, "nope") is None and VectiqBot.find_channel(g, "") is None
+
+
+def test_example_files_match_repo_root():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    pkg = root / "src" / "vectiq"
+    assert (pkg / "config.example.yaml").read_text("utf-8") == (root / "config.yaml").read_text("utf-8")
+    assert (pkg / "env.example").read_text("utf-8") == (root / ".env.example").read_text("utf-8")
+
+
+def test_init_creates_files_once(tmp_path):
+    from vectiq.__main__ import main
+
+    assert main(["--init", str(tmp_path / "bot")]) == 0
+    (tmp_path / "bot" / ".env").write_text("VECTOR_NSEC=nsec1mine\n")
+    from vectiq.scaffold import init
+
+    assert [c for _, c in init(tmp_path / "bot")] == [False, False]
+    assert (tmp_path / "bot" / ".env").read_text() == "VECTOR_NSEC=nsec1mine\n"
+    assert main(["--config", str(tmp_path / "bot" / "config.yaml"), "--check"]) == 0

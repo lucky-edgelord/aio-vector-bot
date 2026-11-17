@@ -12,3 +12,5 @@ __pycache__/
 /site/
 /docker-config/
 /docker-data/
+/build/
+/dist/
