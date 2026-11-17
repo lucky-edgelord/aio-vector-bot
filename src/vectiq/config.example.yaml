@@ -10,7 +10,8 @@ owners: []            # npubs that can use !vectiq admin commands everywhere
 modules:              # every feature is a module: on or off. Only modules that are on are loaded.
   # Safety                Change these live with `!module on <name>`, the dashboard or `vectiq --setup`.
   moderation: true    # warnings, timeouts, kicks, bans, softbans, purge, lock, slowmode
-  automod: false      # removes spam, mass mentions, shouting, invites, floods, risky files (section `automod`)
+  sentire: false      # automod: runs the Sentire moderation bot beside Vectiq (section `sentire`)
+  sentire_official: false # automod: invites the official, already running Sentire-001 bot instead
   linksafety: false   # removes links to scam/malware/adult sites using oisd.nl blocklists (section `linksafety`)
   imageguard: false   # polices pictures: blocklist + optional nudity detector (section `imageguard`)
   verification: true
@@ -74,45 +75,71 @@ moderation:
   warn_action_minutes: 60     # how long the timeout lasts when warn_action is timeout
   log_channel: ""             # channel name or id for the mod log (blank = none)
 
-# --- Automod (modules.automod) -------------------------------------------------------------------
-# Staff (Manage Messages) are never checked. Every rule has its own switch and may set its own action.
-automod:
-  action: delete              # delete | warn (also a warning) | timeout (also a mute) | log (only tell the mod log)
-  timeout_minutes: 10         # mute length for action: timeout
-  exempt_roles: []            # roles automod skips
-  exempt_channels: []         # channels automod skips
-  mentions:                   # more mentions than `max` in one message
+# --- Sentire (modules.sentire) ---------------------------------------------------------------------
+# Sentire (github.com/VectorPrivacy/Sentire) is a separate moderation bot. With this module on, Vectiq builds or
+# finds it, writes its sentinel.toml from these settings, runs it with its own Vector identity, and can invite it
+# into your communities (`!sentire invite`). This is Vectiq's automod. modules.sentire_official instead invites
+# the official Sentire-001 that VectorPrivacy runs (nothing to build); only one of the two runs at a time.
+sentire:
+  binary: ""                  # blank = data/sentire/bin/sentinel (made by `vectiq --install-sentire`), then PATH
+  name: Sentire               # its Vector profile name
+  communities: []             # ids or names to watch; blank = every community Vectiq serves
+  mod_channel: ""             # where it announces sentences; blank = moderation.log_channel
+  poll_secs: 120              # how often it sweeps for floods and raids (at least 90)
+  arm:                        # nothing happens until armed: unarmed, it watches and reports
+    warn: false
+    delete: false
+    kick: false
+    ban: false
+    raid: false
+  banned_words: []            # whole words; *word* also matches inside longer ones
+  word_gravity: grave         # note | minor | serious | grave
+  blocked_links: []           # domains
+  link_gravity: serious
+  rate:                       # too many messages too fast
     enabled: true
-    max: 6
-  caps:                       # shouting: this share of capitals in a message this long
+    per_secs: 60
+    messages: 10
+    gravity: minor
+  repetition:                 # the same line again and again
     enabled: true
-    percent: 80
-    min_length: 12
-  words:                      # banned words; partial: also inside other words
+    times: 4
+    gravity: minor
+  mass_tagging:               # one message naming a crowd
+    enabled: true
+    times: 15
+    gravity: serious
+  ladder:                     # strike totals (they halve every decay_half_life_hours)
+    warn_at: 1
+    kick_at: 36
+    ban_at: 48
+    decay_half_life_hours: 168
+  raid:
+    response: kick            # report | kick | ban
+    min_confidence: 75
+    tripwire_accounts: 5      # this many strangers...
+    tripwire_secs: 30         # ...inside this window starts a raid check
+  vision:                     # pictures and video judged by a vision model you choose
     enabled: false
-    list: []
-    partial: false
-  invites:                    # Vector, Discord, Telegram, WhatsApp, Signal, Matrix invites
-    enabled: true
-    allow: []
-    extra: []
-  links:                      # remove every link except these domains
-    enabled: false
-    allow: []
-  flood:                      # more than `messages` in `seconds`
-    enabled: true
-    messages: 6
-    seconds: 8
-  duplicates:                 # the same message more than `repeats` times
-    enabled: true
-    repeats: 3
-    seconds: 60
-  files:                      # attachments with these extensions
-    enabled: true
-    block: [exe, scr, bat, cmd, com, msi, vbs, js, jar, ps1, lnk, apk, dll, hta, reg]
-  zalgo:                      # glitchy text stacked with combining marks
-    enabled: false
-    max_marks: 10
+    provider: openai          # openai (any OpenAI-compatible API) | tee (confidential, needs a TEE build)
+    base_url: http://127.0.0.1:8080/v1
+    model: llava
+    api_key_env: ""           # name of the .env variable with the key; blank for a local model
+    allow_remote: false       # must be true for any address that isn't this computer
+    video: true               # clips become a contact sheet of frames (needs ffmpeg)
+  extra: {}                   # any other sentinel.toml settings, merged in as written
+  config_file: ""             # use your own sentinel.toml instead of the one Vectiq writes
+  log_lines: 300              # lines of its output kept for `!sentire log` and the dashboard
+
+# --- Sentire (official) (modules.sentire_official) -------------------------------------------------
+# Instead of running Sentire yourself, invite the one VectorPrivacy runs (Sentire-001,
+# npub1pc5sdve5w6wczjhhnzu4te7ayjujlprm2y4ndx044gzsqx0gq64qytz06y) with `!sentire invite`. What it may do is set
+# by the role Vectiq gives it; its rules are set with its own chat commands (/words, /links, /ladder).
+sentire_official:
+  role: Sentire               # the role Vectiq gives it
+  delete: true                # Manage Messages: it may delete what it convicts
+  kick: false                 # Kick: it may kick on its ladder and contain raids
+  ban: false                  # Ban: it may ban
 
 # --- Link safety (modules.linksafety) -------------------------------------------------------------
 linksafety:

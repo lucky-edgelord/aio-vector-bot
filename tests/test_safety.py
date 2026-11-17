@@ -1,54 +1,12 @@
-"""Automod rules, link safety lists and the image guard's picture matching."""
+"""Link safety lists and the image guard's picture matching."""
 
 import io
 
 from PIL import Image, ImageDraw
 
-from vectiq.cogs.automod import Rules
 from vectiq.cogs.linksafety import Blocklists, domains_in, listed, parse_list
-from vectiq.config import DEFAULTS
 from vectiq.imagecheck import Detector, dhash
 from vectiq.stores.safety import hamming
-
-
-def rules(**over):
-    cfg = {k: (dict(v) if isinstance(v, dict) else v) for k, v in DEFAULTS["automod"].items()}
-    for k, v in over.items():
-        cfg[k] = {**cfg.get(k, {}), **v}
-    return Rules(cfg)
-
-
-def test_automod_rules():
-    r = rules(words={"enabled": True, "list": ["darn"]}, links={"enabled": True, "allow": ["github.com"]},
-              zalgo={"enabled": True})
-    assert r.check("hello there") is None
-    assert r.check("THIS IS ALL SHOUTING TODAY")[0] == "caps"
-    assert r.check("@a @b @c @d @e @f @g")[0] == "mentions"
-    assert r.check("well darn it")[0] == "words" and r.check("darned") is None
-    assert r.check("join https://discord.gg/abc")[0] == "invites"
-    assert r.check("come to https://vectorapp.io/invite/xyz")[0] == "invites"
-    assert r.check("see https://evil.example/x")[0] == "links"
-    assert r.check("see https://docs.github.com/x") is None
-    assert r.check("z̷̛̛̛̛̛̛̛̛a̷̛̛̛̛̛̛̛̛̛l̷̛̛̛̛̛̛̛̛̛g̷̛̛̛̛̛̛̛")[0] == "zalgo"
-    assert r.check("look", filenames=["free.exe"])[0] == "files"
-    assert r.check("look", filenames=["cat.png"]) is None
-
-
-def test_automod_rules_switch_off_one_by_one():
-    r = rules(caps={"enabled": False}, invites={"enabled": False})
-    assert r.check("THIS IS ALL SHOUTING TODAY") is None
-    assert r.check("https://discord.gg/abc") is None
-
-
-def test_flood_and_duplicates():
-    r = rules()
-    key = ("g", "u")
-    hits = [r.check(f"msg {i}", key=key, now=100 + i * 0.5) for i in range(8)]
-    assert hits[-1] and hits[-1][0] == "flood"
-    r = rules(flood={"enabled": False})
-    hits = [r.check("same", key=key, now=100 + i * 5) for i in range(5)]
-    assert hits[2] is None and hits[3][0] == "duplicates"   # 3 repeats are fine, the 4th goes
-    assert rules(flood={"enabled": False}).check("same", key=("g", "other"), now=200) is None
 
 
 def test_blocklist_parsing_and_matching(tmp_path):

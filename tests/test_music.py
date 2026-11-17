@@ -190,7 +190,7 @@ async def test_play_is_music_and_game_is_games(make_bot, tmp_path):
 
     cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
     for m in modules.BUILTIN:
-        cfg.data["modules"][m.name] = True
+        cfg.data["modules"][m.name] = m.name != "sentire"
     bot = make_bot(cfg)
     await bot.sync_modules()
     assert bot.get_command("play").cog.qualified_name == "Music" and bot.get_command("p").cog.qualified_name == "Music"

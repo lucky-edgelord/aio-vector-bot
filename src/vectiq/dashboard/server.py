@@ -453,10 +453,70 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
             "bot": person(bot.user),
             "prefix": cfg.prefix,
             "modules": {k: bool(v) for k, v in cfg["modules"].items()},
+            "panels": [p for p in panels() if access.is_owner(npub) or not p["owner_only"]],
             "communities": [{"id": str(g.id), "name": g.name, "members": len(g.members),
                              }
                             for g in access.manageable(npub)],
         }
+
+    # -- module panels: any module (plugins too) can put a page on the dashboard ----------------------
+
+    def panels() -> list[dict]:
+        out = []
+        for c in getattr(bot, "cogs", {}).values():
+            spec = getattr(c, "dashboard_page", None)
+            if not spec or not hasattr(c, "dashboard_panel"):
+                continue
+            name = modules.owner_of(type(c).__module__)
+            m = modules.get(name)
+            out.append({"module": name, "label": spec.get("label") or (m.label if m else name),
+                        "icon": spec.get("icon", "◆"), "scope": spec.get("scope", "community"),
+                        "owner_only": bool(spec.get("owner_only", False))})
+        return sorted(out, key=lambda p: p["label"].lower())
+
+    def panel_cog(name: str, npub: str, gid: str | None):
+        spec = next((p for p in panels() if p["module"] == name), None)
+        if spec is None:
+            fail(404, "That module has no dashboard page, or it's switched off.")
+        if spec["owner_only"] and not access.is_owner(npub):
+            fail(403, "Only bot owners can open this page.")
+        guild = community(gid, npub) if gid else None
+        if spec["scope"] == "community" and guild is None:
+            fail(400, "Pick a community first.")
+        c = next(c for c in bot.cogs.values() if modules.owner_of(type(c).__module__) == name
+                 and getattr(c, "dashboard_page", None))
+        return c, guild
+
+    @app.get("/api/panel/{name}")
+    async def panel_get(name: str, gid: str = "", npub: str = Depends(current)):
+        c, guild = panel_cog(name, npub, gid or None)
+        try:
+            data = await c.dashboard_panel(guild, npub)
+        except Exception as exc:  # noqa: BLE001 - a plugin's bug shows as a message, not a crash
+            fail(500, f"The module couldn't draw its page: {exc}")
+        owner = access.is_owner(npub)
+        for sec in data.get("sections", []):          # hide owner-only buttons from everyone else
+            if sec.get("type") == "actions":
+                sec["items"] = [a for a in sec.get("items", []) if owner or not a.get("owner")]
+        return data
+
+    @app.post("/api/panel/{name}/action/{action}")
+    async def panel_action(name: str, action: str, request: Request, npub: str = Depends(current)):
+        data = await body(request)
+        c, guild = panel_cog(name, npub, str(data.get("gid") or "") or None)
+        panel = await c.dashboard_panel(guild, npub)
+        item = next((a for sec in panel.get("sections", []) if sec.get("type") == "actions"
+                     for a in sec.get("items", []) if a.get("id") == action), None)
+        if item is None:
+            fail(404, "That button isn't on this page.")
+        if item.get("owner") and not access.is_owner(npub):
+            fail(403, "Only bot owners can do that.")
+        try:
+            message = await c.dashboard_action(action, guild, npub, data.get("data") or {})
+        except Exception as exc:  # noqa: BLE001
+            fail(400, str(exc))
+        await audit(npub, f"{name}: {item.get('label', action)}", "", guild)
+        return {"ok": True, "message": message or "Done."}
 
     # -- community overview --------------------------------------------------------------------------
 

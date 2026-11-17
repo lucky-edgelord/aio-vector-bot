@@ -33,6 +33,9 @@ def main(argv=None) -> int:
     pl.add_argument("--install-module", metavar="PACKAGE", help="pip install a plugin package (name, name==1.2, git+https://...)")
     pl.add_argument("--uninstall-module", metavar="NAME", help="uninstall the package a plugin module came from")
     pl.add_argument("--new-module", metavar="NAME", help="create a starter plugin in modules/NAME to edit")
+    pl.add_argument("--install-sentire", action="store_true",
+                    help="download and build the Sentire moderation bot (needs Rust); also updates it")
+    pl.add_argument("--tee", action="store_true", help="with --install-sentire: build with confidential inference")
     ap.add_argument("-v", "--verbose", action="store_true")
     users = ap.add_argument_group("dashboard logins")
     users.add_argument("--add-user", metavar="USERNAME", help="create a dashboard login (asks for the password)")
@@ -65,6 +68,19 @@ def main(argv=None) -> int:
             return 2
         print(f"created {path}\nEdit it, then in chat: `module scan` and `module on {args.new_module}` "
               f"(after changes: `module reload {args.new_module}`).")
+        return 0
+    if args.install_sentire:
+        from .sentire.install import build as build_sentire
+
+        load_dotenv(os.environ.get("VECTIQ_ENV", ".env"))
+        data_dir = os.environ.get("VECTIQ_DATA_DIR", "data")
+        try:
+            path = build_sentire(data_dir, tee=args.tee)
+        except Exception as exc:  # noqa: BLE001
+            print(f"❌ {exc}", file=sys.stderr)
+            return 2
+        print(f"Sentire is ready: {path}\nSwitch it on with `!module on sentire` (or in the dashboard), then "
+              "`!sentire invite` in each community. If the bot is running with it on: `!sentire restart`.")
         return 0
     if args.install_module or args.uninstall_module:
         from .plugin_install import InstallError, install, uninstall

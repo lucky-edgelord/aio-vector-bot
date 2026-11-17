@@ -1,4 +1,4 @@
-"""AI automod: the built-in rules first (optional), then an LLM judges the message against the community's rules."""
+"""AI automod: an LLM judges each message against the community's rules."""
 
 from __future__ import annotations
 
@@ -52,11 +52,6 @@ class AIAutomod(commands.Cog, name="AI automod"):
     def __init__(self, bot):
         self.bot = bot
         self.calls: deque[float] = deque()
-        self.rules = None
-        if self.cfg.get("also_rules", True):
-            from vectiq.cogs.automod import Rules
-
-            self.rules = Rules(bot.config.get("automod", {}))
 
     @property
     def cfg(self) -> dict:
@@ -77,13 +72,6 @@ class AIAutomod(commands.Cog, name="AI automod"):
         if message.guild is None or not self.bot.serves(message.guild) or exempt(self.bot, message, cfg):
             return
         text = message.content or ""
-        if self.rules is not None:
-            self.rules.cfg = self.bot.config.get("automod", {})
-            hit = self.rules.check(text, key=(str(message.guild.id), str(message.author.id)),
-                                   filenames=[a.filename or "" for a in getattr(message, "attachments", [])])
-            if hit:
-                return await enforce(self.bot, message, source="automod", reason=hit[1],
-                                     action=cfg.get("action", "delete"), timeout_minutes=int(cfg.get("timeout_minutes", 10)))
         if len(text.strip()) < int(cfg.get("min_chars", 12)) or not self.budget():
             return
         try:

@@ -294,6 +294,11 @@ async def build(config: Config | None = None) -> VectiqBot:
     db = await Database(config.db_path).connect()
     overrides = await Stores(db).dashboard.overrides()
     if overrides:
+        from .config import upgrade_overrides
+
+        overrides, dropped = upgrade_overrides(overrides)
+        if dropped:
+            log.warning("dashboard settings no longer used, skipped: %s", ", ".join(dropped))
         try:
             config.apply_overrides(overrides)
             log.info("applied %d setting(s) changed in the dashboard", len(overrides))

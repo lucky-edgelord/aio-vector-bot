@@ -1,6 +1,6 @@
-"""What happens when a safety module (automod, link safety, image guard) catches a message.
+"""What happens when a safety module (link safety, image guard, plugins) catches a message.
 
-Every module uses the same actions so they behave alike:
+Every module uses the same actions so they behave alike (plugins get this through vectiq.plugin.enforce):
 
 * ``delete``: remove the message and say why in the channel (the notice disappears after a minute)
 * ``warn``: also add a warning case (counts towards ``moderation.warn_threshold`` when Moderation is on)

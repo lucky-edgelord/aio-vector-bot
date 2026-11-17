@@ -31,7 +31,7 @@ To also ask Google about each link, get a free [Safe Browsing API key](https://d
 
 ## What happens
 
-`action` works as in [Automod](automod.md): `delete`, `warn`, `timeout` or `log`. Staff with Manage Messages and `exempt_roles` / `exempt_channels` are skipped. `!linksafety check <link>` tells you whether a link would be removed, without posting it.
+`action` decides what happens: `delete` removes the message and says why, `warn` also adds a warning, `timeout` also mutes the member for `timeout_minutes`, and `log` only tells the mod log. Staff with Manage Messages and `exempt_roles` / `exempt_channels` are skipped. `!linksafety check <link>` tells you whether a link would be removed, without posting it.
 
 ## Commands
 

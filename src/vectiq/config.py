@@ -14,6 +14,13 @@ from . import modules as _modules
 from .modules import NAMES as MODULES  # a live list: plugins found later appear in it too
 from .modules import REGISTRY
 
+
+def _sentire_defaults() -> dict:
+    from .sentire.config import DEFAULTS as SENTIRE
+
+    return SENTIRE
+
+
 SAFETY_ACTIONS = ("delete", "warn", "timeout", "log")
 DETECTORS = ("off", "nudenet", "nsfw-detector", "sightengine", "http")
 
@@ -35,17 +42,6 @@ DEFAULTS: dict[str, Any] = {
     "modules": {m.name: m.default for m in REGISTRY},
     "moderation": {"mute_max_days": 28, "warn_threshold": 3, "warn_action": "timeout",
                    "warn_action_minutes": 60, "log_channel": ""},
-    "automod": {"action": "delete", "timeout_minutes": 10, "exempt_roles": [], "exempt_channels": [],
-                "mentions": {"enabled": True, "max": 6},
-                "caps": {"enabled": True, "percent": 80, "min_length": 12},
-                "words": {"enabled": False, "list": [], "partial": False},
-                "links": {"enabled": False, "allow": []},
-                "invites": {"enabled": True, "allow": [], "extra": []},
-                "flood": {"enabled": True, "messages": 6, "seconds": 8},
-                "duplicates": {"enabled": True, "repeats": 3, "seconds": 60},
-                "files": {"enabled": True, "block": ["exe", "scr", "bat", "cmd", "com", "msi", "vbs", "js", "jar",
-                                                      "ps1", "lnk", "apk", "dll", "hta", "reg"]},
-                "zalgo": {"enabled": False, "max_marks": 10}},
     "linksafety": {"lists": ["https://big.oisd.nl/domainswild2"], "nsfw": False, "refresh_hours": 24,
                    "allow": [], "block": [], "action": "delete", "timeout_minutes": 10,
                    "exempt_roles": [], "exempt_channels": [], "safe_browsing_key_env": ""},
@@ -91,6 +87,8 @@ DEFAULTS: dict[str, Any] = {
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
     "plugins": {"dirs": ["modules"], "allow_install": False},
+    "sentire": _sentire_defaults(),
+    "sentire_official": {"role": "Sentire", "delete": True, "kick": False, "ban": False},
     "backup": {"every_hours": 24, "keep_automatic": 14, "keep_manual": 20, "dir": "", "include_pictures": True},
     "events": {"timezone": "UTC", "channel": "announcements", "banner_image": True,
                "default_minutes": 60, "reminders": [60, 15], "dm_reminders": True,
@@ -100,6 +98,29 @@ DEFAULTS: dict[str, Any] = {
     "dashboard": {"host": "127.0.0.1", "port": 8090, "base_url": "http://localhost:8090",
                   "session_days": 7, "code_minutes": 10, "vector_code_login": True},
 }
+
+
+def upgrade_overrides(overrides: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Saved dashboard settings from older versions: automod became Sentire; switches for modules that no longer
+    exist (an uninstalled plugin) are dropped one by one instead of spoiling every other setting.
+
+    Returns (overrides to use, keys that were dropped)."""
+    out: dict[str, Any] = {}
+    dropped: list[str] = []
+    for key, value in overrides.items():
+        if key == "modules.automod":
+            out.setdefault("modules.sentire", value)
+            continue
+        if key.startswith("automod.") or key.startswith("moderation.automod"):
+            if key in ("automod.words.list", "moderation.automod.banned_words") and value:
+                out.setdefault("sentire.banned_words", value)
+            dropped.append(key)
+            continue
+        if key.startswith("modules.") and key.split(".", 1)[1] not in MODULES:
+            dropped.append(key)
+            continue
+        out[key] = value
+    return out, dropped
 
 
 def defaults() -> dict[str, Any]:
@@ -137,23 +158,29 @@ class ConfigError(ValueError):
 
 
 def upgrade_legacy(raw: Mapping) -> Mapping:
-    """Older config.yaml files kept automod under ``moderation.automod``; read them as the automod module."""
-    old = (raw.get("moderation") or {}).get("automod") if isinstance(raw.get("moderation"), Mapping) else None
-    if not isinstance(old, Mapping):
-        return raw
+    """Read older config.yaml files: the built-in automod (``moderation.automod``, later ``automod:``) was replaced
+    by Sentire, so switching automod on now switches Sentire on, and its banned words move to Sentire."""
     raw = dict(raw)
-    raw["moderation"] = {k: v for k, v in raw["moderation"].items() if k != "automod"}
-    if "automod" not in raw:
-        words = list(old.get("banned_words") or [])
-        raw["automod"] = {"action": old.get("action", "delete"),
-                          "mentions": {"enabled": True, "max": old.get("max_mentions", 6)},
-                          "caps": {"enabled": True, "percent": old.get("max_caps_percent", 80),
-                                   "min_length": old.get("caps_min_length", 12)},
-                          "words": {"enabled": bool(words), "list": words},
-                          "links": {"enabled": bool(old.get("block_links"))}}
-    mods = dict(raw.get("modules") or {})
-    mods.setdefault("automod", bool(old.get("enabled")))
-    raw["modules"] = mods
+    old = None
+    if isinstance(raw.get("moderation"), Mapping) and isinstance(raw["moderation"].get("automod"), Mapping):
+        old = dict(raw["moderation"]["automod"])
+        raw["moderation"] = {k: v for k, v in raw["moderation"].items() if k != "automod"}
+        old = {"enabled": old.get("enabled"), "words": {"list": old.get("banned_words") or []}}
+    if isinstance(raw.get("automod"), Mapping):
+        old = {**(old or {}), **raw.pop("automod")}
+    mods = dict(raw.get("modules") or {}) if isinstance(raw.get("modules"), Mapping) else {}
+    was_on = mods.pop("automod", None)
+    if was_on is None and old is not None:
+        was_on = old.get("enabled")
+    if was_on is not None:
+        mods.setdefault("sentire", bool(was_on))
+    if mods or "modules" in raw:
+        raw["modules"] = mods
+    words = list(((old or {}).get("words") or {}).get("list") or [])
+    if words:
+        sentire = dict(raw.get("sentire") or {})
+        sentire.setdefault("banned_words", words)
+        raw["sentire"] = sentire
     return raw
 
 
@@ -277,12 +304,9 @@ class Config:
                 raise ConfigError("verification.captcha.site_key is needed for mode: captcha")
             if not str(vf["public_url"] or d["dashboard"]["base_url"]).strip():
                 raise ConfigError("verification.public_url is needed for mode: captcha")
-        for section in ("automod", "linksafety", "imageguard"):
+        for section in ("linksafety", "imageguard"):
             if d[section]["action"] not in SAFETY_ACTIONS:
                 raise ConfigError(f"{section}.action must be one of {', '.join(SAFETY_ACTIONS)}")
-        for rule, r in d["automod"].items():
-            if isinstance(r, Mapping) and r.get("action") and r["action"] not in SAFETY_ACTIONS:
-                raise ConfigError(f"automod.{rule}.action must be one of {', '.join(SAFETY_ACTIONS)}")
         ig = d["imageguard"]
         if ig["detector"] not in DETECTORS:
             raise ConfigError(f"imageguard.detector must be one of {', '.join(DETECTORS)}")
@@ -290,6 +314,10 @@ class Config:
             raise ConfigError("imageguard.threshold must be between 0 and 1, e.g. 0.7")
         if not isinstance(d["linksafety"]["lists"], list):
             raise ConfigError("linksafety.lists must be a list of blocklist links")
+        from .sentire.config import problems as sentire_problems
+
+        if (bad := sentire_problems(d["sentire"])):
+            raise ConfigError(bad[0])
         mu = d["music"]
         if mu["search"] not in ("ytsearch", "scsearch", "ytmsearch"):
             raise ConfigError("music.search must be ytsearch (YouTube), ytmsearch (YouTube Music) or scsearch (SoundCloud)")

@@ -243,6 +243,7 @@ window.addEventListener("hashchange", () => S.me && route());
 
 function route() {
   document.querySelectorAll(".scrim").forEach((x) => x.remove());   // dialogs and panels don't outlive their page
+  clearTimeout(S.panelTimer);
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   S.route = parts;
   if (parts[0] === "c" && parts[1]) {
@@ -262,6 +263,11 @@ function renderShell(page) {
     comm ? [h("h3", null, "Community"), PAGES.filter(([id]) => !MODULE_OF[id] || S.me.modules[MODULE_OF[id]]).map(([id, ico, label]) =>
       h("a", { href: `#/c/${encodeURIComponent(S.gid)}/${id}`, class: page === id && "on", onclick: () => shell.classList.remove("open") },
         h("span", { class: "ico" }, ico), label))] : null,
+    (S.me.panels || []).length ? [h("h3", null, "Modules"), S.me.panels.filter((p) => p.scope !== "community" || comm).map((p) => {
+      const href = p.scope === "community" ? `#/c/${encodeURIComponent(S.gid)}/m/${encodeURIComponent(p.module)}` : `#/m/${encodeURIComponent(p.module)}`;
+      return h("a", { href, class: page === "m" && S.route.includes(p.module) && "on", onclick: () => shell.classList.remove("open") },
+        h("span", { class: "ico" }, p.icon), p.label);
+    })] : null,
     h("h3", null, "Bot"),
     h("a", { href: "#/settings", class: page === "settings" && "on" }, h("span", { class: "ico" }, "⚙"), "Settings"),
     S.me.owner ? h("a", { href: "#/setup", class: page === "setup" && "on" }, h("span", { class: "ico" }, "✧"), "Setup wizard") : null,
@@ -285,8 +291,8 @@ function renderShell(page) {
   shell.addEventListener("click", (e) => { if (shell.classList.contains("open") && e.target === shell) shell.classList.remove("open"); });
   clear(root, shell);
   const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit,
-    settings, setup, restore, webhooks, users, account }[page];
-  if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "users", "account"].includes(page))) { clear(main, empty("Nothing here.")); return; }
+    settings, setup, restore, webhooks, users, account, m: modulePanel }[page];
+  if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
   fn(main).catch((e) => clear(main, card(null, h("p", { class: "muted" }, e.message))));
 }
@@ -1097,6 +1103,56 @@ async function restore(main) {
       btn("Delete", () => remove(p), "ghost sm"))))
     : empty("No restore points yet. Make one above, or wait for the first scheduled one.")),
   h("p", { class: "faint" }, `Saved in ${d.dir}. The bot's key in .env is never included.`));
+}
+
+/* ---------------------------------------------------------------- module panels */
+// Any module can describe a page as data (see vectiq.plugin): status tiles, text, lists, tables, a log and buttons.
+
+const TONE = { green: "green", ok: "green", yellow: "yellow", warn: "yellow", red: "red", bad: "red" };
+
+function panelSection(sec, act) {
+  switch (sec.type) {
+    case "status": return h("div", { class: "panel-stats" }, (sec.items || []).map((it) =>
+      h("div", { class: ["panel-stat", TONE[it.tone] && `tone-${TONE[it.tone]}`] }, h("div", { class: "faint" }, it.label),
+        h("div", { class: ["panel-value", it.mono && "mono"] }, String(it.value ?? "–")))));
+    case "text": return card(sec.title || null, h("p", { class: sec.tone === "warn" ? "warn" : "muted", style: { margin: 0, whiteSpace: "pre-wrap" } }, sec.text || ""));
+    case "list": return card(sec.title || null, (sec.items || []).length ? h("div", { class: "list" }, sec.items.map((it) =>
+      h("div", { class: "item" }, h("div", { class: "grow" }, h("b", null, it.title), it.detail ? h("div", { class: "faint" }, it.detail) : null),
+        it.tag ? pill(it.tag, TONE[it.tone] || "") : null))) : empty(sec.empty || "Nothing here yet."));
+    case "table": return card(sec.title || null, h("div", { class: "tablewrap" }, h("table", { class: "table" },
+      h("thead", null, h("tr", null, (sec.columns || []).map((c) => h("th", null, c)))),
+      h("tbody", null, (sec.rows || []).map((r) => h("tr", null, r.map((c) => h("td", null, String(c)))))))));
+    case "log": {
+      const pre = h("pre", { class: "panel-log" }, (sec.lines || []).join("\n") || "Nothing yet.");
+      setTimeout(() => { pre.scrollTop = pre.scrollHeight; }, 0);
+      return card(sec.title || "Log", pre);
+    }
+    case "actions": return h("div", { class: "row wrap" }, (sec.items || []).map((a) => {
+      const b = btn(a.label, async () => {
+        if (a.confirm && !(await confirmBox(a.label, a.confirm, a.label, a.kind === "danger" ? "danger" : "primary"))) return;
+        try { const r = await run(b, () => act(a.id)); toast(r.message); } catch { /* toast */ }
+      }, a.kind || "");
+      return b;
+    }));
+    default: return null;
+  }
+}
+
+async function modulePanel(main) {
+  const name = S.route[S.route.indexOf("m") + 1];
+  const scoped = S.route[0] === "c";
+  const q = scoped ? `?gid=${encodeURIComponent(S.gid)}` : "";
+  const act = (id) => api("POST", `/api/panel/${encodeURIComponent(name)}/action/${encodeURIComponent(id)}`, { gid: scoped ? S.gid : "" })
+    .then((r) => { setTimeout(draw, 600); return r; });
+  async function draw() {
+    let d;
+    try { d = await api("GET", `/api/panel/${encodeURIComponent(name)}${q}`); } catch (e) { clear(main, card(null, h("p", { class: "muted" }, e.message))); return; }
+    if (!main.isConnected) return;
+    clear(main, head(d.title || name, d.subtitle || ""), h("div", { class: "stack" }, (d.sections || []).map((sec) => panelSection(sec, act))));
+    clearTimeout(S.panelTimer);
+    if (d.refresh) S.panelTimer = setTimeout(draw, Math.max(2, d.refresh) * 1000);
+  }
+  await draw();
 }
 
 /* ---------------------------------------------------------------- webhooks */

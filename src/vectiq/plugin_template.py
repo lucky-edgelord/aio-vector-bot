@@ -15,7 +15,7 @@ MODULE = Module(
     label="{label}",
     help="Describe what {label} does in one line",
     group="Community",               # Safety, Members, Community, Fun or Integrations (or a new one)
-    # provides="automod",            # set this to take the place of a built-in module instead
+    # provides="automod",            # set this to do a built-in's job instead (here: Sentire's)
     defaults={{"greeting": "Hello from {label}!"}},          # becomes `{name}:` in config.yaml
     settings=(field("{name}.greeting", "Greeting", "text", "What `{name}` says"),),  # dashboard + wizard
     wizard="Let's set up {label}.",
@@ -24,8 +24,22 @@ MODULE = Module(
 
 
 class {cls}(commands.Cog, name="{label}"):
+    # A page on the dashboard, drawn from the data dashboard_panel returns (delete these to have none)
+    dashboard_page = {{"label": "{label}", "icon": "◆", "scope": "community"}}
+
     def __init__(self, bot):
         self.bot = bot
+        self.count = 0
+
+    async def dashboard_panel(self, guild, viewer):
+        return {{"title": "{label}", "sections": [
+            {{"type": "status", "items": [{{"label": "Times used", "value": self.count}}]}},
+            {{"type": "actions", "items": [{{"id": "reset", "label": "Reset the count"}}]}},
+        ]}}
+
+    async def dashboard_action(self, action, guild, viewer, data):
+        self.count = 0
+        return "Count reset."
 
     @property
     def cfg(self) -> dict:
@@ -34,6 +48,7 @@ class {cls}(commands.Cog, name="{label}"):
     @commands.command(name="{name}")
     async def main(self, ctx):
         """Say the greeting."""
+        self.count += 1
         await ctx.send(embed=embed("{label}", self.cfg.get("greeting", "")))
 
     @commands.Cog.listener()

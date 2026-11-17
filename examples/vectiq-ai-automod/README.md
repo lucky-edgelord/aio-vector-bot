@@ -1,6 +1,6 @@
 # vectiq-ai-automod
 
-An example [Vectiq](https://github.com/lucky-edgelord/aio-vector-bot) module, installable with pip. An AI model reads each message against your community's rules and removes what breaks them. It **takes the built-in automod's place** (`provides="automod"`), so switching it on switches automod off, and back.
+An example [Vectiq](https://github.com/lucky-edgelord/aio-vector-bot) module, installable with pip. An AI model reads each message against your community's rules and removes what breaks them. It **does automod's job instead of Sentire** (`provides="automod"`), so switching it on switches Sentire off, and back.
 
 ```sh
 vectiq --install-module "git+https://github.com/lucky-edgelord/aio-vector-bot#subdirectory=examples/vectiq-ai-automod"
