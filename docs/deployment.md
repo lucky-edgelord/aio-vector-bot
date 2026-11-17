@@ -26,7 +26,27 @@ tail -f data/vectiq.log                                # watch the log
 !!! note "Not yet tested on a real Mac"
     The macOS installer and launchd agent have been written carefully but have not yet been run on a physical Mac. If something is off, please [open an issue](https://github.com/lucky-edgelord/aio-vector-bot/issues).
 
-## Linux with systemd
+## Linux
+
+`./install.sh` sets up a systemd user service called `vectiq` and enables lingering so it starts at boot and survives logging out.
+
+```sh
+systemctl --user restart vectiq      # restart
+journalctl --user -u vectiq -f       # watch the log
+./uninstall.sh                       # stop it and remove the service
+```
+
+## Windows
+
+`.\install.ps1` registers a scheduled task called `Vectiq` that starts at logon and restarts if it stops. Logs are in `data\vectiq.log`.
+
+```powershell
+Stop-ScheduledTask Vectiq; Start-ScheduledTask Vectiq    # restart
+Get-Content data\vectiq.log -Wait                        # watch the log
+.\uninstall.ps1                                          # stop it and remove the task
+```
+
+## Linux with systemd (system service)
 
 Create `/etc/systemd/system/vectiq.service`, adjusting the user and paths:
 

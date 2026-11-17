@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Installers for every system: `install.sh` now also supports Linux (apt, dnf, pacman, zypper, apk; systemd user service), `install.ps1` for Windows (winget, scheduled task), with matching `uninstall` and `run.ps1` scripts.
 - pip install: `pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"`, `vectiq --init` (writes config.yaml and .env), `vectiq --version`, the example files bundled in the package, and `--setup` creating a missing config.yaml.
 - Docker: a `Dockerfile` and `docker-compose.yml` (settings in `docker-config/`, data in `docker-data/`), a CI image build, `VECTIQ_DASHBOARD_HOST`, and a Docker guide.
 - Verification, with ideas from GateBot (henk.tech, MIT): a `captcha` mode with a personal one-time link and a
