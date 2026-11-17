@@ -264,6 +264,8 @@ function renderShell(page) {
         h("span", { class: "ico" }, ico), label))] : null,
     h("h3", null, "Bot"),
     h("a", { href: "#/settings", class: page === "settings" && "on" }, h("span", { class: "ico" }, "⚙"), "Settings"),
+    S.me.owner ? h("a", { href: "#/setup", class: page === "setup" && "on" }, h("span", { class: "ico" }, "✧"), "Setup wizard") : null,
+    S.me.owner ? h("a", { href: "#/restore", class: page === "restore" && "on" }, h("span", { class: "ico" }, "↺"), "Restore points") : null,
     S.me.owner ? h("a", { href: "#/webhooks", class: page === "webhooks" && "on" }, h("span", { class: "ico" }, "⇄"), "Webhooks") : null,
     S.me.owner ? h("a", { href: "#/users", class: page === "users" && "on" }, h("span", { class: "ico" }, "⚿"), "Users") : null,
     h("a", { href: "#/account", class: page === "account" && "on" }, h("span", { class: "ico" }, "☻"), "My account"));
@@ -283,8 +285,8 @@ function renderShell(page) {
   shell.addEventListener("click", (e) => { if (shell.classList.contains("open") && e.target === shell) shell.classList.remove("open"); });
   clear(root, shell);
   const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit,
-    settings, webhooks, users, account }[page];
-  if (!fn || (!comm && !["settings", "webhooks", "users", "account"].includes(page))) { clear(main, empty("Nothing here.")); return; }
+    settings, setup, restore, webhooks, users, account }[page];
+  if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "users", "account"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
   fn(main).catch((e) => clear(main, card(null, h("p", { class: "muted" }, e.message))));
 }
@@ -802,9 +804,40 @@ async function settings(main) {
   });
   S.dirty = changes;
   clear(main, head("Settings", d.editable ? "Changes are saved in the bot's database and override config.yaml (which stays untouched)."
-    : "Only bot owners can change these.", d.editable ? h("a", { class: "btn sm", href: "/api/settings/export", download: "config.yaml" }, "Export YAML") : null),
+    : "Only bot owners can change these.", d.editable ? h("div", { class: "row" }, h("a", { class: "btn sm", href: "#/setup" }, "Setup wizard"),
+    btn("Import", importSettings, "sm"),
+    h("a", { class: "btn sm", href: "/api/settings/export", download: "vectiq-config.yaml" }, "Export")) : null),
   h("div", { class: "tabs" }, d.groups.map((g) => h("button", { type: "button", class: g.id === group.id && "on", onclick: () => { location.hash = `#/settings/${g.id}`; } }, g.title))),
   card(group.title, rows), savebar);
+}
+
+// Import an exported YAML file: show exactly what would change, then apply it.
+function importSettings() {
+  const pick = h("input", { type: "file", accept: ".yaml,.yml,text/yaml,text/plain", class: "hidden" });
+  document.body.appendChild(pick);
+  pick.addEventListener("change", async () => {
+    const file = pick.files[0];
+    pick.remove();
+    if (!file) return;
+    const text = await file.text();
+    let p;
+    try { p = await api("POST", "/api/settings/import", { yaml: text, apply: false }); } catch { return; }
+    const show = (v) => (Array.isArray(v) ? v.join(", ") || "none" : v === true ? "on" : v === false ? "off" : v === "" || v == null ? "default" : typeof v === "object" ? JSON.stringify(v) : String(v));
+    const body = h("div", { class: "import-preview" },
+      h("p", { class: "muted" }, `${file.name}: ${p.changes.length} change${p.changes.length === 1 ? "" : "s"}, ${p.unchanged} already the same.`),
+      p.errors.length ? [h("h4", null, "Can't import"), h("ul", { class: "bad" }, p.errors.map((x) => h("li", null, x)))] : null,
+      p.changes.length ? h("div", { class: "list" }, p.changes.map((c) => h("div", { class: "item" },
+        h("div", { class: "grow" }, h("b", null, c.label, c.restart ? h("span", { class: "tag pill yellow" }, "restart") : null), h("div", { class: "faint mono" }, c.path)),
+        h("span", { class: "faint" }, show(c.from)), h("span", { class: "faint" }, " → "), h("b", null, show(c.to))))) : null,
+      p.skipped.length ? h("details", null, h("summary", null, `${p.skipped.length} not imported here`),
+        h("ul", { class: "faint" }, p.skipped.map((x) => h("li", null, x)))) : null);
+    modal("Import settings", body, p.changes.length && !p.errors.length ? [{
+      label: `Apply ${p.changes.length} change${p.changes.length === 1 ? "" : "s"}`,
+      run: async () => { const r = await api("POST", "/api/settings/import", { yaml: text, apply: true }); toast(r.message); },
+      after: async () => { S.me = await api("GET", "/api/me"); route(); },
+    }] : []);
+  });
+  pick.click();
 }
 
 function control(f, editable, onchange) {
@@ -833,8 +866,229 @@ function control(f, editable, onchange) {
     return h("div", null, rows, editable ? btn("+ Add", () => addRow(), "ghost sm") : null);
   }
   const i = input({ value: f.value ?? "", disabled: dis });
+  if (f.type === "channel") {
+    i.setAttribute("list", "channel-names");
+    i.placeholder = "Channel name";
+    channelNames();
+  }
   i.addEventListener("input", () => onchange(i.value));
   return i;
+}
+
+// One shared <datalist> of the current community's channels, for every channel setting.
+async function channelNames() {
+  if (document.getElementById("channel-names") || !S.gid) return;
+  const list = h("datalist", { id: "channel-names" });
+  document.body.appendChild(list);
+  try {
+    const d = await api("GET", `/api/c/${encodeURIComponent(S.gid)}/channels`);
+    add(list, d.channels.map((c) => h("option", { value: c.name })));
+  } catch { /* typing a name still works */ }
+}
+
+/* ---------------------------------------------------------------- setup wizard */
+// An installer-style walk-through: the bot asks one question per screen, a stage list on the
+// left shows where you are, Back and Continue (or Enter) move between screens. Questions that
+// don't apply are skipped as you answer. Nothing is saved until the "Ready" screen.
+async function setup(main) {
+  const d = await api("GET", "/api/settings");
+  if (!d.editable) { clear(main, card(null, h("p", { class: "muted" }, "Only bot owners can run the setup wizard."))); return; }
+  const fields = Object.fromEntries(d.groups.flatMap((g) => g.fields).map((f) => [f.path, f]));
+  const T = d.wizard_text;
+  let channels = [];
+  if (S.gid) { try { channels = (await api("GET", `/api/c/${encodeURIComponent(S.gid)}/channels`)).channels.map((c) => c.name); } catch { /* typing works */ } }
+  const comm = S.me.communities.find((c) => c.id === S.gid);
+  const changes = {};
+  const value = (p) => (p in changes ? changes[p] : fields[p].value);
+  const ok = (when) => Object.entries(when || {}).every(([p, vals]) => vals.includes(value(p)));
+  const shown = (v) => (Array.isArray(v) ? v.join(", ") || "none" : v === true ? "yes" : v === false ? "no" : v === "" || v == null ? "default" : String(v));
+  const norm = (x) => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const channelMissing = (v) => channels.length && v && !channels.some((n) => n === v || norm(n).includes(norm(v)));
+  const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Every screen, worked out again after each answer.
+  const screens = () => {
+    const out = [{ key: "hello", stage: "Welcome" }];
+    for (const st of d.wizard.filter((w) => ok(w.when))) {
+      if (st.id === "features") { out.push({ key: "features", stage: st.title, st }); continue; }
+      st.paths.filter((p) => ok(d.wizard_when[p])).forEach((p, i) => out.push({ key: `q:${p}`, stage: st.title, st, path: p, first: i === 0 }));
+    }
+    out.push({ key: "ready", stage: "Ready" });
+    return out;
+  };
+  let current = "hello";
+  let done = null;   // set after saving: { message, problems }
+
+  const set = (p, v) => { if (JSON.stringify(v) === JSON.stringify(fields[p].value)) delete changes[p]; else changes[p] = v; };
+
+  // The bot's side of the conversation; a short "typing" pause before it speaks.
+  const bot = (lines) => {
+    const box = h("div", { class: "wiz-bot" }, h("div", { class: "mark wiz-face", "aria-hidden": "true" }, h("i")));
+    const said = h("div", { class: "wiz-said", "aria-live": "polite" });
+    box.appendChild(said);
+    const speak = () => add(said, lines.filter(Boolean).map((t) => h("p", { class: "wiz-bubble" }, t)));
+    if (quiet) speak();
+    else { said.appendChild(h("p", { class: "wiz-bubble wiz-typing", "aria-label": "Vectiq is typing" }, h("i"), h("i"), h("i")));
+      setTimeout(() => { said.textContent = ""; speak(); }, 420); }
+    return box;
+  };
+
+  // The answer area for one setting.
+  const answer = (p) => {
+    const f = { ...fields[p], value: value(p) };
+    const help = d.option_help[p] || {};
+    if (f.type === "enum" || f.type === "bool") {
+      const opts = f.type === "bool" ? [[true, "Yes"], [false, "No"]] : f.options.map((o) => [o, o]);
+      const group = h("div", { class: "choices", role: "radiogroup", "aria-label": f.label });
+      const pick = (v) => { set(p, v); [...group.children].forEach((b) => { const on = b.dataset.v === JSON.stringify(v); b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); }); };
+      add(group, opts.map(([v, label]) => h("button", { type: "button", class: "choice" + (v === f.value ? " on" : ""), role: "radio",
+        "aria-checked": String(v === f.value), "data-v": JSON.stringify(v), onclick: () => pick(v), ondblclick: () => { pick(v); go(1); } },
+      h("b", null, label), help[v] ? h("span", null, help[v]) : null)));
+      return group;
+    }
+    if (f.type === "channel" && channels.length) {
+      const known = channels.includes(f.value);
+      const other = input({ value: known ? "" : f.value || "", placeholder: "Type a channel name", class: "input" + (known || !f.value ? " hidden" : "") });
+      const sel = select([["", "Default"], ...channels.map((n) => [n, `#${n}`]), ["\u0000other", "Another name…"]], known ? f.value : f.value ? "\u0000other" : "");
+      sel.addEventListener("change", () => {
+        if (sel.value === "\u0000other") { other.classList.remove("hidden"); other.focus(); set(p, other.value); } else { other.classList.add("hidden"); set(p, sel.value); }
+      });
+      other.addEventListener("input", () => set(p, other.value));
+      return h("div", { class: "stack" }, sel, other);
+    }
+    return control(f, true, (v) => set(p, v));
+  };
+
+  const features = (st) => h("div", { class: "wiz-checklist", role: "group", "aria-label": "Features" }, st.paths.map((p) => {
+    const f = fields[p];
+    const box = h("input", { type: "checkbox", checked: !!value(p), onchange: () => set(p, box.checked) });
+    return h("label", { class: "wiz-check" }, box, h("span", null, h("b", null, f.label), h("small", null, f.help)));
+  }));
+
+  const summary = () => {
+    const keys = Object.keys(changes);
+    if (!keys.length) return h("p", { class: "muted" }, "You haven't changed anything, so there's nothing to save. Go back to change something, or close the wizard.");
+    const warn = keys.filter((k) => fields[k].type === "channel" && channelMissing(changes[k]));
+    return [
+      ...d.wizard.map((st) => [st, keys.filter((k) => st.paths.includes(k))]).filter(([, ks]) => ks.length).map(([st, ks]) =>
+        h("div", { class: "wiz-sum" }, h("h4", null, st.title), ks.map((k) => h("div", { class: "wiz-sum-row" },
+          h("span", null, fields[k].label), h("span", { class: "faint" }, shown(fields[k].value)), h("span", { class: "faint", "aria-label": "becomes" }, "→"), h("b", null, shown(changes[k])))))),
+      warn.length ? h("p", { class: "wiz-warn" }, `I can't find ${warn.map((k) => `"${changes[k]}"`).join(", ")}${comm ? ` in ${comm.name}` : ""}. I'll ignore it until a channel with that name exists.`) : null,
+      keys.some((k) => fields[k].restart) ? h("p", { class: "muted" }, "A few of these need me to restart before they take effect.") : null,
+    ];
+  };
+
+  function go(step) {
+    const list = screens();
+    const i = Math.max(0, list.findIndex((x) => x.key === current));
+    const next = list[Math.min(Math.max(i + step, 0), list.length - 1)];
+    current = next.key;
+    draw();
+  }
+
+  async function apply(btnEl) {
+    if (!Object.keys(changes).length) { location.hash = "#/settings"; return; }
+    try {
+      const r = await run(btnEl, () => api("PUT", "/api/settings", { changes, checkpoint: "Before the setup wizard" }));
+      for (const k in changes) delete changes[k];
+      S.me = await api("GET", "/api/me");
+      let problems = [];
+      if (S.gid) { try { problems = (await api("GET", `/api/c/${encodeURIComponent(S.gid)}/setup-check`)).problems; } catch { /* optional */ } }
+      done = { message: r.message, problems };
+      draw();
+    } catch { /* the toast explains */ }
+  }
+
+  function draw() {
+    const list = screens();
+    let i = list.findIndex((x) => x.key === current);
+    if (i < 0) { i = Math.min(list.length - 1, 1); current = list[i].key; }
+    const scr = done ? { key: "done", stage: "Done" } : list[i];
+    const stages = [...new Set([...list.map((x) => x.stage), "Done"])];
+    const here = stages.indexOf(scr.stage);
+    const side = h("ol", { class: "wiz-stages" }, stages.map((name, n) =>
+      h("li", { class: n < here ? "done" : n === here ? "on" : null, "aria-current": n === here ? "step" : null }, name)));
+    const pct = done ? 100 : Math.round((i / (list.length - 1)) * 100);
+
+    let talk, body = null;
+    if (done) {
+      talk = [T.done, done.problems.length ? `There's still something to sort out${comm ? ` in ${comm.name}` : ""}:` : `I've got everything I need${comm ? ` in ${comm.name}` : ""}.`];
+      body = [done.problems.length ? h("ul", { class: "wiz-todo" }, done.problems.map((x) => h("li", null, x))) : null,
+        h("p", { class: "muted" }, done.message), h("p", { class: "muted" }, "Want to see it work? Join with a second account, or type !verification in the community.")];
+    } else if (scr.key === "hello") {
+      talk = [T.hello, comm ? `We'll set things up with ${comm.name} in mind.` : null];
+    } else if (scr.key === "features") {
+      talk = [scr.st.say]; body = features(scr.st);
+    } else if (scr.key === "ready") {
+      talk = [T.ready]; body = summary();
+    } else {
+      const f = fields[scr.path];
+      talk = [scr.first ? scr.st.say : null, d.wizard_ask[scr.path] || f.label];
+      body = [answer(scr.path), f.help ? h("p", { class: "faint wiz-hint" }, f.help) : null,
+        f.restart ? h("p", { class: "faint wiz-hint" }, "This one takes effect after a restart.") : null];
+    }
+
+    const back = btn("Back", () => go(-1), "ghost", { disabled: done || i === 0 });
+    const skip = !done && scr.path ? btn("Skip section", () => {
+      const last = list.filter((x) => x.stage === scr.stage).pop();
+      current = last.key; go(1);
+    }, "ghost") : null;
+    let next;
+    if (done) next = h("a", { class: "btn primary", href: "#/settings" }, "Finish");
+    else if (scr.key === "ready") next = btn(Object.keys(changes).length ? "Save and finish" : "Close", () => apply(next), "primary");
+    else next = btn(scr.key === "hello" ? "Let's go" : "Continue", () => go(1), "primary");
+
+    const panel = h("section", { class: "wiz-panel" },
+      h("div", { class: "wiz-progress", role: "progressbar", "aria-valuenow": String(pct), "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": "Setup progress" }, h("i", { style: { width: `${pct}%` } })),
+      h("div", { class: "wiz-body" }, bot(talk), body ? h("div", { class: "wiz-answer" }, body) : null),
+      h("footer", { class: "wiz-foot" }, back, h("span", { class: "grow" }), skip, next));
+    const frame = h("div", { class: "wiz" }, h("aside", { class: "wiz-side" }, h("div", { class: "wiz-title" }, "Vectiq setup"), side), panel);
+    frame.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && e.target.tagName !== "TEXTAREA" && e.target.tagName !== "BUTTON" && e.target.tagName !== "SELECT") { e.preventDefault(); next.click(); }
+      if (e.key === "ArrowLeft" && e.altKey) { e.preventDefault(); back.click(); }
+    });
+    clear(main, frame);
+    S.dirty = changes;
+    setTimeout(() => (frame.querySelector(".wiz-answer input:not([type=checkbox]), .wiz-answer select, .wiz-answer textarea, .choice.on, .choice") || next).focus({ preventScroll: true }), quiet ? 0 : 440);
+  }
+  draw();
+}
+
+/* ---------------------------------------------------------------- restore points */
+// Like System Restore: a list of moments you can go back to. Rolling back saves "now" first.
+async function restore(main) {
+  if (!S.me.owner) { clear(main, card(null, h("p", { class: "muted" }, "Only bot owners can see restore points."))); return; }
+  const d = await api("GET", "/api/restore-points");
+  const KIND = { scheduled: ["Scheduled", ""], automatic: ["Automatic", "yellow"], manual: ["Made by you", "green"] };
+  const size = (n) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`);
+  const label = input({ placeholder: "What's this one for? e.g. Before the event season", maxlength: "200" });
+  const make = btn("Create restore point", async () => {
+    try { const r = await run(make, () => api("POST", "/api/restore-points", { label: label.value })); toast(r.message); route(); } catch { /* toast */ }
+  }, "primary");
+  label.addEventListener("keydown", (e) => { if (e.key === "Enter") make.click(); });
+  const rollback = (p) => modal("Roll back?", h("div", { class: "stack" },
+    h("p", null, "Everything goes back to how it was on ", h("b", null, p.when), ": ", p.label, "."),
+    h("p", { class: "muted" }, "Levels, coins, tickets, events, warnings and settings made since then are undone. Messages already sent in chat stay."),
+    h("p", null, "I'll make a restore point of how things are right now first, so you can undo this.")),
+  [{ label: "Roll back", kind: "danger", run: async () => { const r = await api("POST", `/api/restore-points/${encodeURIComponent(p.id)}/rollback`); toast(r.message); },
+    after: async () => { S.me = await api("GET", "/api/me"); route(); } }]);
+  const remove = (p) => modal("Delete this restore point?", h("p", null, `${p.when}: ${p.label}. You can't roll back to it afterwards.`),
+    [{ label: "Delete", kind: "danger", run: () => api("DELETE", `/api/restore-points/${encodeURIComponent(p.id)}`), after: route }]);
+  const every = Number(d.every_hours) || 0;
+  clear(main, head("Restore points", every
+    ? `I make one every ${every === 24 ? "day" : `${every} hours`}, and before risky changes like imports and upgrades. I keep ${d.keep_automatic} of those and ${d.keep_manual} of yours.`
+    : `Scheduled points are off. I still make one before risky changes, like imports and upgrades.`),
+  card("Make one now", h("div", { class: "row" }, h("div", { class: "grow" }, label), make)),
+  card(`${d.points.length} restore point${d.points.length === 1 ? "" : "s"}`, d.points.length
+    ? h("div", { class: "list" }, d.points.map((p, i) => h("div", { class: "item rp" },
+      h("div", { class: "rp-dot", "aria-hidden": "true" }),
+      h("div", { class: "grow" }, h("b", null, p.label), h("div", { class: "faint" }, `${p.when} · ${size(p.size)}${i === 0 ? " · newest" : ""}`)),
+      pill(KIND[p.kind]?.[0] || p.kind, KIND[p.kind]?.[1] || ""),
+      btn("Roll back…", () => rollback(p), "sm"),
+      h("a", { class: "btn ghost sm", href: `/api/restore-points/${encodeURIComponent(p.id)}/download`, download: `${p.id}.zip` }, "Download"),
+      btn("Delete", () => remove(p), "ghost sm"))))
+    : empty("No restore points yet. Make one above, or wait for the first scheduled one.")),
+  h("p", { class: "faint" }, `Saved in ${d.dir}. The bot's key in .env is never included.`));
 }
 
 /* ---------------------------------------------------------------- webhooks */

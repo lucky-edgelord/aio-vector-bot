@@ -37,7 +37,8 @@ class Utility(commands.Cog, name="Utility"):
         g = ctx.guild
         await ctx.send(embed=embed(g.name, fields=[
             ("Members", str(g.member_count), True), ("Channels", str(len(g.text_channels)), True),
-            ("Roles", str(len(g.roles)), True)]))
+            ("Roles", str(len(g.roles)), True),
+            ("ID", f"`{g.id}`", False)]))
 
     @commands.command()
     @commands.guild_only()

@@ -250,7 +250,7 @@ async def test_settings_overrides(env):
     assert bad.status_code == 400 and env.cfg.get("leveling.xp_min") == 15      # invalid combos change nothing
     assert (await c.put("/api/settings", json={"changes": {"nsec": "x"}}, headers=H)).status_code == 400
     r = await c.put("/api/settings", json={"changes": {"modules.games": False}}, headers=H)
-    assert r.json()["restart"] == ["Games"]
+    assert r.json()["restart"] == ["Mini games"]
     assert (await c.delete("/api/settings/economy.daily_amount", headers=H)).status_code == 200
     assert env.cfg.get("economy.daily_amount") == 200 and "economy.daily_amount" not in await env.store.overrides()
 
@@ -324,3 +324,73 @@ async def test_securitycam_page(env):
     assert cam.sent and await sc.ignored_channels(g) == ["c2"]
     await env.client.put("/api/c/g1/securitycam", json={"channel": ""}, headers=H)
     assert (await env.client.get("/api/c/g1/securitycam")).json()["channel"] == ""
+
+
+async def test_setup_wizard_steps_and_new_settings(env):
+    await env.store.create_user("olga", OWNER, "correct horse battery")
+    c = env.client
+    await login(c, "olga")
+    d = (await c.get("/api/settings")).json()
+    assert [s["id"] for s in d["wizard"]][:3] == ["basics", "features", "channels"]
+    changes = {"moderation.log_channel": "mod-log", "verification.log_channel": "verify-log",
+               "tickets.log_channel": "tickets", "welcome.leave_channel": "goodbyes", "onboarding.log_channel": "joins",
+               "verification.gate": "all", "verification.min_age": 18}
+    r = await c.put("/api/settings", json={"changes": changes}, headers=H)
+    assert r.status_code == 200, r.text
+    assert env.cfg.get("verification.gate") == "all" and env.cfg.get("tickets.log_channel") == "tickets"
+    # captcha needs a site key: refused as a whole
+    bad = await c.put("/api/settings", json={"changes": {"verification.mode": "captcha"}}, headers=H)
+    assert bad.status_code == 400 and env.cfg.get("verification.mode") == "question"
+    ok = await c.put("/api/settings", json={"changes": {"verification.mode": "captcha",
+                                                         "verification.captcha.site_key": "k"}}, headers=H)
+    assert ok.status_code == 200 and "Mode" in ok.json()["restart"]
+
+
+async def test_import_preview_then_apply_with_a_restore_point(env, tmp_path):
+    from vectiq.backup import RestorePoints
+
+    env.cfg.data_dir = str(tmp_path)
+    env.bot.restore_points = RestorePoints(env.cfg, env.bot.db)
+    await env.store.create_user("olga", OWNER, "correct horse battery")
+    c = env.client
+    await login(c, "olga")
+    exported = (await c.get("/api/settings/export")).text
+    assert "prefix" in exported
+    text = exported.replace("prefix: '!'", "prefix: '?'").replace('prefix: "!"', 'prefix: "?"') + "\nnonsense: 1\n"
+    pre = (await c.post("/api/settings/import", json={"yaml": text}, headers=H)).json()
+    assert [x["path"] for x in pre["changes"]] == ["prefix"] and env.cfg.get("prefix") == "!"
+    assert any(s.startswith("nonsense") for s in pre["skipped"])
+    r = await c.post("/api/settings/import", json={"yaml": text, "apply": True}, headers=H)
+    assert r.status_code == 200 and env.cfg.get("prefix") == "?"
+    assert env.bot.restore_points.list()[0].label == "Before importing settings"
+    bad = await c.post("/api/settings/import", json={"yaml": "a: [", "apply": True}, headers=H)
+    assert bad.status_code == 400
+
+
+async def test_restore_points_page(env, tmp_path):
+    from vectiq.backup import RestorePoints
+
+    env.cfg.data_dir = str(tmp_path)
+    env.bot.restore_points = RestorePoints(env.cfg, env.bot.db)
+    await env.store.create_user("olga", OWNER, "correct horse battery")
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    c = env.client
+    await login(c, "ada")
+    assert (await c.get("/api/restore-points")).status_code == 403          # owners only
+    await login(c, "olga")
+    r = await c.post("/api/restore-points", json={"label": "Before the event season"}, headers=H)
+    assert r.status_code == 200
+    pts = (await c.get("/api/restore-points")).json()["points"]
+    assert pts[0]["label"] == "Before the event season" and pts[0]["kind"] == "manual"
+    await c.put("/api/settings", json={"changes": {"prefix": "?"}, "checkpoint": "Before the setup wizard"}, headers=H)
+    assert env.cfg.get("prefix") == "?"
+    pid = pts[0]["id"]
+    dl = await c.get(f"/api/restore-points/{pid}/download")
+    assert dl.status_code == 200 and dl.headers["content-type"] == "application/zip"
+    r = await c.post(f"/api/restore-points/{pid}/rollback", headers=H)
+    assert r.status_code == 200, r.text
+    assert env.cfg.get("prefix") == "!"                                       # settings went back too
+    labels = [p["label"] for p in (await c.get("/api/restore-points")).json()["points"]]
+    assert labels[0].startswith("Before rolling back") and "Before the setup wizard" in labels
+    assert (await c.delete(f"/api/restore-points/{pid}", headers=H)).status_code == 200
+    assert (await c.post(f"/api/restore-points/{pid}/rollback", headers=H)).status_code == 404

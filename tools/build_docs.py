@@ -210,7 +210,8 @@ FEATURES = [
     ("leveling", "Leveling", "XP for chatting on the familiar MEE6 curve, role rewards, and rank and leaderboard cards as images."),
     ("economy", "Economy", "Coins, daily streaks, work, a bank and a shop that sells roles."),
     ("tickets", "Tickets", "A private channel per request. Staff claim it; anyone closes it with a 🔒 reaction. Transcripts are kept."),
-    ("onboarding", "Welcome and onboarding", "Greet, verify with a question, then let people pick roles from a reaction menu."),
+    ("onboarding", "Welcome and onboarding", "Greet new members, then let them pick roles from a reaction menu."),
+    ("verification", "Verification", "A question, a reaction or a CAPTCHA page, with device checks, an age gate, a lobby and softbans."),
     ("role-menus", "Role menus", "Reaction roles that add and remove, built from chat or from the dashboard."),
     ("giveaways", "Giveaways", "Timed, multiple winners, reroll. Entering is a 🎉 reaction."),
     ("events", "Event calendar", "RSVPs, waitlists, repeats, reminders by DM, a month picture and .ics files."),
@@ -218,6 +219,8 @@ FEATURES = [
     ("security-cam", "Security cam", "Echo every message from every channel into one staff channel."),
     ("webhooks", "Webhooks", "Declare them in YAML. Vectiq creates them, DMs you each URL once and mirrors events into the channel."),
     ("dashboard", "Web dashboard", "Manage members, settings, tickets and more in a browser, behind real logins."),
+    ("configuration", "Setup wizard", "The bot asks what it needs, one question per screen, on the dashboard or in the terminal."),
+    ("restore-points", "Restore points", "Go back to any earlier moment, like System Restore. Made daily and before risky changes."),
 ]
 
 

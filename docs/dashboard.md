@@ -56,6 +56,8 @@ A sign-in lasts `dashboard.session_days` (7) days. Too many wrong attempts are s
 | Games | Results and leaderboards for each game |
 | Onboarding | The welcome message, verification and onboarding steps |
 | Security cam | Choose the channel and the channels to leave out |
+| Setup wizard | Set the bot up by answering questions, one per screen (owners) |
+| Restore points | Make restore points, roll back to one, download them (owners) |
 | Announce | Post a message as the bot into any channel |
 | Audit log | Who changed what, and when |
 
@@ -69,7 +71,7 @@ Pages only appear for features that are turned on.
 
 ![Settings](images/dashboard-settings.png)
 
-The Settings page edits the values in [config.yaml](configuration.md) for a community. A value you change here is saved on top of the file, so it takes effect without a restart and survives updates. Reset a value to go back to the file's setting.
+The Settings page edits the values in [config.yaml](configuration.md). **Export** and **Import** move them in and out as a YAML file; see [Exporting and importing](configuration.md#exporting-and-importing-settings). A value you change here is saved on top of the file, so it takes effect without a restart and survives updates. Reset a value to go back to the file's setting.
 
 Some settings only apply when the bot starts, such as the dashboard's own address. The page tells you when a restart is needed.
 

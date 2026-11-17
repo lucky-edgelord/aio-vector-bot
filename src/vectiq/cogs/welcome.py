@@ -43,7 +43,8 @@ class Welcome(commands.Cog, name="Welcome"):
         await self.activity.bump(str(member.guild.id), "", leaves=1)
         self.bot.emit(member.guild, "leaves", "Member left", name_of(member))
         w = self.cfg["welcome"]
-        if w["enabled"] and w["leave_message"] and (ch := self._channel(member.guild)):
+        ch = self.bot.find_channel(member.guild, w.get("leave_channel", "")) or self._channel(member.guild)
+        if w["enabled"] and w["leave_message"] and ch:
             await ch.send(self.render(w["leave_message"], member.guild, member))
 
     @commands.command()

@@ -39,12 +39,19 @@ DEFAULTS: dict[str, Any] = {
     "economy": {"currency_name": "coins", "currency_symbol": "🪙", "daily_amount": 200,
                 "daily_streak_bonus": 25, "daily_streak_cap": 10, "work_min": 40, "work_max": 120,
                 "work_cooldown_minutes": 30, "start_balance": 100, "message_reward": 0},
-    "tickets": {"category": "", "support_role": "", "max_open_per_user": 2, "close_emoji": "🔒", "transcripts": True},
-    "verification": {"mode": "question", "role": "Verified", "max_attempts": 3, "channel": ""},
+    "tickets": {"category": "", "log_channel": "",
+                "support_role": "", "max_open_per_user": 2, "close_emoji": "🔒", "transcripts": True},
+    "verification": {"mode": "question", "role": "Verified", "max_attempts": 3, "channel": "",
+                     "gate": "off", "spam_kick": 3, "public_url": "", "link_minutes": 10,
+                     "captcha": {"provider": "Cloudflare Turnstile", "site_key": "", "secret_key_env": "CAPTCHA_SECRET",
+                                 "verify_url": "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                                 "script_url": "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"},
+                     "device_check": True, "device_check_days": 30, "on_duplicate": "refuse",
+                     "min_age": 0, "adult_role": "", "invite_to": "", "softban_escalate": 3, "log_channel": ""},
     "welcome": {"enabled": True, "channel": "",
                 "message": "Welcome to {community}, {mention}! You are member #{count}.",
-                "leave_message": "{name} has left {community}.", "dm_message": ""},
-    "onboarding": {"steps": ["verify", "pick_roles"], "channel": "", "required": False,
+                "leave_message": "{name} has left {community}.", "leave_channel": "", "dm_message": ""},
+    "onboarding": {"steps": ["verify", "pick_roles"], "channel": "", "log_channel": "", "required": False,
                    "title": "Pick your interests", "prompt": "Welcome! Pick your roles below, then say hi.",
                    "done_message": "{mention} you're all set. Enjoy {community}!",
                    "role_menu": {"🎮": "Gamer", "🎨": "Artist", "💻": "Dev"}},
@@ -54,6 +61,7 @@ DEFAULTS: dict[str, Any] = {
     "webhooks": {"server": {"enabled": False, "host": "0.0.0.0", "port": 8080,
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
+    "backup": {"every_hours": 24, "keep_automatic": 14, "keep_manual": 20, "dir": "", "include_pictures": True},
     "events": {"timezone": "UTC", "channel": "announcements", "banner_image": True,
                "default_minutes": 60, "reminders": [60, 15], "dm_reminders": True,
                "who_can_create": "staff", "attendee_roles": False, "calendar_image": True, "week_starts": "monday",
@@ -173,8 +181,20 @@ class Config:
                 raise ConfigError(f"modules.{name}: unknown module (known: {', '.join(MODULES)})")
         if d["moderation"]["warn_action"] not in ("timeout", "kick", "ban", "none"):
             raise ConfigError("moderation.warn_action must be timeout, kick, ban or none")
-        if d["verification"]["mode"] not in ("question", "button"):
-            raise ConfigError("verification.mode must be question or button")
+        vf = d["verification"]
+        if vf["mode"] not in ("question", "button", "captcha"):
+            raise ConfigError("verification.mode must be question, button or captcha")
+        if vf["gate"] not in ("off", "channel", "all"):
+            raise ConfigError("verification.gate must be off, channel or all")
+        if vf["on_duplicate"] not in ("refuse", "kick", "softban"):
+            raise ConfigError("verification.on_duplicate must be refuse, kick or softban")
+        if not isinstance(vf["min_age"], int) or not 0 <= vf["min_age"] <= 120:
+            raise ConfigError("verification.min_age must be 0 (off) to 120")
+        if vf["mode"] == "captcha" and d["modules"].get("verification"):
+            if not str(vf["captcha"]["site_key"]).strip():
+                raise ConfigError("verification.captcha.site_key is needed for mode: captcha")
+            if not str(vf["public_url"] or d["dashboard"]["base_url"]).strip():
+                raise ConfigError("verification.public_url is needed for mode: captcha")
         port = d["dashboard"]["port"]
         if not isinstance(port, int) or not 1 <= port <= 65535:
             raise ConfigError("dashboard.port must be a port number")

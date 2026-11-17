@@ -151,6 +151,8 @@ class Onboarding(commands.Cog, name="Onboarding"):
         if not await self.store.complete(str(guild.id), str(member.id)):
             return
         self.bot.emit(guild, "onboarding", "Onboarding complete", name_of(member))
+        if (ref := self.cfg.get("onboarding.log_channel", "")) and hasattr(self.bot, "log_to"):
+            await self.bot.log_to(guild, ref, "Onboarding complete", name_of(member))
         channel = self._channel(guild)
         if channel is not None and (text := self.cfg.get("onboarding.done_message", "")):
             await channel.send(self._render(text, guild, member))

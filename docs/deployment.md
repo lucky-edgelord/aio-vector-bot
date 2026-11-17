@@ -72,17 +72,19 @@ git pull
 .venv/bin/pip install -e ".[webhooks,dashboard]"
 ```
 
-Then restart the bot. Database changes are applied automatically when it starts, and each one is applied only once. Read the [changelog](changelog.md) first if you are updating across several versions.
+Then restart the bot. Database changes are applied automatically when it starts, and each one is applied only once. A restore point is made first, so you can go back if the update causes trouble. Read the [changelog](changelog.md) first if you are updating across several versions.
 
 ## Backups
 
-Everything the bot stores is in one SQLite file, `data/vectiq.db`. Copy it while the bot is running with SQLite's own backup command, which is safe even in the middle of a write:
+The bot makes [restore points](restore-points.md) on its own: every day, before updates change the database, and before imports and rollbacks. Point `backup.dir` at another disk so a failed drive doesn't take the backups with it.
+
+To copy just the database by hand while the bot runs, use SQLite's own backup command, which is safe in the middle of a write:
 
 ```sh
 sqlite3 data/vectiq.db ".backup backup.db"
 ```
 
-Also keep a copy of `.env` somewhere private. It holds the bot's key, which is the bot's account. If you lose it, you can create a new bot account, but it will be a different member of your community.
+Also keep a copy of `.env` somewhere private. It holds the bot's key, which is the bot's account, and restore points deliberately leave it out. If you lose it, you can create a new bot account, but it will be a different member of your community.
 
 ## Logs and health
 

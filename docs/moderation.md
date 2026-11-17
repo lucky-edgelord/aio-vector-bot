@@ -35,10 +35,13 @@ Set `warn_action: none` if you want warnings to be a record only.
 !kick @sam reason
 !ban @sam reason
 !tempban @sam 3d cooling off
+!softban @sam keeps coming back
 !unban npub1... reason
 ```
 
 Durations are written as `30m`, `2h`, `1d12h`. A timeout can be at most `moderation.mute_max_days` (28 by default, which is Vector's own limit). A tempban lifts itself when the time is up. The bot checks every 30 seconds.
+
+A **softban** takes the member's roles and removes them, then removes them again every time they come back. After `verification.softban_escalate` returns (3) it becomes a real ban. `!unban` lifts softbans too. See [Verification](verification.md#softbans).
 
 The bot refuses to act on you, on itself and on the community owner, and says so instead of failing quietly.
 

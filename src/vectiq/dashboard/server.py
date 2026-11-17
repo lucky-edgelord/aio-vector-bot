@@ -7,7 +7,6 @@ bot, its stores and its cogs directly. Nothing here talks to Vector except throu
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import random
 import time
@@ -15,7 +14,6 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any
 
-import yaml
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -166,7 +164,8 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
                 and request.headers.get("x-requested-with") != "vectiq":
             return JSONResponse({"detail": "Missing X-Requested-With header."}, status_code=403)
         response = await call_next(request)
-        response.headers["Content-Security-Policy"] = (
+        response.headers.setdefault(   # the verification page sets its own, to allow the CAPTCHA
+            "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data: https: http:; style-src 'self'; script-src 'self'; "
             "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -250,6 +249,10 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
     async def index():
         return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
 
+    if cfg.get("verification.mode") == "captcha" and cfg.get("modules.verification"):
+        from .verify_page import add_verify_routes
+
+        add_verify_routes(app, bot)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     app.mount("/fonts", StaticFiles(directory=FONTS), name="fonts")
 
@@ -495,6 +498,21 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         g = community(gid, npub)
         return {"channels": [channel_json(c) for c in g.text_channels],
                 "roles": [role_json(r) for r in g.roles if not getattr(r, "is_default", lambda: False)()]}
+
+    @app.get("/api/c/{gid}/setup-check")
+    async def setup_check(gid: str, npub: str = Depends(current)):
+        """What still stops the current settings from working in this community."""
+        g = community(gid, npub)
+        problems = []
+        for path, f in schema.FIELDS.items():
+            ref = cfg.get(path)
+            if f["type"] == "channel" and ref and cfg.get(f"modules.{path.split('.')[0]}", True) is not False \
+                    and bot.find_channel(g, ref) is None:
+                problems.append(f"{f['label']}: no channel matches \"{ref}\".")
+        cog = bot.get_cog("Verification")
+        if cog is not None and hasattr(cog, "warnings"):
+            problems += [w.replace("**", "") for w in cog.warnings(g)]
+        return {"problems": problems}
 
     # -- members -------------------------------------------------------------------------------------
 
@@ -1161,7 +1179,10 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
             groups.append({"id": grp["id"], "title": grp["title"], "fields": [
                 f | {"value": cfg.get(f["path"]), "file_value": cfg.from_file(f["path"]),
                      "overridden": f["path"] in cfg.overrides} for f in grp["fields"]]})
-        return {"editable": access.is_owner(npub), "groups": groups, "config_path": str(cfg.path or "config.yaml")}
+        return {"editable": access.is_owner(npub), "groups": groups, "config_path": str(cfg.path or "config.yaml"),
+                "wizard": schema.WIZARD, "wizard_when": schema.WIZARD_WHEN, "option_help": schema.OPTION_HELP,
+                "wizard_ask": schema.WIZARD_ASK, "wizard_text": {"hello": schema.WIZARD_HELLO,
+                                                                "ready": schema.WIZARD_READY, "done": schema.WIZARD_DONE}}
 
     @app.put("/api/settings")
     async def settings_save(request: Request, npub: str = Depends(owner)):
@@ -1176,6 +1197,8 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         if "owners" in coerced and cfg.owners and npub.lower() not in [o.lower() for o in coerced["owners"]]:
             fail(400, "You can't remove yourself from the owners here; edit config.yaml for that.")
         before = {p: cfg.get(p) for p in coerced}
+        if data.get("checkpoint") and getattr(bot, "restore_points", None):
+            await bot.restore_points.create(str(data["checkpoint"])[:120], "automatic")
         await save_overrides(coerced, npub)
         restart = sorted({schema.FIELDS[p]["label"] for p in coerced if schema.FIELDS[p]["restart"]
                           and before[p] != coerced[p]})
@@ -1193,10 +1216,100 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
 
     @app.get("/api/settings/export")
     async def settings_export(npub: str = Depends(owner)):
-        text = yaml.safe_dump(json.loads(json.dumps(cfg.data)), sort_keys=False, allow_unicode=True)
-        return PlainTextResponse("# Vectiq settings with dashboard changes applied.\n"
-                                 "# Replace config.yaml with this to make them permanent (comments are not kept).\n"
-                                 + text, headers={"Content-Disposition": "attachment; filename=config.yaml"})
+        from ..config_io import export_yaml
+
+        await audit(npub, "exported settings", "")
+        return PlainTextResponse(export_yaml(cfg), headers={"Content-Disposition": "attachment; filename=vectiq-config.yaml"})
+
+    @app.post("/api/settings/import")
+    async def settings_import(request: Request, npub: str = Depends(owner)):
+        """Preview (apply: false) or apply settings from an exported YAML file."""
+        from ..config_io import ImportError_, parse, plan
+
+        data = await body(request)
+        try:
+            imported = parse(str(data.get("yaml", "")))
+        except ImportError_ as exc:
+            fail(400, str(exc))
+
+        def coerce(path, value):
+            return schema.coerce(path, value)
+        p = plan(cfg, imported, editable=schema.FIELDS, coerce=coerce)
+        preview = {"changes": [{"path": k, "label": schema.FIELDS[k]["label"], "from": cfg.get(k), "to": v,
+                                "restart": schema.FIELDS[k]["restart"]} for k, v in p.changes.items()],
+                   "unchanged": p.unchanged, "skipped": p.skipped, "errors": p.errors}
+        if not data.get("apply"):
+            return preview
+        if p.errors:
+            fail(400, "Fix these first: " + "; ".join(p.errors))
+        if not p.changes:
+            return preview | {"ok": True, "message": "Nothing to change."}
+        if "owners" in p.changes and cfg.owners and npub.lower() not in [o.lower() for o in p.changes["owners"]]:
+            fail(400, "That file would remove you from the owners. Edit config.yaml for that.")
+        if getattr(bot, "restore_points", None):
+            await bot.restore_points.create("Before importing settings", "automatic")
+        await save_overrides(p.changes, npub)
+        await audit(npub, "imported settings", ", ".join(sorted(p.changes))[:480])
+        restart = sorted({schema.FIELDS[k]["label"] for k in p.changes if schema.FIELDS[k]["restart"]})
+        return preview | {"ok": True, "message": f"Imported {len(p.changes)} setting(s)."
+                          + (f" Restart the bot to apply: {', '.join(restart)}." if restart else "")}
+
+    # -- restore points (owners) ---------------------------------------------------------------
+
+    def points():
+        rp = getattr(bot, "restore_points", None)
+        if rp is None:
+            fail(503, "Restore points aren't running.")
+        return rp
+
+    @app.get("/api/restore-points")
+    async def restore_points(npub: str = Depends(owner)):
+        rp = points()
+        return {"points": [p.as_dict() for p in rp.list()], "dir": str(rp.dir),
+                "every_hours": cfg.get("backup.every_hours"), "keep_automatic": cfg.get("backup.keep_automatic"),
+                "keep_manual": cfg.get("backup.keep_manual")}
+
+    @app.post("/api/restore-points")
+    async def restore_point_create(request: Request, npub: str = Depends(owner)):
+        data = await body(request)
+        label = str(data.get("label", "")).strip()[:200] or "Made on the dashboard"
+        p = await points().create(label, "manual")
+        await audit(npub, "made a restore point", label)
+        return {"ok": True, "message": f"Made a restore point: {label}.", "point": p.as_dict()}
+
+    @app.post("/api/restore-points/{pid}/rollback")
+    async def restore_point_rollback(pid: str, npub: str = Depends(owner)):
+        rp = points()
+        p = rp.get(pid)
+        if p is None or p.id != pid:
+            fail(404, "That restore point is gone.")
+        try:
+            r = await rp.rollback(p)
+        except ValueError as exc:
+            fail(400, f"Can't roll back: {exc}")
+        await audit(npub, "rolled back", f"{p.when} {p.label}")
+        bot.command_prefix = cfg.prefix
+        return {"ok": True, "result": r, "message": f"Rolled back to {p.when}."
+                + (" Restart the bot to finish: some features were switched on or off." if r["restart"] else "")}
+
+    @app.delete("/api/restore-points/{pid}")
+    async def restore_point_delete(pid: str, npub: str = Depends(owner)):
+        rp = points()
+        p = rp.get(pid)
+        if p is None or p.id != pid:
+            fail(404, "That restore point is gone.")
+        rp.delete(p)
+        await audit(npub, "deleted a restore point", f"{p.when} {p.label}")
+        return {"ok": True, "message": "Deleted."}
+
+    @app.get("/api/restore-points/{pid}/download")
+    async def restore_point_download(pid: str, npub: str = Depends(owner)):
+        rp = points()
+        p = rp.get(pid)
+        if p is None or p.id != pid:
+            fail(404, "That restore point is gone.")
+        await audit(npub, "downloaded a restore point", p.id)
+        return FileResponse(rp.path(p), media_type="application/zip", filename=f"{p.id}.zip")
 
     @app.get("/api/health", include_in_schema=False)
     async def health():

@@ -22,7 +22,7 @@ AREAS = {
     "Tickets": "Tickets", "Verification": "Verification", "RoleMenus": "Role menus", "Roles": "Role menus",
     "Giveaways": "Giveaways", "Games": "Games", "Welcome": "Welcome", "Onboarding": "Onboarding",
     "Utility": "Utility", "Webhooks": "Webhooks", "Events": "Events", "SecurityCam": "Security cam",
-    "Dashboard": "Dashboard",
+    "Dashboard": "Dashboard", "Restore points": "Restore points",
 }
 PERMS = {
     "manage_messages": "Manage Messages", "manage_guild": "Manage Community", "manage_roles": "Manage Roles",
