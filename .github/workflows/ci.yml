@@ -24,7 +24,7 @@ jobs:
       - name: Validate example config
         run: VECTOR_NSEC=nsec1placeholder python -m vectiq --check
       - name: Test
-        run: pytest -q
+        run: pytest -q --timeout 120
       - name: Build the wheel and try it in a clean folder
         run: |
           pip wheel --no-deps -q -w dist .
