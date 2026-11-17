@@ -331,6 +331,21 @@ async def seed(stores: Stores, guild: Guild) -> None:
 # -- screenshots ---------------------------------------------------------------------------------------------
 
 
+def backdate(path: Path, days: float) -> None:
+    """Make a demo restore point look older, so the list reads like a real history."""
+    import json
+    import zipfile
+
+    with zipfile.ZipFile(path) as z:
+        items = {n: z.read(n) for n in z.namelist()}
+    m = json.loads(items["manifest.json"])
+    m["created_at"] -= days * 86400 + 3600 * 3
+    items["manifest.json"] = json.dumps(m).encode()
+    with zipfile.ZipFile(path, "w") as z:
+        for n, b in items.items():
+            z.writestr(n, b)
+
+
 async def main(chrome: str | None) -> None:
     import uvicorn
     from fastapi.staticfiles import StaticFiles
@@ -344,14 +359,46 @@ async def main(chrome: str | None) -> None:
     avatars.mkdir()
     for i in list(range(len(NAMES))):
         (avatars / f"{i}.png").write_bytes(make_avatar(i))
-    (tmp / "config.yaml").write_text("owners: []\nmodules:\n  dashboard: true\n")
+    (tmp / "config.yaml").write_text(
+        f"owners: [{npub(0)}]\nmodules:\n  dashboard: true\n"
+        f"verification:\n  mode: captcha\n  min_age: 16\n  public_url: {BASE}\n"
+        f"  captcha:\n    provider: Cloudflare Turnstile\n    site_key: demo\n    script_url: {BASE}/demo-captcha.js\n")
     cfg = Config.load(tmp / "config.yaml", env={})
     db = await Database(str(tmp / "demo.db")).connect()
     stores = Stores(db)
     bot = Bot(cfg, stores)
     await seed(stores, bot.guilds[0])
     await stores.dashboard.create_user("nova", bot.guilds[0].owner_id, "demo password 123")
+    from vectiq.cogs.verification import Verification
+
+    bot.cogs["Verification"] = Verification(bot)
+    from vectiq.backup import RestorePoints
+
+    cfg.data_dir = str(tmp)
+    bot.restore_points = RestorePoints(cfg, db)
+    for label, kind, days in (("Scheduled restore point", "scheduled", 3), ("Before the event season", "manual", 2.6),
+                              ("Scheduled restore point", "scheduled", 2), ("Before importing settings", "automatic", 1.4),
+                              ("Scheduled restore point", "scheduled", 1), ("Scheduled restore point", "scheduled", 0)):
+        point = await bot.restore_points.create(label, kind)
+        backdate(bot.restore_points.path(point), days)
     app = create_app(bot)
+    (tmp / "captcha").mkdir()
+    # A stand-in for the CAPTCHA widget, so the page renders without the network.
+    (tmp / "captcha" / "demo-captcha.js").write_text(
+        "window.turnstile={render:function(el,o){el.innerHTML='<div style=\"display:flex;align-items:center;gap:12px;"
+        "border:1px solid #d9dee7;border-radius:6px;padding:14px 16px;font-size:15px\"><span style=\"display:inline-block;"
+        "width:22px;height:22px;border:2px solid #9aa3b5;border-radius:4px\"></span>Verify you are human"
+        "<span style=\"margin-left:auto;font-size:11px;color:#9aa3b5\">CAPTCHA</span></div>';"
+        "el.onclick=function(){o.callback('demo')};}};")
+    app.mount("/demo-captcha-dir", StaticFiles(directory=tmp / "captcha"), name="demo-captcha")
+
+    @app.get("/demo-captcha.js", include_in_schema=False)
+    async def demo_captcha():
+        from fastapi.responses import FileResponse
+        return FileResponse(tmp / "captcha" / "demo-captcha.js", media_type="text/javascript")
+
+    app.router.routes.insert(0, app.router.routes.pop())   # before the dashboard's catch-alls
+    link = await stores.gate.new_link(GID, npub(5))
     app.mount("/demo-avatars", StaticFiles(directory=avatars), name="demo-avatars")
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=PORT, log_level="warning"))
     task = asyncio.ensure_future(server.serve())
@@ -388,6 +435,28 @@ async def main(chrome: str | None) -> None:
         await shot("dashboard-ticket", wait=1200)
         await shot("dashboard-giveaways", f"/#/c/{GID}/giveaways", 1200)
         await shot("dashboard-settings", "/#/settings/leveling", 1200)
+        await page.goto(BASE + "/#/setup")
+        await page.wait_for_selector(".wiz")
+        await shot("dashboard-wizard-hello", wait=900)
+        await page.click("text=Let's go")
+        for _ in range(3):
+            await page.click("text=Continue")
+        await shot("dashboard-wizard-features", wait=900)
+        await page.click("text=Continue")
+        await shot("dashboard-wizard", wait=900)
+        for _ in range(3):
+            await page.click("text=Skip section")
+        await shot("dashboard-wizard-choice", wait=900)
+        await shot("dashboard-restore-points", "/#/restore", 1200)
+        verify = await browser.new_context(viewport={"width": 520, "height": 760}, device_scale_factor=2)
+        vpage = await verify.new_page()
+        await vpage.goto(BASE + f"/verify/{link}")
+        await vpage.wait_for_timeout(800)
+        await vpage.fill("#age", "21")
+        await vpage.click("#captcha")
+        await vpage.wait_for_timeout(300)
+        await vpage.screenshot(path=str(OUT / "verify-page.png"))
+        print("wrote verify-page")
         phone = await browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2)
         await phone.add_cookies(await ctx.cookies())
         page = await phone.new_page()

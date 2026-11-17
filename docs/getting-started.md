@@ -92,9 +92,21 @@ In any channel the bot can read, type:
 
 `!ping` answers right away, `!about` lists which modules are on, and `!help` lists every command grouped by feature. If nothing answers, see [Troubleshooting](troubleshooting.md).
 
+## Set it up
+
+Run the setup wizard and the bot asks you what it needs, one question at a time:
+
+```sh
+python -m vectiq --setup
+```
+
+Or open **Setup wizard** on the [dashboard](dashboard.md). See [Configuration](configuration.md#the-setup-wizard).
+
 ## Where to go next
 
 - Decide what to switch on: [Configuration](configuration.md) explains `config.yaml`.
+- Keep new members human: [Verification](verification.md).
+- Make sure you can undo mistakes: [Restore points](restore-points.md).
 - Set up the things members see first: [Welcome and onboarding](onboarding.md).
 - Keep it running reliably: [Deployment](deployment.md).
 - Browse everything the bot can do in the [command list](commands.md).

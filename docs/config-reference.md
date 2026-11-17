@@ -18,6 +18,10 @@ Each module is a whole feature. Turn one off and its commands, background jobs a
 
 {{config:modules}}
 
+## Restore points
+
+{{config:backup}}
+
 ## Events
 
 {{config:events}}

@@ -83,6 +83,11 @@ fi
 [[ -n "$INVITES" ]] && set_env VECTIQ_INVITE_URLS "$INVITES"
 chmod 600 .env
 
+if [[ $ASK -eq 1 ]]; then
+  read -r -p "Run the setup wizard now? It asks about features, channels and verification. [Y/n] " WIZ
+  [[ "$WIZ" =~ ^[Nn] ]] || python -m vectiq --setup || true
+fi
+
 say "Checking config.yaml"
 python -m vectiq --check
 

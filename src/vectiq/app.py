@@ -19,6 +19,7 @@ log = logging.getLogger("vectiq")
 # (module name in config.yaml, python module). `core` always loads.
 COGS = (
     ("core", "vectiq.cogs.core"),
+    ("core", "vectiq.cogs.restorepoints"),
     ("moderation", "vectiq.cogs.moderation"),
     ("leveling", "vectiq.cogs.leveling"),
     ("economy", "vectiq.cogs.economy"),
@@ -96,7 +97,12 @@ class VectiqBot(commands.Bot):
         for ch in guild.text_channels:
             if str(ch.id) == ref or ch.name.lower() == ref.lower():
                 return ch
-        return None
+        # Loose match, so "mod-log" finds "🛡┊mod-log" and "announcements" finds "📣┊Announcements".
+        want = "".join(c for c in ref.lower() if c.isalnum())
+        if not want:
+            return None
+        return next((ch for ch in guild.text_channels
+                     if want in "".join(c for c in ch.name.lower() if c.isalnum())), None)
 
     @staticmethod
     def find_role(guild: Any, ref: str):
@@ -140,6 +146,13 @@ class VectiqBot(commands.Bot):
 
 async def build(config: Config | None = None) -> VectiqBot:
     config = config or Config.load()
+    from .backup import RestorePoints, needs_upgrade
+
+    if needs_upgrade(config.db_path):   # a new version is about to change the database: keep the old one
+        try:
+            await RestorePoints(config).create("Before upgrading the database", "automatic")
+        except Exception as exc:  # noqa: BLE001
+            log.error("couldn't make a restore point before upgrading: %s", exc)
     db = await Database(config.db_path).connect()
     overrides = await Stores(db).dashboard.overrides()
     if overrides:

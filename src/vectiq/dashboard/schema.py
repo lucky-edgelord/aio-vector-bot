@@ -10,7 +10,8 @@ from typing import Any
 
 from ..config import MODULES
 
-# type: bool | int | text | longtext | enum | list | emoji_map
+# type: bool | int | text | channel | longtext | enum | list | emoji_map
+# (channel is text, matched loosely; the dashboard offers the community's channels to pick from)
 F = dict[str, Any]
 
 
@@ -20,12 +21,14 @@ def field(path: str, label: str, kind: str, help: str = "", *, options: tuple = 
             "min": minimum, "max": maximum}
 
 
+MODULE_LABEL = {"roles": "Role menus", "securitycam": "Security cam", "games": "Mini games", "events": "Event calendar"}
+
 MODULE_HELP = {
     "moderation": "Warnings, timeouts, kicks, bans, purge, lock, slowmode, automod",
     "leveling": "XP for chatting, levels, rank cards, role rewards",
     "economy": "Coins, daily and work rewards, shop",
     "tickets": "Private support channels",
-    "verification": "Make new members answer a question before they get in",
+    "verification": "New members pass a question, a reaction or a CAPTCHA before they can talk",
     "roles": "Reaction role menus",
     "giveaways": "Timed giveaways with reactions",
     "games": "WebXDC mini games refereed by the bot",
@@ -47,19 +50,30 @@ GROUPS: list[dict[str, Any]] = [
               "settings and manage webhooks."),
     ]},
     {"id": "modules", "title": "Modules", "fields": [
-        field(f"modules.{m}", m.capitalize(), "bool", MODULE_HELP.get(m, ""), restart=True) for m in MODULES
+        field(f"modules.{m}", MODULE_LABEL.get(m, m.capitalize()), "bool", MODULE_HELP.get(m, ""), restart=True)
+        for m in MODULES
     ]},
     {"id": "moderation", "title": "Moderation", "fields": [
-        field("moderation.log_channel", "Mod log channel", "text", "Channel name or id (blank = none)"),
+        field("moderation.log_channel", "Mod log channel", "channel", "Channel name or id (blank = none)"),
+        field("verification.softban_escalate", "Softban returns before a real ban", "int", "0 = never",
+              minimum=0, maximum=50),
         field("moderation.warn_threshold", "Warnings before action", "int", minimum=1, maximum=50),
         field("moderation.warn_action", "Action at threshold", "enum", options=("timeout", "kick", "ban", "none")),
         field("moderation.warn_action_minutes", "Timeout length (minutes)", "int", minimum=1, maximum=40320),
         field("moderation.mute_max_days", "Longest timeout (days)", "int", minimum=1, maximum=28),
     ]},
+    {"id": "backup", "title": "Restore points", "fields": [
+        field("backup.every_hours", "Make one every (hours)", "int", "0 = only before risky changes and by hand",
+              minimum=0, maximum=720),
+        field("backup.keep_automatic", "Scheduled and automatic points to keep", "int", minimum=1, maximum=500),
+        field("backup.keep_manual", "Points you make to keep", "int", minimum=1, maximum=500),
+        field("backup.dir", "Folder", "text", "Blank = data/restore-points. Another disk is safer.", restart=True),
+        field("backup.include_pictures", "Include event pictures", "bool"),
+    ]},
     {"id": "events", "title": "Events", "fields": [
         field("events.timezone", "Default time zone", "text", "e.g. America/New_York. Each community can override it "
               "with !event timezone or on the Events page."),
-        field("events.channel", "Event channel", "text", "Where event posts go. A name or id; \"announcements\" finds "
+        field("events.channel", "Event channel", "channel", "Where event posts go. A name or id; \"announcements\" finds "
               "\"📣┊Announcements\". Blank = where the command was used."),
         field("events.banner_image", "Banner picture on each event", "bool", "A picture attached to the command wins"),
         field("events.default_minutes", "Default length (minutes)", "int", minimum=1, maximum=20160),
@@ -71,7 +85,7 @@ GROUPS: list[dict[str, Any]] = [
         field("events.week_starts", "Week starts on", "enum", options=("monday", "sunday")),
     ]},
     {"id": "securitycam", "title": "Security cam", "fields": [
-        field("securitycam.channel", "Camera channel", "text", "Channel name or id that receives every echoed "
+        field("securitycam.channel", "Camera channel", "channel", "Channel name or id that receives every echoed "
               "message. Blank = use the one set with !securitycam set. Keep it private."),
         field("securitycam.include_bots", "Include other bots", "bool"),
         field("securitycam.ignore_channels", "Channels to skip", "list", "Names or ids, one per line"),
@@ -91,7 +105,7 @@ GROUPS: list[dict[str, Any]] = [
         field("leveling.xp_max", "XP per message (max)", "int", minimum=0, maximum=1000),
         field("leveling.cooldown_seconds", "XP cooldown (seconds)", "int", minimum=0, maximum=3600),
         field("leveling.announce", "Announce level-ups", "bool"),
-        field("leveling.announce_channel", "Level-up channel", "text", "Blank = where the member was chatting"),
+        field("leveling.announce_channel", "Level-up channel", "channel", "Blank = where the member was chatting"),
         field("leveling.no_xp_channels", "No-XP channels", "list", "Channel names or ids, one per line"),
     ]},
     {"id": "economy", "title": "Economy", "fields": [
@@ -108,29 +122,54 @@ GROUPS: list[dict[str, Any]] = [
     ]},
     {"id": "tickets", "title": "Tickets", "fields": [
         field("tickets.category", "Ticket category", "text", "Category name for new ticket channels (blank = none)"),
+        field("tickets.log_channel", "Ticket log channel", "channel", "Opened and closed tickets are noted here (blank = none)"),
         field("tickets.support_role", "Support role", "text", "Role that can see every ticket"),
         field("tickets.max_open_per_user", "Open tickets per member", "int", minimum=1, maximum=20),
         field("tickets.close_emoji", "Close emoji", "text", "React with this in a ticket to close it (blank = off)"),
         field("tickets.transcripts", "Keep transcripts", "bool"),
     ]},
     {"id": "verification", "title": "Verification", "fields": [
-        field("verification.mode", "Mode", "enum", "question = answer a captcha, button = react ✅",
-              options=("question", "button")),
+        field("verification.mode", "Mode", "enum",
+              "question = answer a sum, button = react ✅, captcha = a CAPTCHA web page",
+              options=("question", "button", "captcha"), restart=True),
         field("verification.role", "Verified role", "text"),
         field("verification.max_attempts", "Attempts", "int", minimum=1, maximum=20),
-        field("verification.channel", "Verification channel", "text", "Blank = the system channel"),
+        field("verification.channel", "Verification channel", "channel", "Blank = the system channel"),
+        field("verification.log_channel", "Verification log channel", "channel",
+              "Verifications, refusals and softbans (blank = the mod log)"),
+        field("verification.gate", "Hide unverified messages", "enum", "channel = only the verification channel",
+              options=("off", "channel", "all")),
+        field("verification.spam_kick", "Softban after gated messages", "int", "Within 15 minutes, 0 = never",
+              minimum=0, maximum=50),
+        field("verification.public_url", "Verification page address", "text",
+              "https address members open; blank = the dashboard address", restart=True),
+        field("verification.link_minutes", "Link lasts (minutes)", "int", minimum=1, maximum=1440),
+        field("verification.captcha.provider", "CAPTCHA provider name", "text", "Shown on the page"),
+        field("verification.captcha.site_key", "CAPTCHA site key", "text", "The public key from your provider"),
+        field("verification.captcha.secret_key_env", "Secret key variable", "text",
+              "Environment variable holding the secret. The secret itself never goes in the dashboard."),
+        field("verification.captcha.verify_url", "CAPTCHA check URL", "text"),
+        field("verification.captcha.script_url", "CAPTCHA script URL", "text"),
+        field("verification.device_check", "One verification per device", "bool"),
+        field("verification.device_check_days", "Remember devices (days)", "int", minimum=1, maximum=365),
+        field("verification.on_duplicate", "Second account on a device", "enum", options=("refuse", "kick", "softban")),
+        field("verification.min_age", "Minimum age", "int", "0 = don't ask", minimum=0, maximum=120),
+        field("verification.adult_role", "Adults-only role", "text", "Claimed with !adult. Blank = none"),
+        field("verification.invite_to", "Invite gate target", "text", "Community verified members are invited to"),
     ]},
     {"id": "welcome", "title": "Welcome", "fields": [
         field("welcome.enabled", "Welcome messages", "bool"),
-        field("welcome.channel", "Channel", "text", "Blank = the community's system channel"),
+        field("welcome.channel", "Welcome channel", "channel", "Blank = the community's system channel"),
         field("welcome.message", "Join message", "longtext", "{mention} {name} {community} {count}"),
         field("welcome.leave_message", "Leave message", "longtext", "Blank = none"),
+        field("welcome.leave_channel", "Leave channel", "channel", "Blank = the welcome channel"),
         field("welcome.dm_message", "DM to new members", "longtext", "Blank = none"),
     ]},
     {"id": "onboarding", "title": "Onboarding", "fields": [
         field("onboarding.steps", "Steps", "list", "verify and/or pick_roles, in order"),
-        field("onboarding.channel", "Role menu channel", "text", "Blank = the system channel"),
+        field("onboarding.channel", "Role menu channel", "channel", "Blank = the system channel"),
         field("onboarding.required", "Required", "bool", "Members must finish before they can chat"),
+        field("onboarding.log_channel", "Onboarding log channel", "channel", "Notes who finished (blank = none)"),
         field("onboarding.title", "Role menu title", "text"),
         field("onboarding.prompt", "Prompt", "longtext"),
         field("onboarding.done_message", "Done message", "longtext", "{mention} {community}"),
@@ -162,6 +201,142 @@ GROUPS: list[dict[str, Any]] = [
 
 FIELDS: dict[str, F] = {f["path"]: f for g in GROUPS for f in g["fields"]}
 
+# The setup wizard (dashboard and `vectiq --setup`) walks through these steps in order, one
+# question per screen, with the bot doing the talking. "say" opens the step; "when" shows a
+# step only if a setting has one of the given values (as answered earlier in the wizard).
+WIZARD: list[dict[str, Any]] = [
+    {"id": "basics", "title": "The basics", "say": "First, the basics: how people talk to me, and who's in charge.",
+     "paths": ["prefix", "owners", "communities"]},
+    {"id": "features", "title": "Features", "say": "Pick what I should do. Tick as many as you like; you can change "
+     "your mind later.", "paths": [f"modules.{m}" for m in MODULES]},
+    {"id": "channels", "title": "Channels", "say": "Now, where should I post things? Pick a channel or leave it on "
+     "the default. Names match loosely, so \"mod-log\" finds \"🛡┊mod-log\".",
+     "paths": ["moderation.log_channel", "verification.channel", "verification.log_channel", "welcome.channel",
+               "welcome.leave_channel", "onboarding.channel", "onboarding.log_channel", "events.channel",
+               "leveling.announce_channel", "tickets.log_channel", "securitycam.channel"]},
+    {"id": "verification", "title": "Verification", "say": "Let's keep the bots out. I'll check new members are "
+     "human before they can join in.", "when": {"modules.verification": [True]},
+     "paths": ["verification.mode", "verification.role", "verification.gate", "verification.spam_kick",
+               "verification.min_age", "verification.adult_role", "verification.invite_to"]},
+    {"id": "captcha", "title": "CAPTCHA", "say": "For CAPTCHA checks I need a key from Cloudflare Turnstile, hCaptcha "
+     "or reCAPTCHA. They're free. Keep the secret key out of here: it goes in your .env file.",
+     "when": {"modules.verification": [True], "verification.mode": ["captcha"]},
+     "paths": ["verification.captcha.provider", "verification.captcha.site_key", "verification.captcha.secret_key_env",
+               "verification.captcha.verify_url", "verification.captcha.script_url", "verification.public_url",
+               "verification.device_check", "verification.on_duplicate"]},
+    {"id": "moderation", "title": "Moderation", "say": "When someone breaks the rules, how firm should I be?",
+     "when": {"modules.moderation": [True]},
+     "paths": ["moderation.warn_threshold", "moderation.warn_action", "verification.softban_escalate",
+               "moderation.automod.enabled", "moderation.automod.block_links"]},
+    {"id": "welcome", "title": "New members", "say": "Last one: what should new members see when they arrive?",
+     "when": {"modules.welcome": [True]},
+     "paths": ["welcome.message", "welcome.leave_message", "onboarding.steps", "onboarding.required"]},
+]
+
+# What the bot asks on each screen. Anything not listed falls back to the setting's label.
+WIZARD_ASK: dict[str, str] = {
+    "prefix": "What should my commands start with? Most communities use !",
+    "owners": "Who owns me? Add your npub, and anyone else who should control the bot everywhere.",
+    "communities": "Which communities should I look after? Leave it empty and I'll serve every one I'm in.",
+    "moderation.log_channel": "Where should I write down warnings, kicks and bans?",
+    "verification.channel": "Where should I greet new members and ask them to verify?",
+    "verification.log_channel": "Where should I note who verified, and who I turned away?",
+    "welcome.channel": "Where should I say hello to new members?",
+    "welcome.leave_channel": "And where should I mention when someone leaves?",
+    "onboarding.channel": "Where should the pick-your-roles menu live?",
+    "onboarding.log_channel": "Where should I note who finished onboarding?",
+    "events.channel": "Where should I post events?",
+    "leveling.announce_channel": "Where should I announce level-ups?",
+    "tickets.log_channel": "Where should I note opened and closed tickets?",
+    "securitycam.channel": "Which channel gets a copy of every message? Keep it staff-only.",
+    "verification.mode": "How should new members prove they're human?",
+    "verification.role": "What should the role for verified members be called? I'll create it if needed.",
+    "verification.gate": "Should I hide messages from people who haven't verified yet?",
+    "verification.spam_kick": "If someone keeps posting without verifying, after how many messages should I "
+                              "show them the door? (0 means never)",
+    "verification.min_age": "Is there a minimum age? (0 means I won't ask)",
+    "verification.adult_role": "Want an adults-only role that members aged 18+ can claim? Name it, or leave it empty.",
+    "verification.invite_to": "Using a lobby? Name the real community I should invite verified members to. "
+                              "Leave it empty if not.",
+    "verification.captcha.provider": "Which CAPTCHA service are you using?",
+    "verification.captcha.site_key": "What's your site key? It's the public one.",
+    "verification.captcha.secret_key_env": "Which environment variable holds the secret key?",
+    "verification.captcha.verify_url": "Where do I check answers? The default is Cloudflare Turnstile's.",
+    "verification.captcha.script_url": "And where does the CAPTCHA script load from?",
+    "verification.public_url": "What web address will members open? Use https. Empty means the dashboard's address.",
+    "verification.device_check": "Should I stop one device from verifying lots of accounts?",
+    "verification.on_duplicate": "If a second account tries from the same device, what should I do?",
+    "moderation.warn_threshold": "How many warnings before I step in?",
+    "moderation.warn_action": "And then what should I do?",
+    "verification.softban_escalate": "If a softbanned member keeps coming back, after how many returns should it "
+                                     "become a real ban? (0 means never)",
+    "moderation.automod.enabled": "Should I watch for spam, mass mentions and shouting on my own?",
+    "moderation.automod.block_links": "Should I remove links from members who aren't staff?",
+    "welcome.message": "What should I say when someone joins? You can use {mention}, {name}, {community} and {count}.",
+    "welcome.leave_message": "And when someone leaves? Leave it empty to say nothing.",
+    "onboarding.steps": "What should new members go through, in order? verify, pick_roles, or both.",
+    "onboarding.required": "Do members have to pick a role before they're done?",
+}
+
+WIZARD_HELLO = ("Hi! I'm Vectiq. I'll ask you a few questions and set myself up for your community. "
+                "It takes about five minutes. You can go back any time, and nothing changes until you say so.")
+WIZARD_READY = "That's everything. Here's what I'll change. Look it over, then I'll save it."
+WIZARD_DONE = "All set! Thanks for having me."
+
+# A question in the wizard is only asked when it applies (same rule shape as a step's "when").
+WIZARD_WHEN: dict[str, dict[str, list]] = {
+    "moderation.log_channel": {"modules.moderation": [True]},
+    "verification.channel": {"modules.verification": [True]},
+    "verification.log_channel": {"modules.verification": [True]},
+    "welcome.channel": {"modules.welcome": [True]},
+    "welcome.leave_channel": {"modules.welcome": [True]},
+    "onboarding.channel": {"modules.onboarding": [True]},
+    "onboarding.log_channel": {"modules.onboarding": [True]},
+    "onboarding.steps": {"modules.onboarding": [True]},
+    "onboarding.required": {"modules.onboarding": [True]},
+    "events.channel": {"modules.events": [True]},
+    "leveling.announce_channel": {"modules.leveling": [True]},
+    "tickets.log_channel": {"modules.tickets": [True]},
+    "securitycam.channel": {"modules.securitycam": [True]},
+    "verification.spam_kick": {"verification.gate": ["channel", "all"]},
+    "verification.on_duplicate": {"verification.device_check": [True]},
+    "moderation.automod.block_links": {"moderation.automod.enabled": [True]},
+}
+
+# Plain explanations for each choice, shown next to the options in both wizards.
+OPTION_HELP: dict[str, dict[str, str]] = {
+    "verification.mode": {
+        "question": "Answer a quick sum in chat. Nothing else to set up.",
+        "button": "React ✅ on a message. Easiest for people, easiest for bots too.",
+        "captcha": "Open a personal link and pass a CAPTCHA. Stops bots best; needs a web address and a CAPTCHA key.",
+    },
+    "verification.gate": {
+        "off": "Unverified members can talk, they just don't get the role.",
+        "channel": "Messages in the verification channel are hidden until they verify.",
+        "all": "Messages anywhere are hidden until they verify.",
+    },
+    "verification.on_duplicate": {
+        "refuse": "Say no and let staff decide. Safest: families and shared Wi-Fi look like one device.",
+        "kick": "Remove the second account. It can rejoin.",
+        "softban": "Remove it and keep removing it if it comes back.",
+    },
+    "moderation.warn_action": {
+        "timeout": "Mute them for a while.", "kick": "Remove them; they can rejoin.",
+        "ban": "Remove them for good.", "none": "Just count the warnings.",
+    },
+}
+
+
+def applies(path_or_step: Any, value) -> bool:
+    """Is this wizard step (a dict with "when") or question (a path) relevant, given value(path)?"""
+    when = path_or_step.get("when") if isinstance(path_or_step, dict) else WIZARD_WHEN.get(path_or_step)
+    return all(value(p) in ok for p, ok in (when or {}).items())
+
+
+assert all(p in FIELDS for step in WIZARD for p in step["paths"]), "wizard path missing from GROUPS"
+assert all(p in FIELDS for p in WIZARD_WHEN) and all(p in FIELDS for p in OPTION_HELP)
+assert all(p in FIELDS for p in WIZARD_ASK)
+
 
 class FieldError(ValueError):
     pass
@@ -187,7 +362,7 @@ def coerce(path: str, value: Any) -> Any:
         if f["max"] is not None and n > f["max"]:
             raise FieldError(f"{label}: at most {f['max']}")
         return n
-    if kind in ("text", "longtext"):
+    if kind in ("text", "longtext", "channel"):
         if not isinstance(value, str):
             raise FieldError(f"{label}: must be text")
         return value if kind == "longtext" else value.strip()

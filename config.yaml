@@ -24,6 +24,16 @@ modules:              # switch whole features on or off
   securitycam: false  # echo every message from every channel into one staff channel
   dashboard: false    # the web dashboard
 
+
+backup:
+  # Restore points, like System Restore: the database, config.yaml, dashboard settings and event
+  # pictures, saved on a schedule and before risky changes. Roll back with !restorepoint, the
+  # dashboard's Restore points page, or vectiq --restore. The bot's key in .env is never saved.
+  every_hours: 24             # a scheduled point this often (0 = only before risky changes and by hand)
+  keep_automatic: 14          # scheduled and automatic points to keep (oldest go first)
+  keep_manual: 20             # points you made yourself to keep
+  dir: ""                     # where to keep them (blank = data/restore-points). Another disk is safer.
+  include_pictures: true      # include event pictures
 events:
   timezone: UTC               # how event times are typed and shown; per community: !event timezone America/New_York
   channel: announcements      # where event posts go: a name or id ("announcements" finds "📣┊Announcements");
@@ -81,27 +91,56 @@ economy:
 
 tickets:
   category: ""                # category name to create ticket channels in (blank = none)
+  log_channel: ""             # channel noting opened and closed tickets (blank = none)
   support_role: ""            # role name that can see every ticket
   max_open_per_user: 2        # open tickets one member can have at once
   close_emoji: "🔒"            # react with this inside a ticket to close it (blank = off)
   transcripts: true           # keep the chat of each ticket (!tickets transcript, and the dashboard)
 
 verification:
-  mode: question              # question | button
+  # How new members prove they're human. question: answer a sum in chat. button: react ✅.
+  # captcha: open a personal one-time link and pass a CAPTCHA (needs the web server; see below).
+  mode: question              # question | button | captcha
   role: Verified              # role granted on success (created if missing)
-  max_attempts: 3             # wrong answers allowed before the member is locked out until staff verify them
+  max_attempts: 3             # question mode: wrong answers allowed before staff must verify them by hand
   channel: ""                 # where new members are greeted (blank = system channel)
+  # Hide messages from members who haven't verified yet, and point them at verification.
+  gate: "off"                 # off | channel (only the verification channel) | all (every channel)
+  spam_kick: 3                # gated messages within 15 minutes before a softban and kick (0 = never)
+  softban_escalate: 3         # times a softbanned member can come back before it becomes a real ban (0 = never)
 
+  # ---- captcha mode ----
+  public_url: ""              # address members open the link at; blank = dashboard.base_url. Use https.
+  link_minutes: 10            # how long a link works (each link works once; a new one cancels the old)
+  captcha:
+    provider: Cloudflare Turnstile   # shown on the page; any reCAPTCHA-compatible service works
+    site_key: ""                     # public key from your provider
+    secret_key_env: CAPTCHA_SECRET   # environment variable holding the secret key (keep it out of this file)
+    verify_url: https://challenges.cloudflare.com/turnstile/v0/siteverify
+    script_url: https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit
+  # One verification per device: scrambled markers of the IP, a cookie and the browser are kept
+  # (never linked to the member) and a second account from the same device is stopped.
+  device_check: true
+  device_check_days: 30       # how long a device stays marked
+  on_duplicate: refuse        # refuse (just say no) | kick | softban. Shared Wi-Fi can look like one device.
+  min_age: 0                  # ask for an age and turn away anyone younger (0 = don't ask)
+  adult_role: ""              # role members who said 18+ can claim with !adult (blank = none)
+  # Invite gate: run verification in a lobby community; verified members are invited to this
+  # community (name or id) and removed from the lobby a minute later. Blank = off.
+  invite_to: ""
+  log_channel: ""             # verifications, refusals and softbans are noted here (blank = moderation.log_channel)
 welcome:
   enabled: true               # post welcome and goodbye messages
   channel: ""                 # blank = system channel
   message: "Welcome to {community}, {mention}! You are member #{count}."   # placeholders: {mention} {name} {community} {count}
   leave_message: "{name} has left {community}."   # shown when someone leaves
+  leave_channel: ""           # where leave messages go (blank = the welcome channel)
   dm_message: ""              # optional private welcome sent by DM (blank = none)
 
 onboarding:
   steps: [verify, pick_roles]     # what a new member goes through, in order
   channel: ""                     # where the role menu lives (blank = system channel)
+  log_channel: ""                 # notes who finished onboarding (blank = none)
   required: false                 # true: onboarding only completes once they pick a role
   title: "Pick your interests"   # heading of the role menu
   prompt: "Welcome! Pick your roles below, then say hi."   # text under the heading

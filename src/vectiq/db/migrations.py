@@ -287,4 +287,44 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (event_id, starts_at, minutes)
     );
     """,
+    # 7 - verification ported from GateBot: lasting verified records, one-time web links,
+    #     hashed device marks (one verification per device), and softbans (kick on sight)
+    """
+    CREATE TABLE verified_members (
+        guild_id    TEXT NOT NULL,
+        user_id     TEXT NOT NULL,
+        verified_at INTEGER NOT NULL,
+        is_adult    INTEGER NOT NULL DEFAULT 0,
+        method      TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (guild_id, user_id)
+    );
+
+    CREATE TABLE verify_links (
+        token      TEXT PRIMARY KEY,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        channel_id TEXT NOT NULL DEFAULT '',
+        age        INTEGER,
+        created_at INTEGER NOT NULL,
+        used       INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX idx_verify_links_user ON verify_links (guild_id, user_id);
+
+    CREATE TABLE verify_marks (
+        guild_id TEXT NOT NULL,
+        hash     TEXT NOT NULL,
+        at       INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, hash)
+    );
+
+    CREATE TABLE softbans (
+        guild_id  TEXT NOT NULL,
+        user_id   TEXT NOT NULL,
+        reason    TEXT NOT NULL DEFAULT '',
+        by_id     TEXT NOT NULL DEFAULT '',
+        kicks     INTEGER NOT NULL DEFAULT 0,
+        banned_at INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, user_id)
+    );
+    """,
 ]

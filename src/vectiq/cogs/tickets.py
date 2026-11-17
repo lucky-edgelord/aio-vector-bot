@@ -83,6 +83,9 @@ class Tickets(commands.Cog, name="Tickets"):
             except Exception:  # noqa: BLE001 - the command still works
                 pass
         self.bot.emit(ctx.guild, "tickets", f"Ticket #{ticket.id} opened", f"{name_of(ctx.author)}: {subject}")
+        if self.cfg.get("tickets.log_channel"):
+            await self.bot.log_to(ctx.guild, self.cfg.get("tickets.log_channel"), f"Ticket #{ticket.id} opened",
+                                  f"**By:** {name_of(ctx.author)}\n**Subject:** {subject or 'none'}")
         await ctx.send(ok(f"Ticket #{ticket.id} created: #{channel.name}"))
 
     @tickets.command(name="claim")
@@ -112,6 +115,10 @@ class Tickets(commands.Cog, name="Tickets"):
             return await reply(fail("Already closed."))
         lines = await self.store.transcript(t.id)
         self.bot.emit(guild, "tickets", f"Ticket #{t.id} closed", f"{len(lines)} message(s). {reason}")
+        if self.cfg.get("tickets.log_channel"):
+            await self.bot.log_to(guild, self.cfg.get("tickets.log_channel"), f"Ticket #{t.id} closed",
+                                  f"**By:** {name_of(closer)}\n**Messages saved:** {len(lines)}\n**Reason:** {reason or 'none'}\n"
+                                  f"Read it with `tickets transcript {t.id}`.")
         await reply(ok(f"Ticket #{t.id} closed. {len(lines)} message(s) were saved."))
         try:
             await channel.delete()

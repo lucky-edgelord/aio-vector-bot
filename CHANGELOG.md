@@ -1,6 +1,24 @@
 # Changelog
 
 ## Unreleased
+- Verification, with ideas from GateBot (henk.tech, MIT): a `captcha` mode with a personal one-time link and a
+  CAPTCHA page (Turnstile, hCaptcha or reCAPTCHA); lasting verification records with the role restored on rejoin
+  or the next message; one verification per device (keyed hashes of IP, cookie and browser, expiring after
+  `device_check_days`) with `on_duplicate: refuse | kick | softban`; `min_age` and an `adult_role` claimed with
+  `!adult`; an invite-gate lobby (`invite_to`); `gate: channel | all` hides messages until people verify, with a
+  `spam_kick` limit; `!unverify`, `!verification` (setup and permission check), `!verification reset`.
+- Softbans: `!softban` takes roles and kicks, kicks again on sight, and becomes a ban after `softban_escalate`
+  returns; `!unban` lifts softbans too.
+- Channel settings match names loosely everywhere ("mod-log" finds "🛡┊mod-log"). New channels:
+  `verification.log_channel`, `tickets.log_channel`, `welcome.leave_channel`, `onboarding.log_channel`.
+  `!communityinfo` shows the community id.
+- Setup wizard, installer-style and conversational, on the dashboard and in the terminal (`vectiq --setup`, which
+  edits `config.yaml` in place and keeps every comment). The installer offers to run it.
+- Settings export and import as YAML with a preview of every change: dashboard Settings, `--export-config`,
+  `--import-config`.
+- Restore points, like System Restore: daily, before imports, the wizard, database upgrades and rollbacks, and
+  by hand with a description. Roll back live from the dashboard, `!restorepoint` or `vectiq --restore`; every
+  rollback can be undone. The bot's key is never included.
 - Documentation site on GitHub Pages: guides for every feature, a command reference and a settings reference built
   from the code and `config.yaml`, search, and a link checker (`python tools/build_docs.py`). Every setting in
   `config.yaml` now has a comment.

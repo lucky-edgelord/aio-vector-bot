@@ -10,6 +10,7 @@ from vector.ext import commands, tasks
 
 from ..utils.durations import DurationError, format_duration, parse_duration
 from ..utils.embeds import embed, fail, name_of, ok, short, table
+from ..utils.softban import is_staff, kick_on_sight, softban
 
 LINK = re.compile(r"https?://|www\.", re.IGNORECASE)
 
@@ -171,6 +172,18 @@ class Moderation(commands.Cog, name="Moderation"):
         await ctx.send(ok(f"Banned {name_of(member)} (case #{case.id})."))
 
     @commands.command()
+    @commands.has_permissions(kick_members=True)
+    async def softban(self, ctx, member: vector.Member, *, reason: str = ""):
+        """Take their roles and kick them, and kick them again whenever they come back."""
+        if (problem := self._can_act_on(ctx, member)):
+            return await ctx.send(fail(problem))
+        await softban(self.bot, ctx.guild, member, reason or "softbanned", str(ctx.author.id))
+        case = await self._record(ctx, member, "softban", reason)
+        limit = int(self.cfg.get("verification.softban_escalate", 3) or 0)
+        then = f" After {limit} returns it becomes a real ban." if limit else ""
+        await ctx.send(ok(f"Softbanned {name_of(member)} (case #{case.id}).{then}"))
+
+    @commands.command()
     @commands.has_permissions(ban_members=True)
     async def tempban(self, ctx, member: vector.Member, duration: str, *, reason: str = ""):
         """Ban for a while; Vectiq lifts it automatically."""
@@ -187,8 +200,13 @@ class Moderation(commands.Cog, name="Moderation"):
     @commands.command()
     @commands.has_permissions(ban_members=True)
     async def unban(self, ctx, user: vector.User, *, reason: str = ""):
-        """Lift a ban."""
-        await ctx.guild.unban(user, reason=reason or None)
+        """Lift a ban or a softban."""
+        soft = await self.bot.stores.gate.unsoftban(str(ctx.guild.id), str(user.id))
+        try:
+            await ctx.guild.unban(user, reason=reason or None)
+        except Exception:  # noqa: BLE001
+            if not soft:
+                raise
         for action in ("ban", "tempban"):
             for c in await self.store.for_user(str(ctx.guild.id), str(user.id), action=action, active_only=True):
                 await self.store.deactivate(str(ctx.guild.id), c.id)
@@ -282,9 +300,21 @@ class Moderation(commands.Cog, name="Moderation"):
     # -- listeners: slowmode + automod ------------------------------------------------
 
     @commands.Cog.listener()
+    async def on_member_join(self, member):
+        """A softbanned member came back: take their roles and kick them again."""
+        if not self.bot.serves(member.guild) or is_staff(member):
+            return
+        if await self.bot.stores.gate.is_softbanned(str(member.guild.id), str(member.id)):
+            await kick_on_sight(self.bot, member.guild, member)
+
+    @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot or message.guild is None or not self.bot.serves(message.guild):
             return
+        if not is_staff(message.author) and \
+                await self.bot.stores.gate.is_softbanned(str(message.guild.id), str(message.author.id)):
+            await self._hide(message)       # joined while the bot was offline
+            return await kick_on_sight(self.bot, message.guild, message.author)
         if message.author.guild_permissions.manage_messages:
             return
         gid, cid = str(message.guild.id), str(message.channel.id)

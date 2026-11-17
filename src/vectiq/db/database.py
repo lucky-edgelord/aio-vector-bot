@@ -54,6 +54,46 @@ class Database:
         assert self._conn is not None
         return self._conn.execute("PRAGMA user_version").fetchone()[0]
 
+    # -- restore points -------------------------------------------------------------
+
+    async def snapshot(self, dest: str | Path) -> None:
+        """Copy the whole database to ``dest`` while the bot keeps running (SQLite's online backup)."""
+        async with self._lock:
+            def copy(conn):
+                target = sqlite3.connect(str(dest))
+                try:
+                    conn.backup(target)
+                finally:
+                    target.close()
+            await asyncio.to_thread(self._run, copy)
+
+    async def restore_from(self, src: str | Path) -> None:
+        """Replace everything in this database with the contents of ``src``, in place.
+
+        The file is checked first. One from a newer Vectiq is refused; an older one is
+        brought up to date with the migrations.
+        """
+        def check():
+            con = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+            try:
+                if con.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise ValueError("the saved database is damaged")
+                version = con.execute("PRAGMA user_version").fetchone()[0]
+            finally:
+                con.close()
+            if version > len(MIGRATIONS):
+                raise ValueError("that restore point is from a newer version of Vectiq")
+        await asyncio.to_thread(check)
+        async with self._lock:
+            def copy(conn):
+                source = sqlite3.connect(str(src))
+                try:
+                    source.backup(conn)
+                finally:
+                    source.close()
+            await asyncio.to_thread(self._run, copy)
+        await self.migrate()
+
     # -- queries ----------------------------------------------------------------------
 
     def _run(self, fn):

@@ -9,7 +9,7 @@ An all-in-one community bot for any Vector community. Clone it, give it its own 
 
 A community-management bot for [Vector](https://vectorapp.io), in the spirit of [Logiq](https://github.com/programmify/Logiq) (a Discord MEE6 alternative), written from scratch on `vector-sdk-py` with **SQLite** instead of MongoDB.
 
-Moderation, leveling with image rank cards, an economy and shop, tickets, verification and onboarding, reaction roles, giveaways, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, and a **web dashboard**.
+Moderation, leveling with image rank cards, an economy and shop, tickets, **CAPTCHA verification**, onboarding, reaction roles, giveaways, an event calendar, welcome messages, analytics, **WebXDC mini games** refereed by the bot, **webhooks you declare in YAML**, a **web dashboard**, a **setup wizard** (dashboard and terminal), settings **import and export**, and **restore points** you can roll back to.
 
 ![The web dashboard's overview page: member, message and moderation stats, a 30-day activity chart and the busiest channels](docs/images/dashboard-overview.png)
 
@@ -115,6 +115,20 @@ Before it starts, a general reminder (no pings, with the picture) goes in the ch
 
 ![Event calendar](docs/images/calendar.png)
 
+### Setup wizard
+
+`python -m vectiq --setup`, or **Setup wizard** on the dashboard: the bot asks what it needs, one question per screen, like an installer, and skips what doesn't apply. The terminal version writes `config.yaml` and keeps every comment.
+
+<p align="center"><img src="docs/images/dashboard-wizard-choice.png" alt="The setup wizard: a list of stages on the left, the bot asking a question on the right, Back and Continue at the bottom" width="80%"></p>
+
+### Verification
+
+A question, a ✅ reaction, or a **CAPTCHA web page** reached by a personal one-time link. Optional: hide messages until people verify, one verification per device (hashed IP, cookie and browser marks), a minimum age with an adults-only role, a lobby that invites verified members to the real community, and softbans that kick on sight and escalate to a ban. See [Verification](https://lucky-edgelord.github.io/aio-vector-bot/verification.html).
+
+### Restore points and settings files
+
+Like System Restore: the database, `config.yaml`, dashboard settings and event pictures are saved daily and before risky changes (imports, the wizard, upgrades, rollbacks), and you can make your own. Roll back from the dashboard, chat (`!restorepoint`) or the terminal (`--restore`); a rollback can itself be undone. Settings export and import as YAML, with a preview of every change (`--export-config`, `--import-config`, or Settings on the dashboard). The bot's key is never included in either.
+
 ### Security cam
 
 Turn on `modules.securitycam`, then run `!securitycam set #channel` (Manage Server), or pick the channel on the dashboard's Security cam page. Every message in every other channel is copied there: the author's name and text, then any attachments, then the source channel and time. The camera channel itself and the bot's own messages are never echoed; other bots are skipped unless `securitycam.include_bots` is on, and you can skip channels in config.yaml or on the dashboard. **Make the camera channel staff-only** — it shows everything.
@@ -210,6 +224,11 @@ One SQLite file at `data/vectiq.db` (WAL mode). The schema is versioned in `db/m
 ```sh
 pip install -e ".[dev]" && pytest && ruff check .
 ```
+
+## Credits
+
+- **[GateBot](https://gitworkshop.dev/henk.tech/Gatebot)** by henk.tech (MIT): the CAPTCHA verification flow (personal one-time links, the domain-only public notice, the age step), one verification per device with expiring hashed IP, cookie and browser marks, the message gate with a spam limit, the invite-gate lobby, softbans that kick on sight and escalate to a real ban, lasting verification records with role restore on rejoin, and the permission check. Vectiq's version is a Python rewrite of those ideas, not a copy of the code.
+- **[Logiq](https://github.com/programmify/Logiq)**: the feature set Vectiq started from.
 
 ## Contributing
 
