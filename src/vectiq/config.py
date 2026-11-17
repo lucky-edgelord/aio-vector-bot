@@ -87,6 +87,7 @@ DEFAULTS: dict[str, Any] = {
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
     "plugins": {"dirs": ["modules"], "allow_install": False},
+    "mcp": {"host": "127.0.0.1", "port": 8770, "path": "/mcp", "token_env": "VECTIQ_MCP_TOKEN", "read_only": False},
     "sentire": _sentire_defaults(),
     "sentire_official": {"role": "Sentire", "delete": True, "kick": False, "ban": False},
     "backup": {"every_hours": 24, "keep_automatic": 14, "keep_manual": 20, "dir": "", "include_pictures": True},

@@ -101,7 +101,7 @@ def expand(md: str) -> str:
                     "welcome": "onboarding", "onboarding": "onboarding", "roles": "role-menus", "tickets": "tickets",
                     "events": "events", "notifications": "notifications", "utility": "utility",
                     "leveling": "leveling", "economy": "economy", "giveaways": "giveaways", "music": "music",
-                    "games": "games", "webhooks": "webhooks", "dashboard": "dashboard", "sentire": "sentire"}
+                    "games": "games", "webhooks": "webhooks", "dashboard": "dashboard", "sentire": "sentire", "mcp": "mcp"}
             rows = ["| Module | Name | What it does | On at first | Extra install |", "|---|---|---|---|---|"]
             for g in modules.GROUPS:
                 for mod in (x for x in modules.REGISTRY if x.group == g):
@@ -227,6 +227,7 @@ FEATURES = [
     ("sentire", "Sentire (automod)", "Automod by Sentire: run your own copy, set up from Vectiq, or invite the official Sentire-001."),
     ("link-safety", "Link safety", "Links checked against oisd.nl blocklists (and optionally Google Safe Browsing)."),
     ("image-guard", "Image guard", "A blocklist of known pictures, plus optional nudity detection: local models or an API."),
+    ("mcp", "MCP server", "Let Claude or any MCP client manage your communities: channels, roles, members and more."),
     ("notifications", "Stream & video alerts", "Posts when a YouTube channel uploads, a Twitch channel goes live or a feed updates."),
     ("music", "Music", "Voice music with a queue, loops, filters, vote-skips, a DJ role and 24/7 mode."),
     ("leveling", "Leveling", "XP for chatting on the familiar MEE6 curve, role rewards, and rank and leaderboard cards as images."),

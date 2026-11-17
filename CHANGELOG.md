@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased
+- Channels & roles in the dashboard: create, edit, move and delete channels (text, voice, forum) and categories;
+  per-channel and per-category permissions (allow / inherit / deny) for @everyone, roles and members; create,
+  edit, reorder and delete roles; what @everyone may do.
+- MCP server (FastMCP): a module that lets Claude or any MCP client manage communities (structure, roles,
+  permissions, members, moderation, messages, modules, settings) over streamable HTTP with a bearer token, plus
+  `vectiq --mcp` for stdio apps like Claude Desktop. `mcp.read_only`, audit log entries as `mcp`.
+- vectiq.manage: one shared layer for community management, used by the dashboard and MCP.
 - Automod is now Sentire (by JSKitty). The built-in automod module is gone: old configs and saved dashboard
   settings that switched it on switch Sentire on, and banned words carry over. Two modules do the job, one at a
   time: `sentire` runs your own copy; `sentire_official` invites the official Sentire-001

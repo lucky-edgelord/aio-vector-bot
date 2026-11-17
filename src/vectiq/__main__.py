@@ -33,6 +33,8 @@ def main(argv=None) -> int:
     pl.add_argument("--install-module", metavar="PACKAGE", help="pip install a plugin package (name, name==1.2, git+https://...)")
     pl.add_argument("--uninstall-module", metavar="NAME", help="uninstall the package a plugin module came from")
     pl.add_argument("--new-module", metavar="NAME", help="create a starter plugin in modules/NAME to edit")
+    pl.add_argument("--mcp", action="store_true",
+                    help="speak MCP over stdio for Claude Desktop and similar apps (the bot must be running)")
     pl.add_argument("--install-sentire", action="store_true",
                     help="download and build the Sentire moderation bot (needs Rust); also updates it")
     pl.add_argument("--tee", action="store_true", help="with --install-sentire: build with confidential inference")
@@ -68,6 +70,18 @@ def main(argv=None) -> int:
             return 2
         print(f"created {path}\nEdit it, then in chat: `module scan` and `module on {args.new_module}` "
               f"(after changes: `module reload {args.new_module}`).")
+        return 0
+    if args.mcp:
+        load_dotenv(os.environ.get("VECTIQ_ENV", ".env"))
+        try:
+            from .mcp_server import bridge, token_for
+        except ImportError:
+            print('MCP needs FastMCP: pip install "vectiq[mcp]"', file=sys.stderr)
+            return 2
+        cfg = Config.load(args.config)
+        c = cfg["mcp"]
+        host = "127.0.0.1" if c["host"] in ("0.0.0.0", "::") else c["host"]
+        asyncio.run(bridge(f"http://{host}:{c['port']}{c['path']}", token_for(cfg, cfg.data_dir)))
         return 0
     if args.install_sentire:
         from .sentire.install import build as build_sentire

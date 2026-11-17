@@ -117,6 +117,9 @@ BUILTIN: tuple[Module, ...] = (
     # -- Integrations
     Module("webhooks", "Webhooks", "Let outside tools (GitHub, Grafana...) post into channels, declared in YAML",
            "Integrations", ("vectiq.cogs.webhooks",), extra="webhooks"),
+    Module("mcp", "MCP server", "Lets Claude or any MCP client manage your communities: channels, roles, "
+           "members, messages, modules and settings", "Integrations", ("vectiq.cogs.mcp",), default=False,
+           extra="mcp", imports=("fastmcp", "uvicorn")),
     Module("dashboard", "Web dashboard", "Manage everything from a browser", "Integrations",
            ("vectiq.cogs.dashboard",), default=False, extra="dashboard", imports=("fastapi", "uvicorn")),
 )
