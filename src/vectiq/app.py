@@ -22,6 +22,22 @@ log = logging.getLogger("vectiq")
 COGS = tuple(("core", c) for c in CORE_COGS) + tuple((m.name, c) for m in REGISTRY for c in m.cogs)
 
 
+def guard_subcommands(cog) -> None:
+    """A group's checks (owner only, Manage Messages...) also protect its subcommands.
+
+    With ``invoke_without_command=True`` the command framework (like discord.py) skips the parent's checks when a
+    subcommand is used, so ``!module off music`` would skip the owner check on ``!module``. Copy them down."""
+    for cmd in cog.walk_commands():
+        parent = getattr(cmd, "parent", None)
+        chain = []
+        while parent is not None:
+            chain.extend(parent.checks)
+            parent = getattr(parent, "parent", None)
+        for check in chain:
+            if check not in cmd.checks:
+                cmd.checks.insert(0, check)
+
+
 class VectiqBot(commands.Bot):
     def __init__(self, config: Config, db: Database):
         super().__init__(command_prefix=config.prefix, help_command=commands.EmbedHelpCommand(),
@@ -76,11 +92,29 @@ class VectiqBot(commands.Bot):
                 except Exception as exc:  # noqa: BLE001 - one broken module must not stop the others
                     problems[name] = f"failed to start: {exc}"
                     log.exception("module %s failed to start", name)
+            for cog in self.cogs.values():
+                guard_subcommands(cog)
             self.module_problems = problems
             done["problems"] = sorted(problems)
             for name, why in problems.items():
                 log.warning("module %s is on but not running: %s", name, why)
             return done
+
+    NATIVE_LIMIT = 64          # Vector shows at most this many slash commands per bot
+
+    def _register_native(self, command) -> None:
+        """Publish slash commands until Vector's limit; the rest keep working with the ! prefix.
+
+        Core and the modules listed first in the registry (moderation, safety...) get the slots first."""
+        reg = getattr(self, "_native_registered", {})
+        name = command.native_name() if hasattr(command, "native_name") else None
+        if name is not None and name not in reg and len(reg) >= self.NATIVE_LIMIT:
+            if not getattr(self, "_native_full_logged", False):
+                self._native_full_logged = True
+                log.info("Vector allows %d slash commands; the rest (from /%s on) work with the %s prefix",
+                         self.NATIVE_LIMIT, name, self.config.prefix)
+            return
+        super()._register_native(command)
 
     async def apply_settings(self) -> dict[str, list[str]]:
         """Settings changed (config.yaml, dashboard, import, rollback): tell the modules, then switch modules."""

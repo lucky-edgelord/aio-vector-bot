@@ -78,3 +78,20 @@ def test_legacy_automod_settings_are_upgraded():
     assert new["modules"]["automod"] is True and "automod" not in new["moderation"]
     assert new["automod"]["mentions"]["max"] == 3 and new["automod"]["words"] == {"enabled": True, "list": ["x"]}
     assert new["automod"]["links"]["enabled"] and new["automod"]["action"] == "warn"
+
+
+async def test_group_checks_protect_subcommands(db, tmp_path):
+    """`!module off music` must be owner-only like `!module`; `!imageguard block` needs Manage Messages too."""
+    cfg = Config.load("config.yaml", env={"VECTIQ_DATA_DIR": str(tmp_path)})
+    for m in modules.NAMES:
+        cfg.data["modules"][m] = True
+    bot = VectiqBot(cfg, db)
+    await bot.sync_modules()
+    unguarded = []
+    for cog in bot.cogs.values():
+        for cmd in cog.walk_commands():
+            parent = getattr(cmd, "parent", None)
+            if parent is not None and parent.checks and not all(c in cmd.checks for c in parent.checks):
+                unguarded.append(cmd.qualified_name)
+    assert unguarded == []
+    assert bot.get_command("module off").checks and bot.get_command("vectiq reload").checks

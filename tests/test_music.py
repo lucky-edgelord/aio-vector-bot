@@ -89,3 +89,95 @@ async def test_stream_reads_frames_and_tracks_position(tmp_path):
         n += 1
     s.cleanup()
     assert 70 <= n <= 80 and abs(s.position - 2.0) < 0.1
+
+
+# -- cards and buttons ---------------------------------------------------------------------------------
+
+import io  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+from PIL import Image  # noqa: E402
+
+from vectiq.render.music import CardTrack, PlayerState, now_playing_card, queue_card  # noqa: E402
+
+
+def cover_bytes():
+    out = io.BytesIO()
+    Image.new("RGB", (480, 360), (200, 40, 90)).save(out, "JPEG")
+    return out.getvalue()
+
+
+def test_cards_render():
+    t = CardTrack("A very long song title " * 4, "Artist", 213, requester="lucky", cover=cover_bytes())
+    png = now_playing_card(t, PlayerState(position=81, volume=80, loop="queue", filter="nightcore", up_next=3))
+    assert Image.open(io.BytesIO(png)).size == (900, 300)
+    live = now_playing_card(CardTrack("Radio", live=True), PlayerState(paused=True))
+    assert Image.open(io.BytesIO(live)).size == (900, 300)
+    rows = [(i, CardTrack(f"Song {i}", "x", 100)) for i in range(1, 11)]
+    q = Image.open(io.BytesIO(queue_card(t, PlayerState(up_next=10), rows, page=1, pages=2)))
+    assert q.size[0] == 900 and q.size[1] > 600
+    assert Image.open(io.BytesIO(queue_card(None, PlayerState(), []))).size[0] == 900
+
+
+class FakeVC:
+    def __init__(self, channel):
+        self.channel, self.paused, self.playing = channel, False, True
+
+    def is_paused(self):
+        return self.paused
+
+    def is_playing(self):
+        return self.playing and not self.paused
+
+    def pause(self):
+        self.paused = True
+
+    def resume(self):
+        self.paused = False
+
+
+async def test_reaction_buttons(monkeypatch):
+    from vectiq.cogs import music as M
+
+    said = []
+    voice = SimpleNamespace(id="vc", name="Music", voice_states={"bot": 1, "dj": 1, "fan": 1, "fan2": 1})
+    guild = SimpleNamespace(id="g", name="G", voice_channels=[voice])
+    cog = M.Music.__new__(M.Music)
+    cog.bot = SimpleNamespace(user=SimpleNamespace(id="bot"),
+                              config=SimpleNamespace(get=lambda k, d=None: {"dj_role": "DJ", "vote_skip_ratio": 0.5}
+                                                     if k == "music" else d))
+    p = SimpleNamespace(vc=FakeVC(voice), np_message=SimpleNamespace(id="m1"), guild=guild, votes=set(),
+                        current=SimpleNamespace(requester="someone", title="Song"), queue=M.Player.__new__(M.Player))
+    from vectiq.music.queue import Queue
+
+    p.queue = Queue()
+
+    async def say(text):
+        said.append(text)
+
+    async def skip():
+        said.append("SKIPPED")
+
+    p._say, p.skip = say, skip
+    cog.players = {"g": p}
+    dj = SimpleNamespace(id="dj", name="Dj", roles=[SimpleNamespace(name="DJ", id="r")], guild_permissions=None)
+    fan = SimpleNamespace(id="fan", name="Fan", roles=[], guild_permissions=None)
+
+    def press(member, emoji, msg="m1"):
+        return cog.press(SimpleNamespace(guild_id="g", user_id=member.id, message_id=msg, emoji=emoji, member=member))
+
+    await press(fan, "⏯️")
+    assert p.vc.paused is False                      # only DJs pause
+    await press(dj, "⏯️")
+    assert p.vc.paused is True
+    await press(dj, "⏯")
+    assert p.vc.paused is False
+    await press(dj, "🔁")
+    assert p.queue.loop == "track"
+    await press(fan, "⏭️")                           # 3 listeners, half needed: 2 votes
+    assert "SKIPPED" not in said and any("1/2" in x for x in said)
+    await press(SimpleNamespace(id="fan2", name="F2", roles=[], guild_permissions=None), "⏭️")
+    assert "SKIPPED" in said
+    said.clear()
+    await press(dj, "⏯️", msg="other")              # buttons on an old card do nothing
+    assert said == []

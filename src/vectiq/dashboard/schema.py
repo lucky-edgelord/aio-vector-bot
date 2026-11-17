@@ -147,6 +147,8 @@ GROUPS: list[dict[str, Any]] = [
         field("music.leave_when_idle_seconds", "Leave when idle after (seconds)", "int", minimum=5, maximum=86400),
         field("music.stay_247", "24/7 by default", "bool"),
         field("music.announce", "Post \"Now playing\"", "bool"),
+        field("music.cards", "Picture cards", "bool", "Now playing and the queue as images with cover art"),
+        field("music.controls", "Reaction buttons", "bool", "⏯ ⏭ ⏹ 🔁 🔀 📜 under Now playing"),
     ]},
     {"id": "notifications", "title": "Stream & video alerts", "fields": [
         field("notifications.channel", "Default channel", "channel", "Where alerts go unless a feed says otherwise"),

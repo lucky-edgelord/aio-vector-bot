@@ -39,7 +39,7 @@ class MusicUnavailable(RuntimeError):
     pass
 
 
-def _ytdl(extra: dict | None = None):
+def _ytdl(extra: dict | None = None, cookies: str = ""):
     try:
         import yt_dlp
     except ImportError as exc:
@@ -47,6 +47,8 @@ def _ytdl(extra: dict | None = None):
     opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "default_search": "ytsearch",
             "format": "bestaudio[acodec=opus]/bestaudio/best", "skip_download": True, "extract_flat": False,
             "source_address": "0.0.0.0", "cachedir": False}
+    if cookies:
+        opts["cookiefile"] = cookies           # YouTube asks servers in data centres to sign in
     opts.update(extra or {})
     return yt_dlp.YoutubeDL(opts)
 
@@ -55,20 +57,45 @@ def _track(info: dict[str, Any], requester: str = "", requester_name: str = "") 
     url = info.get("webpage_url") or info.get("original_url") or info.get("url") or ""
     if not URL.match(url) and info.get("id") and (info.get("ie_key") or "").lower().startswith("youtube"):
         url = f"https://www.youtube.com/watch?v={info['id']}"
+    thumbs = [t.get("url") for t in info.get("thumbnails") or [] if isinstance(t, dict) and t.get("url")]
     return Track(title=info.get("title") or url, url=url, duration=int(info.get("duration") or 0),
-                 uploader=info.get("uploader") or info.get("channel") or "",
-                 thumbnail=info.get("thumbnail") or "", requester=requester, requester_name=requester_name,
-                 live=bool(info.get("is_live")))
+                 uploader=info.get("uploader") or info.get("channel") or info.get("artist") or "",
+                 thumbnail=info.get("thumbnail") or (thumbs[-1] if thumbs else ""), requester=requester,
+                 requester_name=requester_name, live=bool(info.get("is_live")))
+
+
+YT_ID = re.compile(r"(?:v=|youtu\.be/|/shorts/|/live/)([\w-]{11})")
+
+
+def thumbnail_url(track: Track) -> str:
+    if track.thumbnail:
+        return track.thumbnail
+    m = YT_ID.search(track.url)
+    return f"https://i.ytimg.com/vi/{m.group(1)}/hqdefault.jpg" if m else ""
+
+
+def fetch_bytes(url: str, limit: int = 4 * 1024 * 1024) -> bytes | None:
+    """Blocking. A small download (cover art); None when it fails."""
+    import urllib.request
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 Vectiq"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            return r.read(limit)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def search(query: str, *, limit: int = 1, playlist: bool = True, max_playlist: int = 100, site: str = "ytsearch",
-           requester: str = "", requester_name: str = "") -> list[Track]:
-    """Blocking. A link (video, playlist, SoundCloud, Bandcamp, direct audio...) or search words -> tracks."""
+           requester: str = "", requester_name: str = "", cookies: str = "") -> list[Track]:
+    """Blocking. A link (video, playlist, SoundCloud, Bandcamp, direct audio...) or search words -> tracks.
+
+    Searches and playlists are read "flat" (titles and links only), which is fast; the audio itself is looked up
+    just before each track plays."""
     is_url = bool(URL.match(query))
     target = query if is_url else f"{site}{limit}:{query}"
-    flat = is_url and playlist
-    with _ytdl({"noplaylist": not playlist, "extract_flat": "in_playlist" if flat else False,
-                "playlistend": max_playlist}) as ydl:
+    with _ytdl({"noplaylist": not playlist, "extract_flat": "in_playlist", "playlistend": max_playlist},
+               cookies) as ydl:
         info = ydl.extract_info(target, download=False)
     if not info:
         return []
@@ -82,14 +109,21 @@ def search(query: str, *, limit: int = 1, playlist: bool = True, max_playlist: i
     return out
 
 
-def stream_url(track: Track) -> tuple[str, dict[str, str]]:
+def stream_url(track: Track, cookies: str = "") -> tuple[str, dict[str, str]]:
     """Blocking. The direct audio link for a track (and any HTTP headers ffmpeg must send)."""
-    with _ytdl() as ydl:
+    with _ytdl(cookies=cookies) as ydl:
         info = ydl.extract_info(track.url, download=False)
     if info.get("entries"):
         info = next(e for e in info["entries"] if e)
     if not track.duration and info.get("duration"):
         track.duration = int(info["duration"])
+    if not track.thumbnail and info.get("thumbnail"):
+        track.thumbnail = info["thumbnail"]
+    if not track.uploader:
+        track.uploader = info.get("uploader") or info.get("channel") or ""
+    if info.get("webpage_url") and "api.soundcloud.com" in track.url:
+        track.url = info["webpage_url"]
+    track.live = track.live or bool(info.get("is_live"))
     return info["url"], dict(info.get("http_headers") or {})
 
 

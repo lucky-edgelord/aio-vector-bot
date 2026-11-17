@@ -39,6 +39,31 @@ Join a voice channel, then:
 
 `seek 1:30` (or `seek +30`) jumps within a song, and `replay` starts it again. `volume 60` changes the volume straight away. `filter` adds an effect: bassboost, nightcore, vaporwave, slowed, speed, 8d, karaoke, treble, soft, loud or mono. `filter off` removes it.
 
+## Cards and buttons
+
+![The Now playing card](images/music-now-playing.png)
+
+Each new song gets a **Now playing** card with the cover art, a progress bar, the volume, loop and filter, and who added it. Reaction buttons sit underneath:
+
+| Button | Does |
+|---|---|
+| ⏯ | pause or resume |
+| ⏭ | skip (a vote, unless you're a DJ or added the song) |
+| ⏹ | stop and leave |
+| 🔁 | cycle loop: off, track, queue |
+| 🔀 | shuffle |
+| 📜 | show the queue |
+
+Reacting presses a button, and taking the reaction back presses it again, so you can press twice in a row. `nowplaying` posts a fresh card, and `queue` shows the queue as a card with covers.
+
+![The queue card](images/music-queue.png)
+
+Turn the pictures off with `cards: false`, or the buttons with `controls: false`.
+
+## YouTube on servers
+
+YouTube sometimes asks bots on data-centre servers to "sign in to confirm you're not a bot". At home this rarely happens. If it does, export a `cookies.txt` from a browser where you're signed in to YouTube (see [yt-dlp's guide](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies)) and set `cookies_file` to its path. SoundCloud and Bandcamp don't need this, and `search: scsearch` searches SoundCloud.
+
 ## Who's in charge
 
 People with the **DJ** role (`dj_role`), staff with Manage Channels, and anyone alone with the bot control everything. Everyone else can add songs, remove their own, and **vote to skip**: once `vote_skip_ratio` of the listeners have voted, the song is skipped. Whoever added a song can always skip it. Leave `dj_role` empty to let everyone control the player.

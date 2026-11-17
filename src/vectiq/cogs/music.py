@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import math
 import time
 
+import vector
 from vector.ext import commands, tasks
 
-from ..music.player import Player
+from ..music.player import CONTROLS, Player
 from ..music.queue import LOOP_MODES, clock, parse_time
 from ..music.sources import FILTERS, MusicUnavailable, search
+from ..render.music import queue_card
 from ..utils.embeds import embed, fail, name_of, ok
 
 log = logging.getLogger("vectiq.music")
@@ -66,7 +69,9 @@ class Music(commands.Cog, name="Music"):
         return p if p is not None and p.vc is not None else None
 
     def is_dj(self, ctx, p: Player | None = None) -> bool:
-        a = ctx.author
+        return self.member_is_dj(ctx.author, p)
+
+    def member_is_dj(self, a, p: Player | None = None) -> bool:
         perms = getattr(a, "guild_permissions", None)
         if perms is not None and (getattr(perms, "manage_channels", False) or getattr(perms, "manage_guild", False)):
             return True
@@ -122,7 +127,8 @@ class Music(commands.Cog, name="Music"):
             tracks = await asyncio.to_thread(
                 search, query.strip("<>"), limit=limit, playlist=bool(cfg.get("allow_playlists", True)),
                 max_playlist=int(cfg.get("max_playlist", 100)), site=str(cfg.get("search", "ytsearch")),
-                requester=str(ctx.author.id), requester_name=name_of(ctx.author))
+                requester=str(ctx.author.id), requester_name=name_of(ctx.author),
+                cookies=str(cfg.get("cookies_file", "") or ""))
         except MusicUnavailable as exc:
             await ctx.send(fail(str(exc)))
             return None
@@ -308,23 +314,41 @@ class Music(commands.Cog, name="Music"):
 
     @commands.command(aliases=["np", "current"])
     async def nowplaying(self, ctx):
-        """What's playing, with a progress bar."""
+        """What's playing: a card with the cover, a progress bar and control buttons."""
         p = self.player(ctx)
-        await ctx.send(embed=embed("Now playing", p.now_text() if p else "Nothing is playing."))
+        if p is None or p.current is None:
+            return await ctx.send("Nothing is playing.")
+        await p.announce(ctx.channel)
 
-    @commands.command(aliases=["q"])
-    async def queue(self, ctx, page: int = 1):
-        """The queue, ten songs per page."""
-        p = self.player(ctx)
-        if p is None or (p.current is None and not len(p.queue)):
-            return await ctx.send("The queue is empty.")
+    async def send_queue(self, channel, p: Player, page: int = 1) -> None:
         pages = max(1, math.ceil(len(p.queue) / 10))
         page = min(max(1, page), pages)
-        lines = [f"`{i}.` **{t.title}** `{t.length()}` · {t.requester_name}" for i, t in p.queue.page(page)]
+        rows = p.queue.page(page)
+        if self.cfg.get("cards", True):
+            try:
+                cards = await asyncio.gather(*(p.card_track(t) for _, t in rows))
+                current = await p.card_track(p.current) if p.current else None
+                png = await asyncio.to_thread(queue_card, current, p.state(), list(zip([n for n, _ in rows], cards, strict=True)),
+                                              page=page, pages=pages, community=getattr(p.guild, "name", ""))
+                more = f" `queue {page + 1}` for more." if page < pages else ""
+                await channel.send(f"📜 Queue: {len(p.queue)} songs · {clock(p.queue.total_seconds())}.{more}",
+                                   file=vector.File(io.BytesIO(png), filename="queue.png"))
+                return
+            except Exception:  # noqa: BLE001 - fall back to text
+                log.exception("music: couldn't draw the queue card")
+        lines = [f"`{i}.` **{t.title}** `{t.length()}` · {t.requester_name}" for i, t in rows]
         head = f"**Now:** {p.current.title} `{clock(p.position)}/{p.current.length()}`\n\n" if p.current else ""
         foot = (f"\n\n{len(p.queue)} songs · {clock(p.queue.total_seconds())} · loop {p.queue.loop}"
                 + (f" · page {page}/{pages}" if pages > 1 else ""))
-        await ctx.send(embed=embed("Queue", head + ("\n".join(lines) or "Nothing up next.") + foot))
+        await channel.send(embed=embed("Queue", head + ("\n".join(lines) or "Nothing up next.") + foot))
+
+    @commands.command(aliases=["q"])
+    async def queue(self, ctx, page: int = 1):
+        """The queue as a card, ten songs per page."""
+        p = self.player(ctx)
+        if p is None or (p.current is None and not len(p.queue)):
+            return await ctx.send("The queue is empty.")
+        await self.send_queue(ctx.channel, p, page)
 
     @commands.command(aliases=["rm"])
     async def remove(self, ctx, position: int):
@@ -438,6 +462,68 @@ class Music(commands.Cog, name="Music"):
         if p is not None:
             p.stay = not p.stay
             await ctx.send(f"🌙 24/7 mode is **{'on' if p.stay else 'off'}**.")
+
+    # -- control buttons -------------------------------------------------------------------
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        await self.press(payload)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        await self.press(payload)       # reactions toggle, so taking one back presses the button again
+
+    async def press(self, payload) -> None:
+        if not payload.guild_id or str(payload.user_id) == str(self.bot.user.id):
+            return
+        p = self.players.get(str(payload.guild_id))
+        if p is None or p.vc is None or p.np_message is None or str(p.np_message.id) != str(payload.message_id):
+            return
+        action = CONTROLS.get(str(payload.emoji).replace("\ufe0f", ""))
+        if action is None:
+            return
+        member = payload.member or (p.guild.get_member(str(payload.user_id)) if hasattr(p.guild, "get_member") else None)
+        if member is None:
+            return
+        here = voice_channel_of(p.guild, member)
+        if here is None or str(here.id) != str(p.vc.channel.id):
+            return
+        who = name_of(member)
+        if action == "queue":
+            return await self.send_queue(p.text_channel, p)
+        if action == "skip":
+            if p.current is None:
+                return
+            if self.member_is_dj(member, p) or str(member.id) == p.current.requester:
+                title = p.current.title
+                await p.skip()
+                return await p._say(f"⏭️ {who} skipped **{title}**.")
+            p.votes.add(str(member.id))
+            need = max(1, math.ceil(len(listeners(p.vc, str(self.bot.user.id)))
+                                    * float(self.cfg.get("vote_skip_ratio", 0.5))))
+            if len(p.votes) >= need:
+                await p.skip()
+                return await p._say("⏭️ Vote passed, skipped.")
+            return await p._say(f"🗳️ Skip vote {len(p.votes)}/{need}.")
+        if not self.member_is_dj(member, p):
+            return
+        if action == "pause":
+            if p.vc.is_paused():
+                p.vc.resume()
+                await p._say(f"▶️ {who} resumed.")
+            elif p.vc.is_playing():
+                p.vc.pause()
+                await p._say(f"⏸️ {who} paused.")
+        elif action == "stop":
+            await p.leave()
+            self.players.pop(str(payload.guild_id), None)
+            await p._say(f"⏹️ {who} stopped the music. Bye!")
+        elif action == "loop":
+            p.queue.loop = LOOP_MODES[(LOOP_MODES.index(p.queue.loop) + 1) % len(LOOP_MODES)]
+            await p._say(f"🔁 Loop: **{p.queue.loop}**")
+        elif action == "shuffle":
+            p.queue.shuffle()
+            await p._say(f"🔀 {who} shuffled the queue.")
 
     # -- leaving on its own ----------------------------------------------------------------
 

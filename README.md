@@ -271,5 +271,5 @@ Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 - Communities still on Vector's legacy roster don't accept per-channel permission overwrites. Tickets fall back to a private channel with per-member access; `lock`/`unlock` may need the community upgraded.
 - The rank and leaderboard colours approximate Vector's look (dark canvas, green accent, ◤◢ motif); change them in `render/cards.py`.
 - Games were verified with the real rules driven through a headless browser and with the cog tested against a fake session. A full two-player round trip over Vector's network has not yet been confirmed from a real Vector client.
-- Music, alerts, link safety and the image guard are tested with unit tests and real ffmpeg/feed parsing, but not yet end to end in a live Vector voice channel or community.
+- Automod, link safety, the image guard, alerts, live module switching and the music cards were tested live in a Vector community. Music **audio** hasn't been heard yet: from the cloud test machine, Vector's voice connection (and the Mini App realtime channel) never connects to other people, even with the bare SDK, so audio playback and a two-player game round trip still need a test from a normal computer.
 - Fonts: Inter (SIL OFL) is bundled for the cards; see `assets/fonts/Inter-OFL.txt`.

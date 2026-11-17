@@ -256,7 +256,11 @@ class Notifications(commands.Cog, name="Notifications"):
         if not feeds:
             return await ctx.send("No alerts yet. `!notify add youtube <channel link or @handle> [#channel]`, "
                                   "`!notify add twitch <name> [#channel]`, `!notify add rss <feed link> [#channel]`.")
-        rows = [(str(f.db_id or "yaml"), f.kind, f.source[:40], f.channel_ref or "default") for f in feeds]
+        def where(ref):
+            found = self.bot.find_channel(ctx.guild, ref) if ref else None
+            return f"#{found.name}" if found else (ref or "default")
+
+        rows = [(str(f.db_id or "yaml"), f.kind, f.source[:40], where(f.channel_ref)) for f in feeds]
         await ctx.send(embed=embed("Alerts", table(rows, header=("#", "type", "source", "channel"))
                                    + "\n`!notify remove <#>` · `!notify check`"))
 

@@ -162,11 +162,14 @@ music:
   leave_when_alone_seconds: 60
   leave_when_idle_seconds: 300
   stay_247: false             # stay in the channel by default (24/7 mode); `247` toggles it
-  announce: true              # post "Now playing" in the chat
+  announce: true              # post "Now playing" in the chat when a song starts
+  cards: true                 # "Now playing" and the queue as picture cards with cover art (false = text)
+  controls: true              # reaction buttons under "Now playing": ⏯ ⏭ ⏹ 🔁 🔀 📜
   search: ytsearch            # ytsearch (YouTube) | ytmsearch (YouTube Music) | scsearch (SoundCloud)
   allow_playlists: true
   max_playlist: 100           # most songs taken from one playlist
   ffmpeg: ffmpeg              # the ffmpeg program
+  cookies_file: ""            # YouTube cookies.txt for servers YouTube asks to "sign in" (see the music guide)
 
 # --- Stream & video alerts (modules.notifications) ----------------------------------------------
 notifications:
