@@ -192,6 +192,13 @@ A FastAPI dashboard runs inside the bot. Turn it on with `modules.dashboard: tru
   <img src="docs/images/dashboard-giveaways.png" alt="Giveaways page with running and ended giveaways and their entry counts" width="70%">
   <img src="docs/images/dashboard-phone.png" alt="The overview on a phone" width="22%">
 </p>
+<p align="center">
+  <img src="docs/images/dashboard-marketplace-browse.png" alt="The Marketplace page's Browse tab: module cards from the aio-marketplace catalog, each with a Get button, and a note that modules with code need to be allowed first" width="49%">
+  <img src="docs/images/dashboard-marketplace-installed.png" alt="The Marketplace page's Installed tab: three JSON modules with on/off switches, Settings, Export and Remove, and a section to save any module as a file" width="49%">
+</p>
+<p align="center">
+  <img src="docs/images/dashboard-access.png" alt="Dashboard access: choose what each Vector role can see or change, area by area" width="60%">
+</p>
 
 **Signing in** is by username and password. Every login belongs to a Vector account (npub), and that account's admin role in Vector decides which communities it can manage, checked on every request: remove someone's admin role and their dashboard access goes with it.
 
