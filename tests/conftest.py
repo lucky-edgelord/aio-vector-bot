@@ -64,22 +64,3 @@ async def make_bot(db):
             except Exception:  # noqa: BLE001
                 pass
 
-
-# The SDK's native (Rust) threads can, rarely, crash Python's own shutdown after every test has passed. Once pytest
-# has printed its report, leave without that shutdown, keeping pytest's exit status.
-_exit_status = {"code": None}
-
-
-def pytest_sessionfinish(session, exitstatus):
-    _exit_status["code"] = int(exitstatus)
-
-
-@pytest.hookimpl(trylast=True)
-def pytest_unconfigure(config):
-    import os
-    import sys
-
-    if _exit_status["code"] is not None and not os.environ.get("VECTIQ_TEST_NORMAL_EXIT"):
-        sys.stdout.flush()
-        sys.stderr.flush()
-        os._exit(_exit_status["code"])
