@@ -1438,7 +1438,7 @@ function moduleFacts(c, base) {
   }
   const m = c.module;
   const counts = [m.commands.length && plural(m.commands.length, "command"), m.autoresponders && plural(m.autoresponders, "autoresponder"),
-    m.timers && plural(m.timers, "timer"), m.files.length && plural(m.files.length, "Python file")].filter(Boolean).join(" · ");
+    m.timers && plural(m.timers, "timer"), m.files.length && plural(m.files.length, "code file")].filter(Boolean).join(" · ");
   return h("div", { class: "stack" },
     gallery(m.images, base),
     h("div", { class: "row wrap" }, modIcon(m, base), kindPill(m.kind), pill(`v${m.release}`), m.author ? h("span", { class: "faint" }, `by ${m.author}`) : null, m.license ? h("span", { class: "faint" }, m.license) : null),
