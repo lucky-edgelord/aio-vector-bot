@@ -350,3 +350,9 @@ textarea.input { height: auto; min-height: 90px; padding: 10px 14px; resize: ver
 .note.warn { border-color: #5a4518; background: var(--warn-bg); }
 ul.bad { color: var(--danger); margin: 0; padding-left: 18px; }
 p.bad, div.bad { color: var(--danger); }
+
+/* dashboard access */
+.access-grid { display: flex; flex-direction: column; gap: 2px; }
+.access-row { display: flex; gap: 12px; align-items: center; padding: 8px 4px; border-top: 1px solid var(--line-soft); }
+.note.viewonly { margin-bottom: 14px; }
+main.readonly .btn.primary, main.readonly .btn.danger { display: none; }

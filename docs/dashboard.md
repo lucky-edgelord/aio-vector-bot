@@ -26,7 +26,7 @@ Restart the bot and open `http://localhost:8090`. With `host: 127.0.0.1` only th
 
 ![The sign-in page](images/dashboard-login.png)
 
-There are two ways in. Only admins of a community the bot serves, and the bot's `owners`, can sign in.
+There are two ways in. The bot's `owners`, a community's owner and its admins can sign in, and so can anyone whose Vector role the community's owner has given access (see [Dashboard access](#dashboard-access)).
 
 **Username and password.** Create a login on the machine running the bot, tied to your Vector account:
 
@@ -40,6 +40,25 @@ vectiq --delete-user sam
 **A code from Vector.** Enter your npub on the sign-in page and the bot sends a one-time code by DM that works for `dashboard.code_minutes` (10) minutes. You can also type `!dashboard` in chat to get a sign-in link by DM. Turn this off with `dashboard.vector_code_login: false` if you only want passwords.
 
 A sign-in lasts `dashboard.session_days` (7) days. Too many wrong attempts are slowed down, and an npub that isn't allowed gets the same answer as one that is, so nobody can probe for accounts.
+
+## Dashboard access
+
+Each community decides who can use its part of the dashboard, by Vector role. Open **Dashboard access** in the community's menu; only the community's owner and the bot's owners see it.
+
+For community admins (Vector's admin role or Manage Community) and for any role you add, choose what they get:
+
+| Choice | Can |
+|---|---|
+| Everything | see and change every page of the community (the default for admins) |
+| Moderator | change Members, Moderation and Tickets; look at Overview, Onboarding and the Audit log |
+| Helper | change Tickets; look at Overview and Members |
+| Look only | see every page, change nothing |
+| Nothing | no access |
+| Custom | area by area: no access, can look, or can change |
+
+The areas are Overview, Members, Moderation, Tickets, Channels & roles, Role menus, Onboarding, Leveling, Economy, Giveaways, Games, Security cam, Announce, Module pages and the Audit log. Someone with several roles gets the most any of them allows. Pages they can't open aren't in their menu, and a page they can only look at says so and hides its buttons. The bot checks every request too, so a hidden button can't be pressed anyway.
+
+Changes apply at once, even to people already signed in, and so does taking a role away in Vector. The community's owner and the bot's owners always have full access, and bot-wide pages (Settings, Marketplace, Webhooks, Users, Restore points) stay with the bot's owners. Every change is in the audit log.
 
 ## What is on each page
 

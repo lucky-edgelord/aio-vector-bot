@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- Dashboard access by role: a community's owner (or a bot owner) chooses, per Vector role and for community admins,
+  what they can see and change: Everything, Moderator, Helper, Look only, Nothing, or area by area (Overview, Members,
+  Moderation, Tickets, Channels & roles, Role menus, Onboarding, Leveling, Economy, Giveaways, Games, Security cam,
+  Announce, Module pages, Audit log). Enforced on every request and live; people with a role that has access can sign
+  in; the menu only shows what they may open, and look-only pages say so.
 - JSON modules: a whole module in one `.module.json` file (commands, autoresponders, timers, settings, and
   optional Python). A forgiving checker (broken parts are skipped with a note), a template and a prompt for asking an
   AI to write one. Added modules live in `data/json-modules/`, appear with every other module, switch on and off live,

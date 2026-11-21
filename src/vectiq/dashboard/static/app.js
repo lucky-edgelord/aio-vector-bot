@@ -228,6 +228,11 @@ const PAGES = [
   ["onboarding", "➜", "Onboarding"], ["structure", "▤", "Channels & roles"], ["securitycam", "◉", "Security cam"],
   ["announce", "✎", "Announce"], ["audit", "☰", "Audit log"],
 ];
+// The dashboard area each community page belongs to (see Dashboard access).
+const AREA_OF = { overview: "overview", members: "members", moderation: "moderation", leveling: "leveling", economy: "economy",
+  tickets: "tickets", rolemenus: "rolemenus", giveaways: "giveaways", games: "games", onboarding: "onboarding", structure: "structure",
+  securitycam: "securitycam", announce: "announce", audit: "audit", m: "modules" };
+const commAccess = (comm, page) => (comm && comm.access ? comm.access[AREA_OF[page]] || "" : "");
 const MODULE_OF = { moderation: "moderation", leveling: "leveling", economy: "economy", tickets: "tickets", rolemenus: "roles",
   giveaways: "giveaways", games: "games", onboarding: "onboarding", securitycam: "securitycam" };
 
@@ -235,7 +240,8 @@ async function boot() {
   try { S.me = await api("GET", "/api/me"); } catch { return; }
   if (!location.hash || location.hash === "#/") {
     const first = S.me.communities[0];
-    location.hash = first ? `#/c/${first.id}/overview` : "#/settings";
+    const start = first && (PAGES.find(([id]) => commAccess(first, id)) || [null])[0];
+    location.hash = first && start ? `#/c/${first.id}/${start}` : "#/settings";
   }
   route();
 }
@@ -260,10 +266,12 @@ function renderShell(page) {
   const main = h("main", { class: "main" });
   const shell = h("div", { class: "shell" });
   const nav = h("nav", { class: "nav" },
-    comm ? [h("h3", null, "Community"), PAGES.filter(([id]) => !MODULE_OF[id] || S.me.modules[MODULE_OF[id]]).map(([id, ico, label]) =>
+    comm ? [h("h3", null, "Community"), PAGES.filter(([id]) => (!MODULE_OF[id] || S.me.modules[MODULE_OF[id]]) && commAccess(comm, id)).map(([id, ico, label]) =>
       h("a", { href: `#/c/${encodeURIComponent(S.gid)}/${id}`, class: page === id && "on", onclick: () => shell.classList.remove("open") },
-        h("span", { class: "ico" }, ico), label))] : null,
-    (S.me.panels || []).length ? [h("h3", null, "Modules"), S.me.panels.filter((p) => p.scope !== "community" || comm).map((p) => {
+        h("span", { class: "ico" }, ico), label)),
+      comm.configure ? h("a", { href: `#/c/${encodeURIComponent(S.gid)}/access`, class: page === "access" && "on", onclick: () => shell.classList.remove("open") },
+        h("span", { class: "ico" }, "⚿"), "Dashboard access") : null] : null,
+    (S.me.panels || []).filter((p) => p.scope !== "community" || commAccess(comm, "m")).length ? [h("h3", null, "Modules"), S.me.panels.filter((p) => p.scope !== "community" || (comm && commAccess(comm, "m"))).map((p) => {
       const href = p.scope === "community" ? `#/c/${encodeURIComponent(S.gid)}/m/${encodeURIComponent(p.module)}` : `#/m/${encodeURIComponent(p.module)}`;
       return h("a", { href, class: page === "m" && S.route.includes(p.module) && "on", onclick: () => shell.classList.remove("open") },
         h("span", { class: "ico" }, p.icon), p.label);
@@ -291,11 +299,15 @@ function renderShell(page) {
   add(shell, [side, h("div", { style: { minWidth: 0 } }, top, main)]);
   shell.addEventListener("click", (e) => { if (shell.classList.contains("open") && e.target === shell) shell.classList.remove("open"); });
   clear(root, shell);
-  const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit,
+  const level = page === "access" ? (comm && comm.configure ? "manage" : "") : comm && S.route[0] === "c" ? commAccess(comm, page) : "manage";
+  if (comm && S.route[0] === "c" && !level) { clear(main, card(null, h("p", { class: "muted" }, "You don't have access to this page. The community's owner decides who can see what, under Dashboard access."))); return; }
+  main.classList.toggle("readonly", level === "view");
+  const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit, access: accessPage,
     settings, setup, restore, webhooks, marketplace, users, account, m: modulePanel, structure }[page];
   if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "marketplace", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
-  fn(main).catch((e) => clear(main, card(null, h("p", { class: "muted" }, e.message))));
+  fn(main).then(() => { if (level === "view") main.prepend(h("div", { class: "note viewonly" }, "You can look at this page but not change anything on it.")); })
+    .catch((e) => clear(main, card(null, h("p", { class: "muted" }, e.message))));
 }
 
 function pickCommunity() {
@@ -1337,6 +1349,55 @@ async function webhooks(main) {
       run(e.target, () => api("PUT", "/api/webhooks", { hooks: d.hooks.filter((_, j) => j !== i).map((y) => ({ name: y.name, channel: y.channel, events: y.events })) })).then(route).catch(() => {});
     }, "ghost sm", { title: "Remove" })))) : empty("No webhooks yet.")), report,
   h("p", { class: "faint", style: { fontSize: "13px" } }, d.server.enabled ? `Receiving posts at ${d.server.base_url}.` : "The receiving server is off: hooks can mirror bot events, but outside tools can't post until webhooks.server.enabled is on."));
+}
+
+/* ---------------------------------------------------------------- dashboard access (community owner, bot owners) */
+
+async function accessPage(main) {
+  const d = await api("GET", C("/access"));
+  const LV = [["none", "No access"], ["view", "Can look"], ["manage", "Can change"]];
+  const PRESET_NAMES = [["full", "Everything"], ["moderator", "Moderator"], ["helper", "Helper"], ["viewer", "Look only"], ["none", "Nothing"], ["custom", "Custom…"]];
+  const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+  const presetOf = (areas) => (Object.entries(d.presets).find(([, p]) => same(p, areas)) || ["custom"])[0];
+  const state = { admins: { areas: { ...d.admins } }, rules: d.rules.map((r) => ({ role_id: r.role_id, name: r.name, missing: r.missing, areas: { ...r.areas } })) };
+  // One person's or role's access: a preset, or area by area.
+  function editor(holder) {
+    const box = h("div", { class: "stack" });
+    const grid = h("div", { class: "access-grid" });
+    const pick = select(PRESET_NAMES, presetOf(holder.areas));
+    const drawGrid = () => clear(grid, d.areas.map((a) => {
+      const s = select(LV, holder.areas[a.id] || "none");
+      s.addEventListener("change", () => { if (s.value === "none") delete holder.areas[a.id]; else holder.areas[a.id] = s.value; pick.value = presetOf(holder.areas); });
+      return h("div", { class: "access-row" }, h("div", { class: "grow" }, h("b", null, a.label), h("div", { class: "faint" }, a.help)), h("div", { style: { width: "150px" } }, s));
+    }));
+    pick.addEventListener("change", () => {
+      if (pick.value !== "custom") holder.areas = { ...d.presets[pick.value] };
+      grid.classList.toggle("hidden", pick.value !== "custom" && !grid.dataset.open);
+      drawGrid();
+    });
+    const toggleGrid = btn("Area by area", () => { grid.dataset.open = grid.dataset.open ? "" : "1"; grid.classList.toggle("hidden"); }, "ghost sm");
+    grid.classList.toggle("hidden", presetOf(holder.areas) !== "custom");
+    drawGrid();
+    return add(box, [h("div", { class: "row" }, h("div", { style: { width: "220px" } }, pick), toggleGrid), grid]);
+  }
+  const list = h("div", { class: "stack" });
+  const drawRules = () => clear(list, state.rules.length ? state.rules.map((r, i) => card(h("div", { class: "row grow" }, h("h2", null, r.name), r.missing ? pill("role deleted", "yellow") : null,
+    h("span", { class: "grow" }), btn("Remove", () => { state.rules.splice(i, 1); drawRules(); drawAdd(); }, "ghost sm")), editor(r)))
+    : empty("No roles have access yet. Add one below."));
+  const addBox = h("div");
+  const drawAdd = () => {
+    const free = d.roles.filter((r) => !state.rules.some((x) => x.role_id === r.id));
+    if (!free.length) { clear(addBox); return; }
+    const s = select([["", "Choose a role…"], ...free.map((r) => [r.id, r.name])], "");
+    s.addEventListener("change", () => { const r = free.find((x) => x.id === s.value); if (!r) return; state.rules.push({ role_id: r.id, name: r.name, areas: { ...d.presets.moderator } }); drawRules(); drawAdd(); });
+    clear(addBox, h("div", { class: "row" }, h("b", null, "Give a role access:"), h("div", { style: { width: "260px" } }, s)));
+  };
+  drawRules(); drawAdd();
+  const go = btn("Save", () => run(go, () => api("PUT", C("/access"), { admins: state.admins.areas, rules: state.rules.map((r) => ({ role_id: r.role_id, areas: r.areas })) })).then(() => setTimeout(route, 300)).catch(() => {}), "primary");
+  clear(main, head("Dashboard access", "Who can open this community's dashboard, and what they can see and change. You and the bot's owners always have full access.", go),
+    card("Community admins", h("p", { class: "muted", style: { marginTop: 0 } }, "People with Vector's admin role or Manage Community permission."), editor(state.admins)),
+    h("h3", { style: { margin: "20px 4px 8px" } }, "Roles"), list, h("div", { style: { margin: "12px 4px" } }, addBox),
+    h("p", { class: "faint" }, "Someone with several roles gets the most any of them allows. Changes apply straight away, even to people already signed in. Bot-wide pages (Settings, Marketplace, Webhooks, Users, Restore points) stay with the bot's owners."));
 }
 
 /* ---------------------------------------------------------------- marketplace: JSON modules */

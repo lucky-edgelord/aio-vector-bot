@@ -359,4 +359,13 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (feed_key, item_id)
     );
     """,
+    # 9: who may use the dashboard, by Vector role, set per community by its owner
+    """
+    CREATE TABLE dash_access (
+        guild_id   TEXT PRIMARY KEY,
+        rules      TEXT NOT NULL,
+        updated_by TEXT NOT NULL DEFAULT '',
+        updated_at INTEGER NOT NULL
+    );
+    """,
 ]
