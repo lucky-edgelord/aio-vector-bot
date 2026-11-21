@@ -273,6 +273,7 @@ function renderShell(page) {
     S.me.owner ? h("a", { href: "#/setup", class: page === "setup" && "on" }, h("span", { class: "ico" }, "✧"), "Setup wizard") : null,
     S.me.owner ? h("a", { href: "#/restore", class: page === "restore" && "on" }, h("span", { class: "ico" }, "↺"), "Restore points") : null,
     S.me.owner ? h("a", { href: "#/webhooks", class: page === "webhooks" && "on" }, h("span", { class: "ico" }, "⇄"), "Webhooks") : null,
+    S.me.owner ? h("a", { href: "#/marketplace", class: page === "marketplace" && "on" }, h("span", { class: "ico" }, "⬡"), "Marketplace") : null,
     S.me.owner ? h("a", { href: "#/users", class: page === "users" && "on" }, h("span", { class: "ico" }, "⚿"), "Users") : null,
     h("a", { href: "#/account", class: page === "account" && "on" }, h("span", { class: "ico" }, "☻"), "My account"));
   const side = h("aside", { class: "side" },
@@ -291,8 +292,8 @@ function renderShell(page) {
   shell.addEventListener("click", (e) => { if (shell.classList.contains("open") && e.target === shell) shell.classList.remove("open"); });
   clear(root, shell);
   const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit,
-    settings, setup, restore, webhooks, users, account, m: modulePanel, structure }[page];
-  if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
+    settings, setup, restore, webhooks, marketplace, users, account, m: modulePanel, structure }[page];
+  if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "marketplace", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
   fn(main).catch((e) => clear(main, card(null, h("p", { class: "muted" }, e.message))));
 }
@@ -1336,6 +1337,140 @@ async function webhooks(main) {
       run(e.target, () => api("PUT", "/api/webhooks", { hooks: d.hooks.filter((_, j) => j !== i).map((y) => ({ name: y.name, channel: y.channel, events: y.events })) })).then(route).catch(() => {});
     }, "ghost sm", { title: "Remove" })))) : empty("No webhooks yet.")), report,
   h("p", { class: "faint", style: { fontSize: "13px" } }, d.server.enabled ? `Receiving posts at ${d.server.base_url}.` : "The receiving server is off: hooks can mirror bot events, but outside tools can't post until webhooks.server.enabled is on."));
+}
+
+/* ---------------------------------------------------------------- marketplace: JSON modules */
+
+const KB = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+const kindPill = (k) => (k === "code" ? pill("runs code", "red") : pill("no code", "green"));
+const copy = (text, what) => navigator.clipboard?.writeText(text).then(() => toast(`${what} copied.`), () => toast("Couldn't copy: select it and copy by hand.", true));
+
+// What a checked module contains and what installing it would do. `c` is the answer of /api/library/check.
+function moduleFacts(c) {
+  if (!c.ok) {
+    return h("div", { class: "stack" }, h("b", { style: { color: "var(--danger)" } }, "Vectiq can't use this yet:"),
+      h("ul", { class: "bad" }, c.errors.map((e) => h("li", null, e))),
+      c.warnings.length ? h("details", null, h("summary", null, `${c.warnings.length} more note${c.warnings.length === 1 ? "" : "s"}`), h("ul", { class: "faint" }, c.warnings.map((w) => h("li", null, w)))) : null);
+  }
+  const m = c.module;
+  const counts = [m.commands.length && plural(m.commands.length, "command"), m.autoresponders && plural(m.autoresponders, "autoresponder"),
+    m.timers && plural(m.timers, "timer"), m.files.length && plural(m.files.length, "Python file")].filter(Boolean).join(" · ");
+  return h("div", { class: "stack" },
+    h("div", { class: "row wrap" }, kindPill(m.kind), pill(`v${m.release}`), m.author ? h("span", { class: "faint" }, `by ${m.author}`) : null, m.license ? h("span", { class: "faint" }, m.license) : null),
+    h("p", { style: { margin: 0 } }, m.description || m.summary),
+    counts ? h("div", { class: "faint" }, counts) : null,
+    m.commands.length ? h("div", { class: "row wrap" }, m.commands.map((x) => h("code", { class: "chip-code" }, `!${x}`))) : null,
+    m.settings.length ? h("div", { class: "faint" }, `Settings you can change afterwards: ${m.settings.join(", ")}.`) : null,
+    c.replaces && c.replaces.length ? h("div", { class: "note" }, `It does the same job as ${c.replaces.join(", ")}: switching it on switches that off.`) : null,
+    m.kind === "code" ? h("div", { class: "note warn" }, h("b", null, "This module runs Python on the bot's computer. "),
+      "It can do anything the bot can. Install it only if you trust where it came from.",
+      h("div", { class: "faint mono", style: { marginTop: "6px" } }, m.files.join("  ")),
+      m.packages.length ? h("div", { class: "faint" }, `It needs: ${m.packages.join(", ")}`) : null) : null,
+    c.blocked ? h("div", { class: "note warn" }, c.blocked) : null,
+    c.installed_release ? h("div", { class: "faint" }, `Version ${c.installed_release} is installed; this replaces it and keeps its settings.`) : null,
+    c.warnings.length ? h("details", null, h("summary", null, `${c.warnings.length} note${c.warnings.length === 1 ? "" : "s"} from the checker`), h("ul", { class: "faint" }, c.warnings.map((w) => h("li", null, w)))) : null);
+}
+
+async function marketplace(main) {
+  if (!S.me.owner) { clear(main, card(null, h("p", { class: "muted" }, "Only bot owners can add or remove modules."))); return; }
+  const tab = S.route[1] || "installed";
+  const tabs = h("div", { class: "tabs" }, [["installed", "Installed"], ["browse", "Browse"], ["add", "Add a module"]].map(([id, l]) =>
+    h("button", { type: "button", class: tab === id && "on", onclick: () => { location.hash = `#/marketplace/${id}`; } }, l)));
+  const reloadMe = async () => { try { S.me = await api("GET", "/api/me"); } catch { /* shown elsewhere */ } route(); };
+  const install = (body, label, kind) => ({ label, kind: kind === "code" ? "danger" : "primary", after: reloadMe,
+    run: async () => { const r = await api("POST", "/api/library/install", body); toast(r.message); } });
+  const lib = await api("GET", "/api/library");
+  const intro = "Modules are single JSON files: commands, autoresponders and timers (and sometimes Python). Get them from a marketplace, share yours, or write one.";
+
+  if (tab === "browse") {
+    const fresh = S.route[2] === "fresh";
+    const d = await api("GET", `/api/library/browse${fresh ? "?fresh=true" : ""}`);
+    S.mk = S.mk || { q: "", g: "" };
+    const q = input({ type: "search", placeholder: `Search ${d.modules.length} modules…`, value: S.mk.q });
+    const chips = h("div", { class: "row wrap" });
+    const list = h("div", { class: "mk-grid" });
+    const details = async (e, label) => {
+      let c;
+      try { c = await run(null, () => api("POST", "/api/library/preview", { id: e.id })); } catch { return; }
+      modal(e.name, moduleFacts(c), c.ok && !c.blocked ? [install({ id: e.id }, label, e.kind)] : []);
+    };
+    const draw = () => {
+      const needle = S.mk.q.trim().toLowerCase();
+      const shown = d.modules.filter((e) => (!S.mk.g || e.group === S.mk.g)
+        && (!needle || [e.name, e.summary, e.description, e.author, ...(e.tags || [])].join(" ").toLowerCase().includes(needle)));
+      clear(chips, ["", ...d.groups].map((g) => h("button", { type: "button", class: ["chip", S.mk.g === g && "on"], onclick: () => { S.mk.g = g; draw(); } }, g || "All")));
+      clear(list, shown.length ? shown.map((e) => {
+        const label = e.update ? "Update" : e.installed_release ? "Reinstall" : "Get";
+        return h("section", { class: "card mk" },
+          h("div", { class: "row" }, h("b", { class: "grow" }, e.name), kindPill(e.kind)),
+          h("p", { class: "muted", style: { margin: "6px 0 4px" } }, e.summary),
+          h("div", { class: "faint", style: { fontSize: "13px" } }, [`v${e.release}`, e.author && `by ${e.author}`,
+            e.commands && e.commands.length && plural(e.commands.length, "command"), e.bytes && KB(e.bytes)].filter(Boolean).join(" · ")),
+          (e.tags || []).length ? h("div", { class: "row wrap", style: { marginTop: "6px" } }, e.tags.slice(0, 6).map((t) => h("span", { class: "pill" }, t))) : null,
+          h("div", { class: "row", style: { marginTop: "auto", paddingTop: "10px" } },
+            e.installed_release && !e.update ? pill("installed", "green") : null, e.update ? pill(`you have v${e.installed_release}`, "yellow") : null,
+            h("span", { class: "grow" }), btn("Details", () => details(e, label), "ghost sm"),
+            e.blocked ? pill(e.kind === "code" ? "code is off" : "name taken", "yellow")
+              : !e.installed_release || e.update ? btn(label, () => details(e, label), "primary sm") : null));
+      }) : empty(d.error ? "Nothing to show." : "No module matches."));
+    };
+    q.addEventListener("input", () => { S.mk.q = q.value; draw(); });
+    clear(main, head("Marketplace", intro, btn("Refresh", () => { location.hash = "#/marketplace/browse/fresh"; }, "ghost")), tabs,
+      d.error ? card(null, h("p", { style: { margin: 0, color: "var(--danger)" } }, d.error),
+        h("p", { class: "faint", style: { marginBottom: 0 } }, `Looking in ${d.repo} (${d.branch}). Change it in `, h("a", { href: "#/settings/marketplace" }, "Settings → Marketplace"), "."))
+        : h("p", { class: "faint" }, `From github.com/${d.repo}. Each file is checked against the marketplace's checksum before it's used.`),
+      h("div", { class: "stack", style: { marginBottom: "12px" } }, q, chips), list,
+      !d.allow_code && d.modules.some((e) => e.kind === "code") ? h("p", { class: "faint" }, "Modules that run code can't be installed until an owner turns on Settings → Marketplace → Allow modules with code.") : null);
+    draw();
+    return;
+  }
+
+  if (tab === "add") {
+    const text = textarea({ rows: "16", class: "input mono", spellcheck: "false", placeholder: '{ "format": "vectiq-module", "name": "…", "commands": [ … ] }' });
+    const facts = h("div");
+    const go = btn("Install", () => {}, "primary", { disabled: true });
+    const pick = h("input", { type: "file", accept: ".json,application/json", class: "hidden" });
+    let fileName = "", last = null, timer;
+    const check = async () => {
+      if (!text.value.trim()) { clear(facts); go.disabled = true; return; }
+      try { last = await api("POST", "/api/library/check", { text: text.value }); } catch (e) { clear(facts, h("p", { class: "bad" }, e.message)); return; }
+      clear(facts, moduleFacts(last));
+      go.disabled = !last.ok || !!last.blocked;
+      go.textContent = last.ok && last.installed_release ? "Replace the installed one" : "Install";
+    };
+    text.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(check, 350); });
+    pick.addEventListener("change", async () => { const f = pick.files[0]; if (!f) return; fileName = f.name; text.value = await f.text(); check(); });
+    go.onclick = () => run(go, () => api("POST", "/api/library/install", { text: text.value, filename: fileName || "pasted" })).then(reloadMe).catch(() => {});
+    clear(main, head("Marketplace", intro), tabs,
+      card("Add a module", h("p", { class: "muted", style: { marginTop: 0 } }, "Choose a .module.json file or paste its text. It's checked as you type; nothing is installed until you press Install."),
+        h("div", { class: "row wrap" }, btn("Choose a file…", () => pick.click()), pick,
+          btn("Start from the template", () => { text.value = lib.template; fileName = "template"; check(); }, "ghost"),
+          btn("Copy a prompt for an AI", () => copy(lib.prompt, "The prompt"), "ghost")),
+        h("p", { class: "faint" }, "Ask Claude (or any AI) to write a module: copy the prompt, add what you want, and paste its answer here."),
+        text, h("div", { style: { margin: "12px 0" } }, facts), go));
+    return;
+  }
+
+  const setOn = (m, on) => api("PUT", "/api/settings", { changes: { [`modules.${m.id}`]: on } }).then((r) => { toast(r.message); setTimeout(reloadMe, 600); }).catch((e) => { toast(e.message, true); route(); });
+  const share = (id, label) => h("a", { class: "btn ghost sm", href: `/api/library/export/${encodeURIComponent(id)}`, download: `${id}.module.json` }, label);
+  clear(main, head("Marketplace", intro, btn("Browse", () => { location.hash = "#/marketplace/browse"; }, "primary")), tabs,
+    card(`Installed (${lib.installed.length})`, lib.installed.length ? h("div", { class: "list" }, lib.installed.map((m) => h("div", { class: "item" },
+      h("div", { class: "grow" },
+        h("div", { class: "row wrap" }, h("b", null, m.name), m.release ? pill(`v${m.release}`) : null, m.kind ? kindPill(m.kind) : null),
+        h("div", { class: "faint", style: { fontSize: "13px" } }, m.summary || "", m.source ? ` · ${m.source.replace(/^file /, "from ").replace(/^marketplace /, "from ")}` : ""),
+        m.commands.length ? h("div", { class: "row wrap", style: { marginTop: "4px" } }, m.commands.map((x) => h("code", { class: "chip-code" }, `!${x}`))) : null,
+        m.problem ? h("div", { class: "bad", style: { fontSize: "13px" } }, `⚠ ${m.problem}`) : null,
+        m.skipped.length ? h("div", { class: "faint", style: { fontSize: "13px" } }, `Not added: ${m.skipped.join("; ")}`) : null),
+      m.problem ? null : toggle(m.on, (v) => setOn(m, v), { "aria-label": `${m.name} on or off` }),
+      !m.problem && m.settings ? h("a", { class: "btn ghost sm", href: `#/settings/plugin-${encodeURIComponent(m.id)}` }, "Settings") : null,
+      m.problem ? null : share(m.id, "Export"),
+      btn("Remove", async (e) => {
+        if (await confirmBox(`Remove ${m.name}?`, "It stops at once and its file is deleted. Its settings are kept in case you add it again.", "Remove")) run(e.target, () => api("DELETE", `/api/library/${encodeURIComponent(m.id)}`)).then(reloadMe).catch(() => {});
+      }, "ghost sm")))) : empty("No modules added yet. Browse the marketplace, or add a file.")),
+    lib.exportable.length ? card("Save a module as a file", h("p", { class: "muted", style: { marginTop: 0 } }, "Share a module, or keep a copy. “With my settings” uses your current values as its defaults; passwords and tokens are never included."),
+      h("div", { class: "list" }, lib.exportable.map((m) => h("div", { class: "item" }, h("div", { class: "grow" }, h("b", null, m.name), h("div", { class: "faint" }, m.from === "folder" ? "a plugin folder: its Python goes in the file" : "a JSON module")),
+        share(m.id, "Export"), m.settings ? h("a", { class: "btn ghost sm", href: `/api/library/export/${encodeURIComponent(m.id)}?settings=true`, download: `${m.id}.module.json` }, "With my settings") : null)))) : null,
+    h("p", { class: "faint" }, lib.allow_code ? "Modules with code are allowed." : "Only modules without code can be installed. ", h("a", { href: "#/settings/marketplace" }, "Marketplace settings →")));
 }
 
 /* ---------------------------------------------------------------- accounts */

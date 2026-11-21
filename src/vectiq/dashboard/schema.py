@@ -45,6 +45,13 @@ GROUPS: list[dict[str, Any]] = [
         field("plugins.allow_install", "Owners may install plugins from chat", "bool",
               "`!module install <package>` runs pip on the bot's computer. Only turn on if you trust every owner."),
     ]},
+    {"id": "marketplace", "title": "Marketplace", "fields": [
+        field("marketplace.repo", "Marketplace", "text", "The GitHub repository modules are browsed from (owner/name)"),
+        field("marketplace.branch", "Branch", "text"),
+        field("marketplace.allow_code", "Allow modules with code", "bool",
+              "Some JSON modules carry Python that runs on this computer with the bot's access. Leave off unless "
+              "you've read the module or trust its author. Modules without code are always allowed."),
+    ]},
     {"id": "moderation", "title": "Moderation", "fields": [
         field("moderation.log_channel", "Mod log channel", "channel", "Channel name or id (blank = none)"),
         field("verification.softban_escalate", "Softban returns before a real ban", "int", "0 = never",

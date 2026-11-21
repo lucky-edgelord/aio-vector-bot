@@ -48,6 +48,11 @@ plugins:              # modules that don't ship with Vectiq (see the "Writing mo
   dirs: [modules]             # folders with plugin modules, relative to this file (data/modules is always read)
   allow_install: false        # let owners run `!module install <package>` from chat (runs pip on this computer)
 
+marketplace:          # JSON modules: Marketplace on the dashboard, `!module get`, `vectiq --import-module`
+  repo: lucky-edgelord/aio-marketplace  # a GitHub repository with modules/catalog.json (owner/name)
+  branch: main
+  allow_code: false           # modules can carry Python that runs here; off = only modules without code install
+
 
 backup:
   # Restore points, like System Restore: the database, config.yaml, dashboard settings and event

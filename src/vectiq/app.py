@@ -178,6 +178,9 @@ class VectiqBot(commands.Bot):
         before = set(NAMES)
         raw = {"plugins": self.config.get("plugins", {})}
         discover(plugin_dirs(raw, Path(self.config.path or "config.yaml").resolve(), self.config.data_dir), force=True)
+        from .jsonmods.library import discover as discover_json
+
+        discover_json(self.config.data_dir)
         for name in NAMES:
             if name not in before:
                 self.config.data["modules"].setdefault(name, False)
