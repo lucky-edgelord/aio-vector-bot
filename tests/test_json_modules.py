@@ -496,3 +496,9 @@ async def test_installed_modules_know_where_their_pictures_are(bot_env):
     e = bot_env
     assert e.jm.media_for("marketplace lucky-edgelord/aio-marketplace").endswith("/lucky-edgelord/aio-marketplace/main/modules/")
     assert e.jm.media_for("file pasted") == "" and e.jm.media_for("marketplace ../x") == ""
+
+
+def test_a_cog_inside_a_code_module_belongs_to_that_module(registry):
+    modules.register(modules.Module(name="picsy", label="Picsy", help="h", group="Fun", cogs=("vectiq_json.picsy",)))
+    assert modules.owner_of("vectiq_json.picsy") == modules.owner_of("vectiq_json.picsy.cog") == "picsy"
+    assert modules.owner_of("vectiq_json.picsyx.cog") == "cog"
