@@ -55,6 +55,15 @@ class Marketplace:
     def url(self, file: str) -> str:
         return f"{RAW}/{self.repo}/{self.branch}/modules/{file}"
 
+    @staticmethod
+    def clean_media(e: dict) -> dict:
+        """Keep only pictures that live in the marketplace itself (``media/...``); the dashboard loads them from it."""
+        icon = e.get("icon", "")
+        images = [i for i in e.get("images", []) if isinstance(i, dict) and fmt.media_path(i.get("src"))] \
+            if isinstance(e.get("images"), list) else []
+        return {**e, "icon": icon if fmt.media_path(icon) or fmt.emoji_icon(icon) else "",
+                "images": [{"src": i["src"], "caption": str(i.get("caption", ""))[:160]} for i in images[:fmt.MAX_IMAGES]]}
+
     async def catalog(self, *, fresh: bool = False) -> dict:
         if self._cached and not fresh and time.monotonic() - self._cached[0] < CACHE_SECONDS:
             return self._cached[1]
@@ -72,8 +81,8 @@ class Marketplace:
         for e in cat["modules"]:
             if isinstance(e, dict) and fmt.ID_RE.match(str(e.get("id", ""))) and FILE_RE.match(str(e.get("file", ""))) \
                     and re.fullmatch(r"[0-9a-f]{64}", str(e.get("sha256", ""))):
-                entries.append(e)
-        cat = {**cat, "modules": entries}
+                entries.append(self.clean_media(e))
+        cat = {**cat, "modules": entries, "media": self.url("")}
         self._cached = (time.monotonic(), cat)
         return cat
 

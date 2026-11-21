@@ -10,7 +10,7 @@ from typing import Any
 from .. import modules
 from . import fmt
 from .library import Library, LibraryError, entry_for, is_json, reserved
-from .market import MarketError, Marketplace
+from .market import RAW, MarketError, Marketplace, valid_source
 from .runtime import STATE
 
 log = logging.getLogger("vectiq.jsonmods")
@@ -79,8 +79,15 @@ class JsonModules:
                 "problem": "" if data else lib.problem(mid),
                 "skipped": STATE.get(mid, {}).get("skipped", []),
                 "commands": [c["name"] for c in data.get("commands", [])] if data else [],
-                "settings": bool(data and data.get("settings"))})
+                "settings": bool(data and data.get("settings")),
+                "icon": data.get("icon", "") if data else "", "media": self.media_for(src.get("source", ""))})
         return out
+
+    def media_for(self, source: str) -> str:
+        """Where an installed module's pictures are: the modules/ folder of the marketplace it came from."""
+        repo = source.split(" ", 1)[1] if source.startswith("marketplace ") else ""
+        branch = (self.cfg.get("marketplace.branch") or "main") if repo == self.cfg.get("marketplace.repo") else "main"
+        return f"{RAW}/{repo}/{branch}/modules/" if repo and valid_source(repo, branch) else ""
 
     def exportable(self) -> list[dict]:
         """Modules that can be saved as a JSON file: installed JSON modules and plugins from a folder."""
@@ -91,12 +98,13 @@ class JsonModules:
     async def browse(self, *, fresh: bool = False) -> dict:
         mine = {x["id"]: x for x in self.installed()}
         out: dict[str, Any] = {"repo": self.cfg.get("marketplace.repo"), "branch": self.cfg.get("marketplace.branch"),
-                               "allow_code": self.allow_code, "modules": [], "groups": [], "error": ""}
+                               "allow_code": self.allow_code, "modules": [], "groups": [], "error": "", "media": ""}
         try:
             cat = await self.marketplace().catalog(fresh=fresh)
         except MarketError as exc:
             out["error"] = str(exc)
             return out
+        out["media"] = cat.get("media", "")
         for e in cat["modules"]:
             have = mine.get(e["id"])
             other = modules.get(e["id"])
