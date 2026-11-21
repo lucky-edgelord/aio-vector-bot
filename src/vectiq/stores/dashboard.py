@@ -210,6 +210,18 @@ class DashboardStore:
         return await self.db.all("SELECT * FROM dash_audit WHERE guild_id IN (?, '') ORDER BY id DESC LIMIT ?",
                                  (guild_id, limit))
 
+    # -- dashboard access by role --------------------------------------------------------
+
+    async def access_rules(self) -> dict[str, dict]:
+        rows = await self.db.all("SELECT guild_id, rules FROM dash_access")
+        return {r["guild_id"]: json.loads(r["rules"]) for r in rows}
+
+    async def set_access_rules(self, guild_id: str, rules: dict, npub: str) -> None:
+        await self.db.execute(
+            "INSERT INTO dash_access (guild_id,rules,updated_by,updated_at) VALUES (?,?,?,?)"
+            " ON CONFLICT(guild_id) DO UPDATE SET rules=excluded.rules, updated_by=excluded.updated_by,"
+            " updated_at=excluded.updated_at", (guild_id, json.dumps(rules), npub, int(time.time())))
+
     # -- settings overrides -----------------------------------------------------------
 
     async def overrides(self) -> dict[str, Any]:

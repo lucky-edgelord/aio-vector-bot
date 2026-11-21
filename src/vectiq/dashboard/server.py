@@ -27,7 +27,7 @@ from ..stores.dashboard import PasswordError
 from ..utils.durations import DurationError, format_duration, parse_duration
 from ..utils.embeds import avatar_bytes, embed, name_of
 from . import schema
-from .access import Access, clean_npub
+from .access import AREAS, LEVELS, PRESETS, Access, area_of, clean_levels, clean_npub
 
 log = logging.getLogger("vectiq.dashboard")
 STATIC = Path(__file__).resolve().parent / "static"
@@ -181,7 +181,52 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         response.set_cookie(COOKIE, token, max_age=days * 86400, httponly=True, samesite="strict",
                             secure=secure_cookie(), path="/")
 
+    loaded = {"rules": False}
+
+    async def ensure_rules() -> None:
+        if not loaded["rules"]:
+            await access.load(store)
+            loaded["rules"] = True
+
+    area_label = {a: label for a, label, _ in AREAS}
+
+    @app.middleware("http")
+    async def area_guard(request: Request, call_next):
+        """What a role may see or change in a community (Dashboard access). Sign-in itself is checked by the routes."""
+        if request.url.path.startswith("/api/"):
+            await ensure_rules()                  # sign-in needs them too, before any session exists
+        parts = request.url.path.split("/")
+        gid, rest, area_hint = None, [], None
+        if request.url.path.startswith("/api/c/") and len(parts) > 3:
+            gid, rest = parts[3], [p for p in parts[4:] if p]
+        elif request.url.path.startswith("/api/panel/"):
+            gid, area_hint = request.query_params.get("gid") or None, "modules"
+            if request.method == "POST" and gid is None:
+                try:
+                    gid = str((await request.json()).get("gid") or "") or None
+                except Exception:  # noqa: BLE001 - the route reports a bad body
+                    gid = None
+        token = request.cookies.get(COOKIE, "")
+        if gid and token:
+            session = await store.session(token)
+            g = bot.get_guild(gid) if session else None
+            if g is not None and bot.serves(g):
+                await ensure_rules()
+                if access.levels(g, session.npub):
+                    area, write = (area_hint, request.method != "GET") if area_hint else area_of(request.method, rest)
+                    if not access.allows(g, session.npub, area, write):
+                        label = area_label.get(area or "", "")
+                        if area is None:
+                            msg = "Only people with full access to this community's dashboard can do that."
+                        elif write and access.levels(g, session.npub).get(area) == "view":
+                            msg = f"You can look at {label} but not change it."
+                        else:
+                            msg = f"You don't have access to {label} in this community."
+                        return JSONResponse({"detail": msg}, status_code=403)
+        return await call_next(request)
+
     async def current(request: Request) -> str:
+        await ensure_rules()
         session = await store.session(request.cookies.get(COOKIE, ""))
         if session is None:
             fail(401, "Please sign in.")
@@ -455,7 +500,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
             "modules": {k: bool(v) for k, v in cfg["modules"].items()},
             "panels": [p for p in panels() if access.is_owner(npub) or not p["owner_only"]],
             "communities": [{"id": str(g.id), "name": g.name, "members": len(g.members),
-                             }
+                             "access": access.levels(g, npub), "configure": access.can_configure(g, npub)}
                             for g in access.manageable(npub)],
         }
 
@@ -481,6 +526,8 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         if spec["owner_only"] and not access.is_owner(npub):
             fail(403, "Only bot owners can open this page.")
         guild = community(gid, npub) if gid else None
+        if guild is not None and not access.allows(guild, npub, "modules", False):
+            fail(403, "You don't have access to module pages in this community.")
         if spec["scope"] == "community" and guild is None:
             fail(400, "Pick a community first.")
         c = next(c for c in bot.cogs.values() if modules.owner_of(type(c).__module__) == name
@@ -1249,6 +1296,49 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         return {"ok": True, "message": f"Sent to #{ch.name}."}
 
     # -- audit log -----------------------------------------------------------------------------------
+
+    # -- dashboard access by role (the community's owner and bot owners) -------------------------------
+
+    def configurable(gid: str, npub: str):
+        g = community(gid, npub)
+        if not access.can_configure(g, npub):
+            fail(403, "Only the community's owner and bot owners can change who has access.")
+        return g
+
+    @app.get("/api/c/{gid}/access")
+    async def access_get(gid: str, npub: str = Depends(current)):
+        g = configurable(gid, npub)
+        rules = access.rules.get(str(g.id)) or access.clean_rules({})
+        roles = [{"id": str(r.id), "name": r.name, "color": f"#{int(getattr(r, 'colour', 0) or 0):06x}"
+                  if getattr(r, "colour", 0) else None}
+                 for r in getattr(g, "roles", []) if not (getattr(r, "is_default", lambda: False)())]
+        names = {r["id"]: r["name"] for r in roles}
+        return {"areas": [{"id": a, "label": label, "help": help_} for a, label, help_ in AREAS],
+                "presets": PRESETS, "levels": list(LEVELS), "admins": rules["admins"],
+                "rules": [r | {"name": names.get(r["role_id"], r["name"]), "missing": r["role_id"] not in names}
+                          for r in rules["roles"]], "roles": roles, "owner": who(g, str(g.owner_id))}
+
+    @app.put("/api/c/{gid}/access")
+    async def access_put(gid: str, request: Request, npub: str = Depends(current)):
+        g = configurable(gid, npub)
+        data = await body(request)
+        known = {str(r.id): r.name for r in getattr(g, "roles", [])}
+        roles, seen = [], set()
+        for r in data.get("rules", []) if isinstance(data.get("rules"), list) else []:
+            rid = str((r or {}).get("role_id", ""))
+            if rid not in known:
+                fail(400, "One of those roles isn't in this community any more. Reload the page.")
+            if rid in seen:
+                fail(400, f"{known[rid]} is listed twice.")
+            seen.add(rid)
+            roles.append({"role_id": rid, "name": known[rid], "areas": clean_levels(r.get("areas"))})
+        rules = {"admins": clean_levels(data.get("admins", "full")), "roles": roles}
+        await store.set_access_rules(str(g.id), rules, npub)
+        access.rules[str(g.id)] = access.clean_rules(rules)
+        await audit(npub, "changed dashboard access",
+                    f"admins: {len(rules['admins'])} areas; " + ", ".join(f"{r['name']}: {len(r['areas'])} areas"
+                                                                        for r in roles)[:400], g)
+        return {"ok": True, "message": "Saved. It applies straight away, even to people already signed in."}
 
     @app.get("/api/c/{gid}/audit")
     async def audit_log(gid: str, npub: str = Depends(current)):

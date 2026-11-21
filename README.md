@@ -174,7 +174,7 @@ New member → welcome → verification → a role menu built from the YAML (the
 
 ## Web dashboard
 
-A FastAPI dashboard runs inside the bot. Turn it on with `modules.dashboard: true`, restart, and open `http://localhost:8090`.
+A FastAPI dashboard runs inside the bot. Turn it on with `modules.dashboard: true`, restart, and open `http://localhost:8090`. A community's owner chooses which Vector roles can use it and what they can see or change (**Dashboard access**: Everything, Moderator, Helper, Look only, or area by area).
 
 <p align="center">
   <img src="docs/images/dashboard-login.png" alt="Sign-in page with username and password, and an option to get a code from Vector instead" width="49%">
