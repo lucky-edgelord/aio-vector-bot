@@ -164,9 +164,23 @@ class JsonModules:
         self.library.remove(mid)
         if is_json(m):
             modules.forget(mid)
+            await self._drop_switch(mid)
         STATE.pop(mid, None)
         log.info("removed %s by %s", mid, by)
         return f"Removed {m.label if m else mid}. Its settings are kept in case you add it again."
+
+    async def _drop_switch(self, mid: str) -> None:
+        """Forget the module's on/off switch everywhere, or the config would name a module that no longer exists.
+        Its own settings stay, so adding it again brings them back."""
+        cfg, path = self.cfg, f"modules.{mid}"
+        for tree in (cfg.file_data, cfg.data):
+            if isinstance(tree.get("modules"), dict):
+                tree["modules"].pop(mid, None)
+        overrides = {k: v for k, v in cfg.overrides.items() if k != path}
+        cfg.apply_overrides(overrides)
+        stores = getattr(self.bot, "stores", None)
+        if stores is not None:
+            await stores.dashboard.clear_override(path)
 
     # -- exporting --------------------------------------------------------------------------------------
 

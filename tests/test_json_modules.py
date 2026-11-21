@@ -177,6 +177,23 @@ async def test_autoresponders_answer_once_and_ignore_bots_and_commands():
         assert not c.out.sent
 
 
+async def test_changing_a_timer_time_counts_from_the_new_time():
+    """Seen live: the time was changed on the dashboard after the module loaded with a time already past."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if now.hour < 3 or now.hour == 23:
+        pytest.skip("needs room before and after now on the same day")
+    settings = {"time": (now - datetime.timedelta(hours=2)).strftime("%H:%M")}
+    bot = fake_bot()
+    bot.config.get = lambda k, d=None: {"daily": settings}.get(k, d)
+    m = fmt.validate({"name": "Daily", "id": "daily", "settings": [{"key": "time", "label": "Time", "default": "09:00"}],
+                      "timers": [{"channel": "x", "at": "{settings.time}", "reply": "hi"}]}, reserved=RESERVED).module
+    cog = build(bot, m, "vectiq_json.daily")
+    assert cog.due(0, m["timers"][0]) is False                  # loaded after today's time: waits for tomorrow
+    settings["time"] = now.strftime("%H:%M")                     # changed to right now on the dashboard
+    assert cog.due(0, m["timers"][0]) is True and cog.due(0, m["timers"][0]) is False
+    cog.clock.cancel()
+
+
 async def test_clashing_commands_are_skipped_and_reported():
     bot = fake_bot()
     bot.get_command = lambda n: object() if n == "rules" else None
@@ -255,6 +272,22 @@ async def test_update_reloads_and_removal_takes_everything_away(bot_env):
     assert e.bot.get_command("rules") is not None
     await e.jm.remove("faq", by="o")
     assert modules.get("faq") is None and e.bot.get_command("rules") is None and not e.lib.file("faq").exists()
+
+
+async def test_removing_a_module_that_was_switched_on_leaves_the_config_valid(bot_env):
+    e = bot_env
+    await e.jm.install_text(json.dumps(faq()), source="x", on=False, by="o")
+    await e.jm.install_text(json.dumps(faq(id="other", name="Other", commands=[{"name": "other", "help": "x", "reply": "y"}],
+                                           autoresponders=None)), source="x", on=False, by="o")
+    await e.bot.set_module("faq", True, "o")                  # saved as a dashboard override
+    await e.bot.set_module("other", True, "o")
+    assert "modules.faq" in e.cfg.overrides
+    await e.jm.remove("faq", by="o")
+    assert "modules.faq" not in e.cfg.overrides and "faq" not in e.cfg.data["modules"]
+    assert "modules.faq" not in await e.bot.stores.dashboard.overrides()
+    await e.bot.set_module("other", False, "o")                # the rest of the config still works
+    await e.jm.remove("other", by="o")
+    e.cfg.validate()
 
 
 async def test_installed_modules_come_back_after_a_restart(bot_env, tmp_path, registry):

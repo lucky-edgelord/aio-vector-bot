@@ -62,7 +62,7 @@ class DataModule(commands.Cog):
         self.mid = self.module["id"]
         self._cool: dict[tuple, float] = {}
         self._next: dict[int, float] = {}
-        self._done_day: dict[int, str] = {}
+        self._done_day: dict[int, tuple[str, tuple]] = {}
         self._turn: dict[int, int] = {}
         if self.module.get("timers"):
             self.clock.start()
@@ -206,11 +206,13 @@ class DataModule(commands.Cog):
         local = datetime.datetime.now(zone)
         today = local.date().isoformat()
         late = local.hour * 60 + local.minute - (int(m[1]) * 60 + int(m[2]))
-        if i not in self._done_day:
-            # The first look after loading: a time that passed more than two minutes ago waits for tomorrow.
-            self._done_day[i] = today if late > 2 else ""
-        if late >= 0 and self._done_day[i] != today:
-            self._done_day[i] = today
+        when = (at, str(zone))
+        if self._done_day.get(i, ("", None))[1] != when:
+            # First look since loading, or the time was just changed: a time that passed more than two minutes ago
+            # waits for tomorrow instead of posting late.
+            self._done_day[i] = (today if late > 2 else "", when)
+        if late >= 0 and self._done_day[i][0] != today:
+            self._done_day[i] = (today, when)
             return True
         return False
 
