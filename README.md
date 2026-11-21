@@ -13,6 +13,8 @@ Moderation, automod by **[Sentire](https://github.com/VectorPrivacy/Sentire)** (
 
 **Everything is a module, and modules are pluggable.** Switch any feature on or off while the bot runs (`!module on music`, the dashboard or the wizard); only what's on is loaded. Add your own, or replace a built-in one (an AI automod instead of Sentire, say), by dropping a plugin into `modules/` or `pip install`ing it; swap and reload them live. See [Modules](https://lucky-edgelord.github.io/aio-vector-bot/modules.html) and [Writing modules](https://lucky-edgelord.github.io/aio-vector-bot/writing-modules.html); [`examples/vectiq-ai-automod`](examples/vectiq-ai-automod) is a complete plugin.
 
+**A module can be one JSON file.** Commands, autoresponders and timers (and optionally Python) in a single `.module.json`: write one or ask an AI to, add it on the dashboard's **Marketplace** page, export yours to share, or get one from the [marketplace](https://lucky-edgelord.github.io/aio-marketplace/) with `!module get <id>`. Modules without code can only talk, react and post; modules with code stay off until you allow them. See [JSON modules](https://lucky-edgelord.github.io/aio-vector-bot/json-modules.html) and [Marketplace](https://lucky-edgelord.github.io/aio-vector-bot/marketplace.html). The idea comes from how [Lilith Learning Lab](https://github.com/lucky-edgelord/Lilith-Learning-Lab) shares courses.
+
 ![The web dashboard's overview page: member, message and moderation stats, a 30-day activity chart and the busiest channels](docs/images/dashboard-overview.png)
 
 <p align="center">

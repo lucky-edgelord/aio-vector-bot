@@ -32,7 +32,7 @@ Modules don't have to come with Vectiq. Drop a plugin into the `modules/` folder
 | `vectiq --install-module <package>` | installs a plugin |
 | `vectiq --new-module <name>` | starts a plugin of your own |
 
-See [Writing modules](writing-modules.md) for how to make one.
+See [Writing modules](writing-modules.md) for how to make one in Python. A module can also be a single JSON file, with commands, autoresponders and timers and no code: see [JSON modules](json-modules.md), and get them from the [Marketplace](marketplace.md).
 
 ## The modules
 

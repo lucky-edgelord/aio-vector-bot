@@ -91,7 +91,8 @@ class Core(commands.Cog, name="Core"):
     async def module(self, ctx):
         """Switch, swap, reload and install modules."""
         await ctx.send("`module on <name>` · `module off <name>` · `module info <name>` · `module reload <name>` · "
-                       "`module scan` · `module install <package>` · `module uninstall <name>`")
+                       "`module scan` · `module market [word]` · `module get <id>` · `module remove <id>` · "
+                       "`module install <package>` · `module uninstall <name>`")
 
     @module.command(name="on")
     async def module_on(self, ctx, name: str):
@@ -182,6 +183,52 @@ class Core(commands.Cog, name="Core"):
         except InstallError as exc:
             return await ctx.send(f"❌ {exc}")
         await ctx.send(f"🗑️ {m.label} uninstalled.")
+
+    @module.command(name="market")
+    async def module_market(self, ctx, *, search: str = ""):
+        """List modules in the marketplace (marketplace.repo), optionally matching a word."""
+        from ..jsonmods.manager import JsonModules
+
+        d = await JsonModules(self.bot).browse()
+        if d["error"]:
+            return await ctx.send(f"❌ {d['error']}")
+        word = search.lower().strip()
+        found = [e for e in d["modules"] if not word or word in " ".join(
+            [e["id"], str(e.get("name", "")), str(e.get("summary", "")), *map(str, e.get("tags", []))]).lower()]
+        if not found:
+            return await ctx.send("No module matches." if word else "The marketplace is empty.")
+        lines = []
+        for e in found[:15]:
+            state = " (installed)" if e["installed_release"] and not e["update"] else " (update)" if e["update"] else ""
+            code = " · runs code" if e.get("kind") == "code" else ""
+            lines.append(f"`{e['id']}` **{e.get('name', e['id'])}**{state}{code}: {e.get('summary', '')}")
+        more = f"\n…and {len(found) - 15} more on the dashboard." if len(found) > 15 else ""
+        await ctx.send(embed=embed(f"Marketplace: {d['repo']}", "\n".join(lines) + more
+                                   + "\n\nOwners: `module get <id>` adds one and switches it on."))
+
+    @module.command(name="get")
+    async def module_get(self, ctx, mid: str):
+        """Add (or update) a module from the marketplace. Modules with code need marketplace.allow_code."""
+        from ..jsonmods.library import LibraryError
+        from ..jsonmods.manager import JsonModules
+        from ..jsonmods.market import MarketError
+
+        try:
+            done = await JsonModules(self.bot).install_from_market(mid.lower(), by=str(ctx.author.id))
+        except (LibraryError, MarketError) as exc:
+            return await ctx.send(f"❌ {exc}")
+        await ctx.send(f"✅ {done['message']}")
+
+    @module.command(name="remove")
+    async def module_remove(self, ctx, mid: str):
+        """Remove a module that was added from the marketplace or a JSON file."""
+        from ..jsonmods.library import LibraryError
+        from ..jsonmods.manager import JsonModules
+
+        try:
+            await ctx.send(f"🗑️ {await JsonModules(self.bot).remove(mid.lower(), by=str(ctx.author.id))}")
+        except LibraryError as exc:
+            await ctx.send(f"❌ {exc}")
 
     async def _switch(self, ctx, name: str, on: bool):
         m = modules.get(name.lower())

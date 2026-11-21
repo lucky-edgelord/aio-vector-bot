@@ -338,3 +338,15 @@ textarea.input { height: auto; min-height: 90px; padding: 10px 14px; resize: ver
 .tri-b.on.inherit { background: rgba(255, 255, 255, .06); color: var(--text, #eee); }
 .tri-b:focus-visible { outline: 2px solid var(--accent, #59fcb3); outline-offset: -2px; }
 .input.swatch { width: 64px; height: 36px; padding: 2px; }
+
+/* marketplace */
+.mk-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); }
+.mk-grid > .empty { grid-column: 1 / -1; }
+.mk { display: flex; flex-direction: column; margin: 0; }
+.chip { height: 30px; padding: 0 12px; border-radius: var(--pill); border: 1px solid var(--line); background: transparent; color: var(--dim); }
+.chip.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-dk); }
+.chip-code { display: inline-block; padding: 1px 8px; border-radius: 7px; background: var(--raise); font-size: 13px; }
+.note { padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid var(--line); font-size: 14px; }
+.note.warn { border-color: #5a4518; background: var(--warn-bg); }
+ul.bad { color: var(--danger); margin: 0; padding-left: 18px; }
+p.bad, div.bad { color: var(--danger); }

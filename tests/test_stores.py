@@ -182,3 +182,17 @@ async def test_game_stats_and_activity(stores):
     await stores.activity.bump("g", "c1", messages=2, joins=1, day="2026-01-01")
     day = (await stores.activity.daily("g"))[0]
     assert (day["m"], day["j"]) == (5, 1)
+
+
+async def test_closing_waits_for_a_running_query():
+    """Closing while a query runs in a worker thread used to crash sqlite3 (seen as a rare segfault in the tests)."""
+    import asyncio
+
+    from vectiq.db import Database
+
+    db = await Database(":memory:").connect()
+    slow = asyncio.ensure_future(db.one(
+        "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 2000000) SELECT count(*) FROM n"))
+    await asyncio.sleep(0.01)
+    await db.close()
+    assert (await slow)[0] == 2000000

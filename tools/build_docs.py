@@ -223,6 +223,8 @@ def build_page(pages: list[Page], page: Page) -> str:
 FEATURES = [
     ("modules", "Modules", "Every feature is a module. Switch any of them on or off while the bot runs; only what's on is loaded."),
     ("writing-modules", "Writing modules", "Add your own feature, or replace a built-in one, as a plugin from a folder or pip."),
+    ("json-modules", "JSON modules", "A whole module in one JSON file: write one (or ask an AI to), import, export and share it."),
+    ("marketplace", "Marketplace", "Browse modules on GitHub and add them from the dashboard, from chat or from a file."),
     ("moderation", "Moderation", "Warnings that escalate, timeouts, bans that lift themselves, softbans, purge, lock, a mod log."),
     ("sentire", "Sentire (automod)", "Automod by Sentire: run your own copy, set up from Vectiq, or invite the official Sentire-001."),
     ("link-safety", "Link safety", "Links checked against oisd.nl blocklists (and optionally Google Safe Browsing)."),

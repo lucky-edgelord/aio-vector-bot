@@ -1396,6 +1396,10 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
                 "message": "Saved." + module_note(was_on)
                 + (f" Restart the bot to apply: {', '.join(restart)}." if restart else "")}
 
+    from .library_routes import mount as mount_library
+
+    mount_library(app, bot=bot, owner=owner, body=body, audit=audit)
+
     @app.delete("/api/settings/{path}")
     async def settings_reset(path: str, npub: str = Depends(owner)):
         if path not in cfg.overrides:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -26,7 +27,7 @@ DETECTORS = ("off", "nudenet", "nsfw-detector", "sightengine", "http")
 
 
 def _merge(base: dict, over: Mapping) -> dict:
-    out = dict(base)
+    out = copy.deepcopy(dict(base))        # never share nested dicts with DEFAULTS: changing one config must not change others
     for key, value in (over or {}).items():
         if isinstance(value, Mapping) and isinstance(out.get(key), dict):
             out[key] = _merge(out[key], value)
@@ -87,6 +88,7 @@ DEFAULTS: dict[str, Any] = {
                             "base_url": "http://localhost:8080", "admin_key_env": "WEBHOOKS_ADMIN_KEY"},
                  "hooks": []},
     "plugins": {"dirs": ["modules"], "allow_install": False},
+    "marketplace": {"repo": "lucky-edgelord/aio-marketplace", "branch": "main", "allow_code": False},
     "mcp": {"host": "127.0.0.1", "port": 8770, "path": "/mcp", "token_env": "VECTIQ_MCP_TOKEN", "read_only": False},
     "sentire": _sentire_defaults(),
     "sentire_official": {"role": "Sentire", "delete": True, "kick": False, "ban": False},
@@ -233,6 +235,9 @@ class Config:
                 raise ConfigError(f"{path}: the top level must be a mapping")
         raw = upgrade_legacy(raw)
         _modules.discover(plugin_dirs(raw, path.resolve(), env.get("VECTIQ_DATA_DIR", "data")), force=True)
+        from .jsonmods.library import discover as discover_json
+
+        discover_json(env.get("VECTIQ_DATA_DIR", "data"))
         data = _merge(defaults(), raw)
         if env.get("VECTIQ_DASHBOARD_HOST"):          # lets a container listen on 0.0.0.0 without editing config.yaml
             data["dashboard"] = {**data["dashboard"], "host": env["VECTIQ_DASHBOARD_HOST"]}
@@ -277,6 +282,10 @@ class Config:
         d = self.data
         if not str(d["prefix"]):
             raise ConfigError("prefix must not be empty")
+        from .jsonmods.market import valid_source
+
+        if not valid_source(str(d["marketplace"]["repo"]), str(d["marketplace"]["branch"])):
+            raise ConfigError("marketplace.repo should look like owner/name, and marketplace.branch like main")
         for name in d["modules"]:
             if name not in MODULES:
                 hint = " Is the plugin installed? `vectiq --modules` lists what was found." if name else ""

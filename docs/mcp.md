@@ -46,6 +46,9 @@ Then `!module on mcp`, or Settings → Modules. The server listens on `http://12
 | Members | `moderate` (warn, timeout, kick, ban, unban; recorded as a case) |
 | Messages | `send_message` |
 | Vectiq | `set_module`, `change_setting` |
+| [JSON modules](json-modules.md) | `module_format_guide`, `check_module_json`, `browse_marketplace`, `export_module_json`, `add_module_json`, `add_module_from_marketplace`, `remove_json_module` |
+
+An assistant can write a new feature for your community as a JSON module: it reads `module_format_guide`, checks its work with `check_module_json`, then adds it. Modules with code still need *Allow modules with code*.
 
 Community tools take the community's name, or nothing if the bot serves just one. Channels, roles and members can be named instead of using ids. The tools are the same actions the dashboard's **Channels & roles** page uses, so they behave the same way.
 

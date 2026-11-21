@@ -5,9 +5,57 @@ import asyncio
 import logging
 import os
 import sys
+from pathlib import Path
+from types import SimpleNamespace
 
 from .app import build
 from .config import Config, ConfigError, load_dotenv
+
+
+def json_module_cli(args) -> int:
+    """--check-module, --import-module and --export-module: JSON modules without the dashboard."""
+    from .jsonmods import fmt
+    from .jsonmods.library import Library, reserved
+    from .jsonmods.manager import JsonModules
+
+    load_dotenv(os.environ.get("VECTIQ_ENV", ".env"))
+    try:
+        config = Config.load(args.config) if args.import_module or args.export_module else None
+        if args.export_module:
+            jm = JsonModules(SimpleNamespace(config=config, extensions={}))
+            text = fmt.dumps(jm.export(args.export_module, with_settings=args.with_settings))
+            if args.out:
+                Path(args.out).write_text(text, "utf-8")
+                print(f"wrote {args.out}")
+            else:
+                print(text, end="")
+            return 0
+        path = args.check_module or args.import_module
+        result = fmt.validate(Path(path).read_bytes(), reserved=reserved())
+        for w in result.warnings:
+            print(f"note: {w}")
+        if not result.ok:
+            for e in result.errors:
+                print(f"❌ {e}", file=sys.stderr)
+            return 2
+        s = fmt.summary(result.module)
+        print(f"{s['name']} ({s['id']} {s['release']}): {s['summary']}")
+        facts = (("commands", ", ".join("!" + c for c in s["commands"])), ("autoresponders", s["autoresponders"]),
+                 ("timers", s["timers"]), ("settings", ", ".join(s["settings"])), ("runs Python", " ".join(s["files"])))
+        for label, value in facts:
+            if value:
+                print(f"  {label}: {value}")
+        if args.check_module:
+            return 0
+        if s["kind"] == "code" and not (args.allow_code or config.get("marketplace.allow_code")):
+            print("❌ this module runs Python on this computer. Read it, then add --allow-code if you trust it.", file=sys.stderr)
+            return 2
+        where = Library(config.data_dir).save(result.module, source=f"file {Path(path).name}")
+        print(f"added as {where}. It's off: `!module on {s['id']}` (or the dashboard) switches it on.")
+        return 0
+    except (OSError, ConfigError, RuntimeError) as exc:
+        print(f"❌ {exc}", file=sys.stderr)
+        return 2
 
 
 def main(argv=None) -> int:
@@ -33,6 +81,13 @@ def main(argv=None) -> int:
     pl.add_argument("--install-module", metavar="PACKAGE", help="pip install a plugin package (name, name==1.2, git+https://...)")
     pl.add_argument("--uninstall-module", metavar="NAME", help="uninstall the package a plugin module came from")
     pl.add_argument("--new-module", metavar="NAME", help="create a starter plugin in modules/NAME to edit")
+    pl.add_argument("--check-module", metavar="FILE", help="check a JSON module file and say what it does")
+    pl.add_argument("--import-module", metavar="FILE", help="add a JSON module file (it starts switched off)")
+    pl.add_argument("--export-module", metavar="NAME", help="write a JSON module or folder plugin as a JSON module file")
+    pl.add_argument("--with-settings", action="store_true",
+                     help="with --export-module: use your current settings as its defaults")
+    pl.add_argument("--allow-code", action="store_true", help="with --import-module: allow a module that runs Python")
+    pl.add_argument("--out", metavar="FILE", help="with --export-module: where to write it (default: print it)")
     pl.add_argument("--mcp", action="store_true",
                     help="speak MCP over stdio for Claude Desktop and similar apps (the bot must be running)")
     pl.add_argument("--install-sentire", action="store_true",
@@ -96,6 +151,8 @@ def main(argv=None) -> int:
         print(f"Sentire is ready: {path}\nSwitch it on with `!module on sentire` (or in the dashboard), then "
               "`!sentire invite` in each community. If the bot is running with it on: `!sentire restart`.")
         return 0
+    if args.check_module or args.import_module or args.export_module:
+        return json_module_cli(args)
     if args.install_module or args.uninstall_module:
         from .plugin_install import InstallError, install, uninstall
 

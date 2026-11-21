@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import threading
 from collections.abc import AsyncIterator, Iterable, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,6 +22,9 @@ class Database:
         self.path = str(path)
         self._conn: sqlite3.Connection | None = None
         self._lock = asyncio.Lock()
+        # Held by the worker thread while it uses the connection. The asyncio lock alone isn't enough: a task that is
+        # cancelled while its query runs releases it, and closing the connection under a running query crashes sqlite3.
+        self._busy = threading.Lock()
 
     async def connect(self) -> Database:
         if self.path != ":memory:":
@@ -33,26 +37,33 @@ class Database:
         return self
 
     async def close(self) -> None:
-        if self._conn is not None:
-            await asyncio.to_thread(self._conn.close)
-            self._conn = None
+        def shut():
+            with self._busy:                       # waits for a query still running in a worker thread
+                conn, self._conn = self._conn, None
+                if conn is not None:
+                    conn.close()
+
+        async with self._lock:
+            await asyncio.to_thread(shut)
 
     # -- migrations -------------------------------------------------------------------
 
     async def migrate(self) -> int:
         """Apply any migration newer than ``PRAGMA user_version``; return the final version."""
-        assert self._conn is not None
-        current = self._conn.execute("PRAGMA user_version").fetchone()[0]
-        for version, script in enumerate(MIGRATIONS, start=1):
-            if version <= current:
-                continue
-            self._conn.executescript(f"BEGIN;\n{script}\nPRAGMA user_version = {version};\nCOMMIT;")
+        with self._busy:
+            assert self._conn is not None
+            current = self._conn.execute("PRAGMA user_version").fetchone()[0]
+            for version, script in enumerate(MIGRATIONS, start=1):
+                if version <= current:
+                    continue
+                self._conn.executescript(f"BEGIN;\n{script}\nPRAGMA user_version = {version};\nCOMMIT;")
         return len(MIGRATIONS)
 
     @property
     def version(self) -> int:
-        assert self._conn is not None
-        return self._conn.execute("PRAGMA user_version").fetchone()[0]
+        with self._busy:
+            assert self._conn is not None
+            return self._conn.execute("PRAGMA user_version").fetchone()[0]
 
     # -- restore points -------------------------------------------------------------
 
@@ -97,8 +108,9 @@ class Database:
     # -- queries ----------------------------------------------------------------------
 
     def _run(self, fn):
-        assert self._conn is not None, "Database.connect() was not awaited"
-        return fn(self._conn)
+        with self._busy:
+            assert self._conn is not None, "Database.connect() was not awaited"
+            return fn(self._conn)
 
     async def execute(self, sql: str, params: Sequence[Any] = ()) -> int:
         """Run one statement; return the number of rows it changed."""

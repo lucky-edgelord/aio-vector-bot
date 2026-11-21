@@ -1,6 +1,17 @@
 # Changelog
 
 ## Unreleased
+- JSON modules: a whole module in one `.module.json` file (commands, autoresponders, timers, settings, and
+  optional Python). A forgiving checker (broken parts are skipped with a note), a template and a prompt for asking an
+  AI to write one. Added modules live in `data/json-modules/`, appear with every other module, switch on and off live,
+  and have their settings on the dashboard. Code is only accepted with `marketplace.allow_code` and starts off.
+- Marketplace: a new dashboard page to browse a GitHub marketplace (default lucky-edgelord/aio-marketplace), add,
+  update, export and remove modules, and add a module from a file or pasted JSON, checked as you type. Files are read
+  from raw.githubusercontent.com only and checked against the catalog's SHA-256. Chat: `!module market|get|remove`.
+  CLI: `vectiq --check-module|--import-module|--export-module`. MCP: tools to write, check, add and remove modules.
+- Folder plugins can be exported as JSON modules with their code.
+- Fixed: configs no longer share nested default settings, so changing one can't change another.
+- Fixed: a test that could hang for 90 seconds while the bot shut down.
 - Channels & roles in the dashboard: create, edit, move and delete channels (text, voice, forum) and categories;
   per-channel and per-category permissions (allow / inherit / deny) for @everyone, roles and members; create,
   edit, reorder and delete roles; what @everyone may do.

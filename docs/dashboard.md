@@ -102,6 +102,10 @@ The **Channels & roles** page lets you shape a community without leaving the das
 
 Giving members roles is on the **Members** page. The same actions are available to AI assistants through the [MCP server](mcp.md). Everything is written to the audit log.
 
+## Marketplace
+
+The **Marketplace** page (owners) adds, updates and removes [JSON modules](json-modules.md): browse a [marketplace](marketplace.md) on GitHub, add a file or paste JSON (checked as you type), and export modules to share.
+
 ## Module pages
 
 Modules can add their own pages under **Modules** in the menu: [Sentire](sentire.md), [MCP](mcp.md), and any plugin that describes one (see [Writing modules](writing-modules.md#a-page-on-the-dashboard)).

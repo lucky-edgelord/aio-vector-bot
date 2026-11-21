@@ -63,3 +63,4 @@ async def make_bot(db):
                 await bot.unload_extension(ext)
             except Exception:  # noqa: BLE001
                 pass
+

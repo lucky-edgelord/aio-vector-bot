@@ -28,7 +28,9 @@ INSTRUCTIONS = """Vectiq manages Vector communities (an encrypted, Nostr-based m
 Start with list_communities. Every community tool takes `community` (its name or id; it can be left empty when the
 bot serves just one). Channels, categories, roles and members can be named instead of using ids.
 Permissions use these names: """ + ", ".join(p["name"] for p in PERMISSIONS) + """.
-Changes take effect in the real community straight away: confirm destructive ones (delete, ban) with the person."""
+Changes take effect in the real community straight away: confirm destructive ones (delete, ban) with the person.
+New features can be added as JSON modules: read module_format_guide, write one, check it with check_module_json, then
+add_module_json. browse_marketplace and add_module_from_marketplace use the configured marketplace."""
 
 Community = Annotated[str, Field(description="Community name or id; empty if the bot serves only one")]
 
@@ -291,6 +293,72 @@ def build(bot, *, token: str | None, read_only: bool = False) -> FastMCP:
         await done(None, "changed setting", path, _noop())
         await bot.apply_settings()
         return {"path": path, "value": bot.config.get(path)}
+
+    # -- JSON modules ----------------------------------------------------------------------------
+
+    from .jsonmods import fmt as module_format
+    from .jsonmods.library import LibraryError
+    from .jsonmods.manager import JsonModules
+    from .jsonmods.market import MarketError
+
+    jm = JsonModules(bot)
+
+    @mcp.tool
+    async def module_format_guide() -> dict:
+        """How to write a Vectiq JSON module (instructions and a complete example). Read this before writing one."""
+        return {"instructions": module_format.PROMPT, "example": module_format.template()}
+
+    @mcp.tool
+    async def check_module_json(module_json: str) -> dict:
+        """Check a JSON module without installing it: errors, notes, what it contains, and whether it can be added."""
+        return jm.check(module_json)
+
+    @mcp.tool
+    async def browse_marketplace(search: str = "") -> dict:
+        """Modules in the configured marketplace (a GitHub repository), with what is installed or has an update."""
+        d = await jm.browse()
+        word = search.lower().strip()
+        if word:
+            d["modules"] = [e for e in d["modules"] if word in json.dumps(e).lower()]
+        return d
+
+    @mcp.tool
+    async def export_module_json(name: str, with_settings: bool = False) -> str:
+        """A JSON module or folder plugin as module JSON text, to share or edit. Secrets are never included."""
+        try:
+            return module_format.dumps(jm.export(name, with_settings=with_settings))
+        except LibraryError as exc:
+            raise ToolError(str(exc)) from None
+
+    @write
+    async def add_module_json(module_json: str, switch_on: bool = True) -> dict:
+        """Add (or update) a JSON module. Modules with code need the owner's 'Allow modules with code' setting."""
+        try:
+            r = await jm.install_text(module_json, source="mcp", on=switch_on, by="mcp")
+        except LibraryError as exc:
+            raise ToolError(str(exc)) from None
+        await done(None, "installed a module", f"{r['id']} {r['release']} via mcp", _noop())
+        return r
+
+    @write
+    async def add_module_from_marketplace(module_id: str, switch_on: bool = True) -> dict:
+        """Add (or update) a module from the marketplace by its id (see browse_marketplace)."""
+        try:
+            r = await jm.install_from_market(module_id, on=switch_on, by="mcp")
+        except (LibraryError, MarketError) as exc:
+            raise ToolError(str(exc)) from None
+        await done(None, "installed a module", f"{r['id']} {r['release']} from the marketplace", _noop())
+        return r
+
+    @write
+    async def remove_json_module(module_id: str) -> str:
+        """Remove a JSON module (switches it off and deletes its file; its settings are kept)."""
+        try:
+            message = await jm.remove(module_id, by="mcp")
+        except LibraryError as exc:
+            raise ToolError(str(exc)) from None
+        await done(None, "removed a module", module_id, _noop())
+        return message
 
     return mcp
 
