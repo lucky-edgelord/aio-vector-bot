@@ -25,8 +25,14 @@
     }
     if (Test-Path (Join-Path $dir ".git")) {
         Say "Updating Vectiq in $dir"
+        # Your config.yaml is yours: set it aside while updating, then put it back.
+        $cfg = Join-Path $dir "config.yaml"; $kept = Join-Path $dir ".config.yaml.yours"; $had = $false
+        git -C $dir diff --quiet -- config.yaml
+        if ($LASTEXITCODE -ne 0) { Copy-Item $cfg $kept -Force; git -C $dir checkout -q -- config.yaml; $had = $true }
         git -C $dir pull --ff-only -q
-        if ($LASTEXITCODE -ne 0) { Die "Couldn't update $dir (local changes?). Fix it, or set `$env:VECTIQ_DIR to install elsewhere." }
+        $ok = ($LASTEXITCODE -eq 0)
+        if ($had) { Move-Item $kept $cfg -Force }
+        if (-not $ok) { Die "Couldn't update $dir (other local changes?). Fix it, or set `$env:VECTIQ_DIR to install elsewhere." }
     } elseif ((Test-Path $dir) -and (Get-ChildItem $dir -Force | Select-Object -First 1)) {
         Die "$dir exists and isn't a Vectiq checkout. Set `$env:VECTIQ_DIR to another folder."
     } else {
