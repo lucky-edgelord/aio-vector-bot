@@ -21,14 +21,34 @@ The Vector SDK that Vectiq builds on has a Rust core. The first install compiles
 
 ## Install
 
-Start by downloading the code:
+### In one line
+
+Copy one line into a terminal. It downloads Vectiq to `~/vectiq`, runs the installer described below, and starts the bot at login.
+
+macOS and Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.sh | sh
+```
+
+Windows, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.ps1 | iex
+```
+
+Run the same line again to update; your settings and data stay. To install somewhere else, set `VECTIQ_DIR` first. Options go after `sh -s --` (`... | sh -s -- --no-service`); on Windows set `$env:VECTIQ_NO_SERVICE = "1"` or `$env:VECTIQ_YES = "1"` before the line. If an AI agent is doing the install for you, point it at [AGENTS.md](https://github.com/lucky-edgelord/aio-vector-bot/blob/main/AGENTS.md).
+
+### From a copy of the code
+
+Or download the code yourself:
 
 ```sh
 git clone https://github.com/lucky-edgelord/aio-vector-bot
 cd aio-vector-bot
 ```
 
-### macOS and Linux
+#### macOS and Linux
 
 One script does the rest:
 
@@ -40,7 +60,7 @@ On a Mac it installs Homebrew packages; on Linux it uses apt, dnf, pacman, zyppe
 
 Useful variations: `./install.sh --no-service` installs without starting at login, and `./install.sh --yes` skips every question and reads `VECTOR_NSEC` and `VECTIQ_INVITE_URLS` from the environment.
 
-### Windows
+#### Windows
 
 In PowerShell, from the cloned folder:
 
