@@ -158,3 +158,23 @@ async def test_cli_import_and_export(tmp_path, capsys, monkeypatch):
     assert yaml.safe_load(new)["prefix"] == "?" and yaml.safe_load(new)["verification"]["gate"] == "channel"
     assert new.count("#") == BASE.count("#")                 # comments kept
     assert RestorePoints(cfg).list()[0].label == "Before importing out.yaml"
+
+
+async def test_export_skips_old_dashboard_switches(tmp_path, capsys):
+    from vectiq.db import Database
+    from vectiq.stores.dashboard import DashboardStore
+
+    p = tmp_path / "config.yaml"
+    p.write_text(BASE)
+    cfg = Config.load(p, env={"VECTIQ_DATA_DIR": str(tmp_path / "data")})
+    db = await Database(cfg.db_path).connect()
+    store = DashboardStore(db)
+    await store.set_override("modules.automod", False, "npub1x")
+    await store.set_override("modules.gone_plugin", True, "npub1x")
+    await store.set_override("prefix", "?", "npub1x")
+    await db.close()
+    out = tmp_path / "out.yaml"
+    assert await _config_files(cfg, argparse.Namespace(export_config=str(out), import_config=None, yes=True)) == 0
+    exported = yaml.safe_load(out.read_text())
+    assert exported["prefix"] == "?" and exported["modules"]["sentire"] is False
+    assert "modules.gone_plugin" in capsys.readouterr().err

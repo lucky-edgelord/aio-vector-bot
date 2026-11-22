@@ -246,6 +246,11 @@ async def _config_files(config: Config, args) -> int:
         await db.close()
     if args.export_config:
         if overrides:
+            from .config import upgrade_overrides
+
+            overrides, dropped = upgrade_overrides(overrides)   # as the bot does: old switches never block an export
+            for key in dropped:
+                print(f"  ⚠ skipped an old dashboard setting: {key}", file=sys.stderr)
             config.apply_overrides(overrides)
         text = export_yaml(config)
         if args.export_config == "-":

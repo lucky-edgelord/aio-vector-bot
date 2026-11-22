@@ -43,6 +43,7 @@ prereqs_macos() {
   fi
   say "Installing Python, Rust and cmake with Homebrew (the Vector SDK compiles a Rust core)"
   brew install python@3.12 rust cmake pkg-config openssl@3 >/dev/null
+  command -v ffmpeg >/dev/null 2>&1 || brew install ffmpeg >/dev/null || warn "couldn't install ffmpeg (music and talking videos need it): brew install ffmpeg"
   PY="$(brew --prefix python@3.12)/bin/python3.12"
   [[ -x "$PY" ]] || PY="$(command -v python3)"
 }
@@ -71,6 +72,15 @@ prereqs_linux() {
       zypper) $sudo zypper --non-interactive install $pkgs ;;
       apk) $sudo apk add --no-cache $pkgs ;;
     esac || warn "couldn't install some packages; continuing in case they are already there"
+    if ! command -v ffmpeg >/dev/null 2>&1; then   # music and talking videos; optional, so a miss only warns
+      case "$pm" in
+        apt) $sudo apt-get install -y -qq ffmpeg ;;
+        dnf) $sudo dnf install -y -q ffmpeg || $sudo dnf install -y -q ffmpeg-free ;;
+        pacman) $sudo pacman -S --noconfirm --needed ffmpeg ;;
+        zypper) $sudo zypper --non-interactive install ffmpeg || $sudo zypper --non-interactive install ffmpeg-7 ;;
+        apk) $sudo apk add --no-cache ffmpeg ;;
+      esac || warn "couldn't install ffmpeg; music and talking videos need it"
+    fi
   else
     warn "unknown package manager: make sure git, a C compiler, cmake, pkg-config, OpenSSL headers and Python 3.10+ are installed"
   fi
@@ -93,7 +103,7 @@ say "Creating the virtualenv and installing Vectiq (the first build takes a few 
 [[ -d .venv ]] || "$PY" -m venv .venv
 set +u; source .venv/bin/activate; set -u
 python -m pip install -q --upgrade pip
-python -m pip install -q -e ".[webhooks,dashboard]"
+python -m pip install -q -e ".[webhooks,dashboard,music]"
 
 set_env() { # set_env KEY VALUE: replace or append in .env
   local k="$1" v="$2"

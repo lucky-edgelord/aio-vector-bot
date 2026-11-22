@@ -27,12 +27,17 @@
       <a class="btn primary" href="getting-started.html">Get started</a>
       <a class="btn" href="https://github.com/lucky-edgelord/aio-vector-bot">View on GitHub</a>
     </p>
+    <p class="os">macOS and Linux</p>
     <div class="code" data-plain>
-      <button class="copy" type="button" aria-label="Copy code">Copy</button>
-<pre><code>git clone https://github.com/lucky-edgelord/aio-vector-bot
-cd aio-vector-bot &amp;&amp; ./install.sh</code></pre>
+      <button class="copy" type="button" aria-label="Copy the macOS and Linux install command">Copy</button>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.sh | sh</code></pre>
     </div>
-    <p class="note">The macOS installer is shown. <a href="getting-started.html#linux">Linux steps</a> are in the guide.</p>
+    <p class="os">Windows (PowerShell)</p>
+    <div class="code" data-plain>
+      <button class="copy" type="button" aria-label="Copy the Windows install command">Copy</button>
+<pre><code>irm https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.ps1 | iex</code></pre>
+    </div>
+    <p class="note">Paste it into a terminal. It installs everything and starts the bot; run it again to update.</p>
   </div>
 
   <figure class="chat" aria-label="A chat in a Vector community: a member creates an event and the bot posts it">
@@ -102,11 +107,11 @@ cd aio-vector-bot &amp;&amp; ./install.sh</code></pre>
 
 <section class="band">
   <div class="wrap narrow">
-    <h2>From clone to running</h2>
+    <h2>From install to running</h2>
     <ol class="steps">
-      <li><strong>Install.</strong> On a Mac, <code>./install.sh</code> sets up everything and starts the bot at login. On Linux, create a virtual environment and <code>pip install -e ".[webhooks,dashboard]"</code>.</li>
+      <li><strong>Install.</strong> Paste the line for your computer into a terminal. It asks for the bot's key, sets everything up and starts the bot when the computer starts.</li>
       <li><strong>Give the bot a role.</strong> In your community, give its account the permissions you want it to use. Without one it keeps running and tells you which permission is missing.</li>
-      <li><strong>Edit <code>config.yaml</code>.</strong> Turn modules on or off and change any number. <code>python -m vectiq --check</code> explains mistakes before you restart.</li>
+      <li><strong>Edit <code>config.yaml</code>.</strong> Turn modules on or off and change any number. <code>~/vectiq/run.sh --check</code> explains mistakes before you restart.</li>
       <li><strong>Type <code>!help</code></strong> in any channel.</li>
     </ol>
     <p><a href="getting-started.html">The full getting started guide</a> covers keys, invites and permissions.</p>

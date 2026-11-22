@@ -40,7 +40,7 @@ Rules never touch the network and stores never touch Vector, so almost everythin
 
 ## Quick start
 
-One line installs everything and starts the bot at login. Run it again later to update.
+One line installs everything (Python, Rust, ffmpeg, the bot) and starts the bot when the computer starts. Run it again later to update; your settings and data stay.
 
 **macOS and Linux**
 
@@ -54,57 +54,9 @@ curl -fsSL https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/
 irm https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.ps1 | iex
 ```
 
-Vectiq goes in `~/vectiq` (set `VECTIQ_DIR` for another folder). Asking an AI agent to install it for you? Point it at [AGENTS.md](AGENTS.md).
+It asks for the bot's key (leave it blank to create a new account) and any community invite links. Then, in your Vector community, give the bot's account a role with Manage Roles, Manage Channels, Manage Messages, Moderate Members, Kick and Ban. Without them Vectiq still runs and tells you which permission is missing. Type `!help` anywhere.
 
-Or from a clone:
-
-```sh
-git clone https://github.com/lucky-edgelord/aio-vector-bot
-cd aio-vector-bot
-```
-
-### macOS and Linux (e.g. a Mac mini)
-
-```sh
-./install.sh            # packages (Homebrew / apt / dnf / ...), Rust, venv, .env, launchd or systemd service
-```
-
-It asks for the bot's key (blank generates a new account) and optional community invite links. Then, in your Vector community, give the bot's account a role with the permissions it needs (Manage Roles, Manage Channels, Manage Messages, Moderate Members, Kick/Ban). Without them Vectiq still runs and tells you which permission is missing. Type `!help` anywhere.
-
-Manual start: `./run.sh` (foreground), `./run.sh --check` (validate `config.yaml`), `./uninstall.sh`.
-### Windows
-
-```powershell
-.\install.ps1          # winget: Python, Git, CMake, Rust, C++ build tools; venv; .env; scheduled task at logon
-```
-
-### Docker
-
-```sh
-echo 'VECTOR_NSEC=nsec1...' > .env
-docker compose up -d          # settings in ./docker-config, data in ./docker-data
-```
-
-See the [Docker guide](docs/docker.md) for the setup wizard, ports and backups.
-
-### pip / pipx
-
-```sh
-pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"
-mkdir my-bot && cd my-bot && vectiq --init && vectiq --setup
-```
-
-`--init` writes `config.yaml` and `.env` in the current folder; put the bot's `VECTOR_NSEC` in `.env`, then run `vectiq`.
-
-### Linux
-
-```sh
-python3 -m venv .venv && .venv/bin/pip install -e ".[webhooks,dashboard]"
-cp .env.example .env && chmod 600 .env    # put the bot's VECTOR_NSEC in it
-.venv/bin/python -m vectiq --check && .venv/bin/python -m vectiq
-```
-
-The SDK (`vector-sdk-py`) is installed from [GitHub](https://github.com/lucky-edgelord/vector-sdk-py) and compiled from Rust on first install, so you need `rustc`/`cargo` and `cmake` (the macOS installer gets them from Homebrew), and the first install takes several minutes.
+Vectiq goes in `~/vectiq` (set `VECTIQ_DIR` first for another folder). The first install compiles the Vector SDK and takes several minutes. Asking an AI agent to install it for you? Point it at [AGENTS.md](AGENTS.md). More in [Getting started](https://lucky-edgelord.github.io/aio-vector-bot/getting-started.html).
 
 Use a **separate Vector account for the bot**, never your personal key.
 

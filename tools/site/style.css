@@ -87,8 +87,8 @@ code, pre, kbd { font-family: var(--mono); }
 .code { position: relative; margin: 18px 0; }
 .code pre, .hl pre { margin: 0; padding: 15px 18px; overflow: auto; background: #121214; border: 1px solid var(--line); border-radius: var(--r); font-size: 13.5px; line-height: 1.6; tab-size: 2; }
 .code pre code { background: none; border: 0; padding: 0; font-size: inherit; }
-.copy { position: absolute; top: 8px; right: 8px; z-index: 2; font: 600 12px var(--sans); color: var(--dim); background: var(--raise); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 9px; cursor: pointer; opacity: 0; transition: opacity .15s; }
-.code:hover .copy, .copy:focus-visible { opacity: 1; }
+.copy { position: absolute; top: 8px; right: 8px; z-index: 2; font: 600 12px var(--sans); color: var(--dim); background: var(--raise); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.code pre { padding-right: 70px; }
 .copy:hover { color: var(--text); }
 .copy.done { color: var(--mint); opacity: 1; }
 .table { margin: 20px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); }
@@ -139,7 +139,8 @@ body.home .top.stuck { position: fixed; background: color-mix(in srgb, var(--ink
 .hero h1 { margin: 0 0 22px; font-size: clamp(38px, 5.2vw, 62px); line-height: 1.04; letter-spacing: -.035em; font-weight: 700; max-width: 14ch; }
 .lede { margin: 0 0 28px; font-size: 19px; line-height: 1.55; color: var(--dim); max-width: 46ch; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 30px; }
-.hero .code pre { padding: 14px 18px; font-size: 14px; }
+.hero .code pre { padding: 14px 70px 14px 18px; font-size: 14px; }
+.hero .os { margin: 14px 0 -10px; font-size: 13px; color: var(--dim); }
 .note { margin: 12px 0 0; color: var(--faint); font-size: 13.5px; }
 .note a { color: var(--dim); }
 
