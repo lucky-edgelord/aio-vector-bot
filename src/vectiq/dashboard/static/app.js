@@ -388,7 +388,7 @@ function activityChart(rows) {
     svg.appendChild(bar);
     if (r.joins) svg.appendChild(h("svg:rect", { class: "join", x, y: H - P + 3, width: Math.max(bw / 2 - 3, 1), height: Math.min(4 + r.joins, 14) / 2 + 2, rx: 1 }));
     if (r.leaves) svg.appendChild(h("svg:rect", { class: "leave", x: x + bw / 2, y: H - P + 3, width: Math.max(bw / 2 - 3, 1), height: Math.min(4 + r.leaves, 14) / 2 + 2, rx: 1 }));
-    if (rows.length <= 10 || i % Math.ceil(rows.length / 7) === 0 || i === rows.length - 1) svg.appendChild(h("svg:text", { x, y: H - 1 }, r.day.slice(5)));
+    if (rows.length <= 10 || i % Math.ceil(rows.length / 7) === 0 || i === rows.length - 1) svg.appendChild(h("svg:text", { x: i === rows.length - 1 ? W : x, y: H - 1, "text-anchor": i === rows.length - 1 ? "end" : null }, r.day.slice(5)));
   });
   return svg;
 }
@@ -1035,6 +1035,8 @@ async function setup(main) {
     const here = stages.indexOf(scr.stage);
     const side = h("ol", { class: "wiz-stages" }, stages.map((name, n) =>
       h("li", { class: n < here ? "done" : n === here ? "on" : null, "aria-current": n === here ? "step" : null }, name)));
+    // on a phone the stages scroll sideways: keep the current one in view
+    requestAnimationFrame(() => { const on = side.querySelector(".on"); if (on && side.scrollWidth > side.clientWidth) side.scrollLeft = Math.max(0, on.offsetLeft - side.offsetLeft - 12); });
     const pct = done ? 100 : Math.round((i / (list.length - 1)) * 100);
 
     let talk, body = null;

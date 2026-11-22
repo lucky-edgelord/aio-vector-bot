@@ -38,6 +38,19 @@ A restore point is made before the wizard saves, so you can [roll back](restore-
 !!! note "Restart on a Mac"
     The installer runs the bot as a login item. Restart it with `launchctl kickstart -k gui/$(id -u)/com.vectiq.bot`.
 
+## The bot's name and picture
+
+The bot's Vector profile can come from Vectiq, so it's the same on every computer you run it on. Set it under **Settings → Bot profile** on the dashboard, or in `config.yaml`:
+
+```yaml
+profile:
+  name: Vectoria
+  about: Ask me about Vector bots and WebXDC with !vec
+  avatar: vectoria.png      # a file next to config.yaml, a full path, or a web address
+```
+
+It's applied when the bot starts and whenever you change it. Empty values leave that part of the profile alone, and the picture is uploaded again only when the file changes.
+
 ## Modules
 
 Each feature is a module with a switch under `modules:`. Switch off what you don't need and its commands, background jobs and database tables stay idle.

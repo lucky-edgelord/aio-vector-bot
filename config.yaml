@@ -7,6 +7,13 @@ prefix: "!"
 communities: []
 owners: []            # npubs that can use !vectiq admin commands everywhere
 
+# The bot's own Vector profile. Empty values leave that part as it is. The picture is a file next to this
+# config (or a full path, or a web address); it's uploaded again only when the file changes.
+profile:
+  name: ""
+  about: ""
+  avatar: ""
+
 modules:              # every feature is a module: on or off. Only modules that are on are loaded.
   # Safety                Change these live with `!module on <name>`, the dashboard or `vectiq --setup`.
   moderation: true    # warnings, timeouts, kicks, bans, softbans, purge, lock, slowmode

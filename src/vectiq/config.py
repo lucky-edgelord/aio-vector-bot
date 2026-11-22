@@ -40,6 +40,7 @@ DEFAULTS: dict[str, Any] = {
     "prefix": "!",
     "communities": [],
     "owners": [],
+    "profile": {"name": "", "about": "", "avatar": ""},
     "modules": {m.name: m.default for m in REGISTRY},
     "moderation": {"mute_max_days": 28, "warn_threshold": 3, "warn_action": "timeout",
                    "warn_action_minutes": 60, "log_channel": ""},

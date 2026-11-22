@@ -33,6 +33,12 @@ GROUPS: list[dict[str, Any]] = [
         field("owners", "Bot owners", "list", "npubs, one per line. Owners can use owner commands, change these "
               "settings and manage webhooks."),
     ]},
+    {"id": "profile", "title": "Bot profile", "fields": [
+        field("profile.name", "Name", "text", "The bot's name in Vector. Empty leaves it as it is."),
+        field("profile.about", "About", "longtext", "The text on its profile. Empty leaves it as it is."),
+        field("profile.avatar", "Picture", "text", "A picture file on the bot's computer (a path, relative to "
+              "config.yaml) or a web address. Set again whenever the file changes."),
+    ]},
     {"id": "modules", "title": "Modules", "fields": []},          # filled by refresh(): every module, plugins too
     {"id": "mcp", "title": "MCP server", "fields": [
         field("mcp.read_only", "Read-only", "bool", "Assistants can look but not change anything"),

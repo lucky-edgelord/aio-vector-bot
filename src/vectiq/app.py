@@ -126,7 +126,76 @@ class VectiqBot(commands.Bot):
         """Settings changed (config.yaml, dashboard, import, rollback): tell the modules, then switch modules."""
         result = await self.sync_modules()
         self.dispatch("vectiq_config_reload")
+        if self.is_ready():
+            asyncio.get_running_loop().create_task(self.apply_profile())
         return result
+
+    async def apply_profile(self) -> list[str]:
+        """Give the bot's Vector account the name, about text and picture in ``profile:``, where they differ.
+
+        Empty values leave that part alone. The picture (a file next to config.yaml, or a web address) is uploaded
+        once: data/.profile-picture remembers which one was set, so a restart doesn't upload it again.
+        Returns what changed."""
+        want = self.config.get("profile", {}) or {}
+        name, about, picture = (str(want.get(k) or "").strip() for k in ("name", "about", "avatar"))
+        me = self.user
+        if me is None or not (name or about or picture):
+            return []
+        have = getattr(me, "_profile", None)
+        changes: dict[str, Any] = {}
+        if name and name != (getattr(have, "name", None) or getattr(me, "name", "") or ""):
+            changes["username"] = name
+        if about and about != (getattr(have, "about", None) or ""):
+            changes["about"] = about
+        stamp = Path(self.config.data_dir) / ".profile-picture"
+        if picture:
+            if picture.startswith(("http://", "https://")):
+                source, mark = picture, picture
+            else:
+                path = Path(picture).expanduser()
+                if not path.is_absolute():
+                    path = (Path(self.config.path).resolve().parent if self.config.path else Path.cwd()) / path
+                if not path.is_file():
+                    log.warning("profile picture %s doesn't exist; keeping the current one", path)
+                    path = None
+                import hashlib
+
+                source = str(path) if path else None
+                mark = hashlib.sha256(path.read_bytes()).hexdigest() if path else None
+            if source and (not stamp.exists() or stamp.read_text().strip() != mark):
+                changes["avatar"] = source
+        if not changes:
+            return []
+        try:
+            await me.edit(**changes)
+        except Exception as exc:  # noqa: BLE001 - the profile is a nicety, never a reason to stop
+            log.warning("couldn't update the bot's profile: %s", exc)
+            return []
+        if "avatar" in changes:
+            stamp.parent.mkdir(parents=True, exist_ok=True)
+            stamp.write_text(mark)
+        done = [{"username": "name", "about": "about", "avatar": "picture"}[k] for k in changes]
+        log.info("profile updated: %s", ", ".join(done))
+        return done
+
+    async def change_settings(self, changes: dict[str, Any], by: str) -> dict[str, list[str]]:
+        """Change settings the way the dashboard does (kept in the database, survive restarts) and apply them.
+
+        ``changes`` maps dotted paths to values; None goes back to config.yaml's value. Modules use it too
+        (Vectoria sets the bot's profile with it). Raises ConfigError if the result isn't valid."""
+        merged = dict(self.config.overrides)
+        for path, value in changes.items():
+            if value is None or value == self.config.from_file(path, None):
+                merged.pop(path, None)
+            else:
+                merged[path] = value
+        self.config.apply_overrides(merged)
+        for path in changes:
+            if path in merged:
+                await self.stores.dashboard.set_override(path, merged[path], by)
+            else:
+                await self.stores.dashboard.clear_override(path)
+        return await self.apply_settings()
 
     async def set_module(self, name: str, on: bool, by: str) -> dict[str, list[str]]:
         """Switch a module on or off from a command, kept like a dashboard change (survives restarts).
@@ -201,6 +270,7 @@ class VectiqBot(commands.Bot):
     async def on_ready(self) -> None:
         log.info("ready as %s in %d communities", self.user, len(self.guilds))
         await self.join_invites()
+        await self.apply_profile()
 
     async def close(self) -> None:
         await super().close()

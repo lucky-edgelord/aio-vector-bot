@@ -77,6 +77,7 @@ A plugin always starts switched off, so installing one never changes what the bo
 Modules are [cogs](https://discordpy.readthedocs.io/en/stable/ext/commands/cogs.html), so commands, listeners (`on_message`, `on_member_join`, reactions...) and `tasks.loop` work as usual. Import Vectiq's helpers from `vectiq.plugin`, the stable API:
 
 - `bot.config.get("<name>.setting")` reads your settings. They update live when someone changes them on the dashboard, and `on_vectiq_config_reload` fires.
+- `await bot.change_settings({"path.to.setting": value}, by=npub)` changes settings the way the dashboard does: kept across restarts and applied at once (None goes back to config.yaml's value).
 - `bot.stores.*` and `bot.db` give you the database; `bot.find_channel(guild, "mod-log")` matches names loosely; `bot.emit(guild, kind, title, text)` feeds webhooks.
 - `enforce(bot, message, source=..., reason=..., action=...)` removes, warns, times out or logs exactly as link safety and the image guard do. `exempt(bot, message, cfg)` skips staff and exempt roles and channels.
 - `embed`, `ok`, `fail`, `name_of`, `is_owner`, `field` cover messages, checks and settings.
