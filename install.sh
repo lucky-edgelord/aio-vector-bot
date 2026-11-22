@@ -5,17 +5,21 @@
 #   ./install.sh                 interactive: asks for the bot's key, installs, starts it at login/boot
 #   ./install.sh --no-service    install only; start it yourself with ./run.sh
 #   ./install.sh --yes           no prompts (reads VECTOR_NSEC / VECTIQ_INVITE_URLS from the environment)
+#   ./install.sh --boot          macOS: start at boot, even with nobody logged in (a system service; asks for sudo).
+#                                Used by itself when there's no desktop session, e.g. over SSH.
 set -euo pipefail
 
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
 SERVICE=1
 ASK=1
+BOOT=0
 for a in "$@"; do
   case "$a" in
     --no-service) SERVICE=0 ;;
     --yes|-y) ASK=0 ;;
-    -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+    --boot) BOOT=1 ;;
+    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
   esac
 done
@@ -29,9 +33,18 @@ PY=""
 
 prereqs_macos() {
   if ! xcode-select -p >/dev/null 2>&1; then
-    say "Installing the Xcode command line tools (a dialog will open; re-run this script when it finishes)"
-    xcode-select --install || true
-    exit 0
+    # Without a window, the way Homebrew does it: ask Software Update for the command line tools (needs sudo).
+    say "Installing Apple's command line tools (a compiler and git; may ask for your password)"
+    local flag=/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress label
+    touch "$flag"
+    label="$(softwareupdate -l 2>/dev/null | grep -B 1 -E 'Command Line Tools' | awk -F'*' '/^ *\*/ {print $2}' \
+      | sed -e 's/^ *Label: //' -e 's/^ *//' | sort -V | tail -n1 || true)"
+    [[ -n "$label" ]] && sudo softwareupdate -i "$label" && sudo xcode-select --switch /Library/Developer/CommandLineTools || true
+    rm -f "$flag"
+    if ! xcode-select -p >/dev/null 2>&1; then
+      xcode-select --install 2>/dev/null || true
+      die "Couldn't install Apple's command line tools from here. Install them (xcode-select --install on the Mac's screen, or from developer.apple.com), then run this again."
+    fi
   fi
   if ! command -v brew >/dev/null 2>&1; then
     for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [[ -x "$b" ]] && eval "$("$b" shellenv)" && break; done
@@ -147,9 +160,14 @@ python -m vectiq --check
 
 install_service_macos() {
   LABEL="com.vectiq.bot"
-  PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-  mkdir -p "$HOME/Library/LaunchAgents" "$ROOT/data"
-  cat >"$PLIST" <<PLIST
+  local agent="$HOME/Library/LaunchAgents/$LABEL.plist" daemon="/Library/LaunchDaemons/$LABEL.plist" plist
+  # A login item needs someone logged in to the Mac's desktop; with nobody there (SSH), start at boot instead.
+  if [[ $BOOT -eq 0 ]] && ! launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
+    say "No desktop session here (SSH?), so Vectiq will start at boot as a system service"
+    BOOT=1
+  fi
+  mkdir -p "$ROOT/data"
+  plist="$(cat <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -160,7 +178,8 @@ install_service_macos() {
   </array>
   <key>EnvironmentVariables</key><dict>
     <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
-  </dict>
+    <key>HOME</key><string>$HOME</string>
+  </dict>$( [[ $BOOT -eq 1 ]] && printf '\n  <key>UserName</key><string>%s</string>' "$(id -un)" )
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>ThrottleInterval</key><integer>15</integer>
@@ -168,9 +187,25 @@ install_service_macos() {
   <key>StandardErrorPath</key><string>$ROOT/data/vectiq.log</string>
 </dict></plist>
 PLIST
+)"
+  # Only one of the two may exist, or the bot would run twice.
   launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-  launchctl bootstrap "gui/$(id -u)" "$PLIST"
-  say "Vectiq is running and will start at login. Logs: $ROOT/data/vectiq.log"
+  if [[ $BOOT -eq 1 ]]; then
+    rm -f "$agent"
+    printf '%s\n' "$plist" | sudo tee "$daemon" >/dev/null
+    sudo chown root:wheel "$daemon" && sudo chmod 644 "$daemon"
+    sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
+    sudo launchctl bootstrap system "$daemon"
+    say "Vectiq is running and starts when the Mac boots, even with nobody logged in. Logs: $ROOT/data/vectiq.log"
+    echo "    Restart: sudo launchctl kickstart -k system/$LABEL"
+  else
+    [[ -f "$daemon" ]] && { sudo launchctl bootout "system/$LABEL" 2>/dev/null || true; sudo rm -f "$daemon"; }
+    mkdir -p "$HOME/Library/LaunchAgents"
+    printf '%s\n' "$plist" >"$agent"
+    launchctl bootstrap "gui/$(id -u)" "$agent"
+    say "Vectiq is running and will start at login. Logs: $ROOT/data/vectiq.log"
+    echo "    Restart: launchctl kickstart -k gui/$(id -u)/$LABEL    (add --boot to start at boot instead)"
+  fi
 }
 
 install_service_linux() {

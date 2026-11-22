@@ -5,7 +5,11 @@ case "$(uname -s)" in
   Darwin)
     LABEL="com.vectiq.bot"
     launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-    rm -f "$HOME/Library/LaunchAgents/$LABEL.plist" ;;
+    rm -f "$HOME/Library/LaunchAgents/$LABEL.plist"
+    if [[ -f "/Library/LaunchDaemons/$LABEL.plist" ]]; then      # installed with --boot
+      sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
+      sudo rm -f "/Library/LaunchDaemons/$LABEL.plist"
+    fi ;;
   Linux)
     systemctl --user disable --now vectiq.service 2>/dev/null || true
     rm -f "$HOME/.config/systemd/user/vectiq.service"
