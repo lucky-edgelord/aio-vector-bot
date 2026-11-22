@@ -1406,8 +1406,31 @@ const KB = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max
 const kindPill = (k) => (k === "code" ? pill("runs code", "red") : pill("no code", "green"));
 const copy = (text, what) => navigator.clipboard?.writeText(text).then(() => toast(`${what} copied.`), () => toast("Couldn't copy: select it and copy by hand.", true));
 
+// Pictures live in the marketplace next to the modules (media/...); `base` is that folder's address.
+const MEDIA_RE = /^media\/[A-Za-z0-9_-][A-Za-z0-9_./-]{0,120}\.(png|jpe?g|webp|gif)$/;
+const mediaUrl = (base, p) => (base && typeof p === "string" && MEDIA_RE.test(p) && !p.includes("..") ? base + p : "");
+
+// A module's icon: its picture, its emoji, or the first letter of its name.
+function modIcon(m, base, big) {
+  const url = mediaUrl(base, m.icon);
+  const cls = ["mk-icon", big && "big"];
+  if (url) return h("img", { class: cls, src: url, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+  const glyph = m.icon && !MEDIA_RE.test(m.icon) ? m.icon : (m.name || "?").trim().charAt(0).toUpperCase();
+  return h("span", { class: [...cls, !(m.icon && !MEDIA_RE.test(m.icon)) && "letter"], "aria-hidden": "true" }, glyph);
+}
+
+// Screenshots and previews, scrolling sideways; each opens full size.
+function gallery(images, base) {
+  const shown = (images || []).map((i) => ({ ...i, url: mediaUrl(base, i.src) })).filter((i) => i.url);
+  if (!shown.length) return null;
+  return h("div", { class: "mk-gallery" }, shown.map((i) => h("figure", null,
+    h("a", { href: i.url, target: "_blank", rel: "noopener noreferrer", title: "Open full size" },
+      h("img", { src: i.url, alt: i.caption || "", loading: "lazy", referrerpolicy: "no-referrer" })),
+    i.caption ? h("figcaption", null, i.caption) : null)));
+}
+
 // What a checked module contains and what installing it would do. `c` is the answer of /api/library/check.
-function moduleFacts(c) {
+function moduleFacts(c, base) {
   if (!c.ok) {
     return h("div", { class: "stack" }, h("b", { style: { color: "var(--danger)" } }, "Vectiq can't use this yet:"),
       h("ul", { class: "bad" }, c.errors.map((e) => h("li", null, e))),
@@ -1415,9 +1438,10 @@ function moduleFacts(c) {
   }
   const m = c.module;
   const counts = [m.commands.length && plural(m.commands.length, "command"), m.autoresponders && plural(m.autoresponders, "autoresponder"),
-    m.timers && plural(m.timers, "timer"), m.files.length && plural(m.files.length, "Python file")].filter(Boolean).join(" · ");
+    m.timers && plural(m.timers, "timer"), m.files.length && plural(m.files.length, "code file")].filter(Boolean).join(" · ");
   return h("div", { class: "stack" },
-    h("div", { class: "row wrap" }, kindPill(m.kind), pill(`v${m.release}`), m.author ? h("span", { class: "faint" }, `by ${m.author}`) : null, m.license ? h("span", { class: "faint" }, m.license) : null),
+    gallery(m.images, base),
+    h("div", { class: "row wrap" }, modIcon(m, base), kindPill(m.kind), pill(`v${m.release}`), m.author ? h("span", { class: "faint" }, `by ${m.author}`) : null, m.license ? h("span", { class: "faint" }, m.license) : null),
     h("p", { style: { margin: 0 } }, m.description || m.summary),
     counts ? h("div", { class: "faint" }, counts) : null,
     m.commands.length ? h("div", { class: "row wrap" }, m.commands.map((x) => h("code", { class: "chip-code" }, `!${x}`))) : null,
@@ -1453,7 +1477,7 @@ async function marketplace(main) {
     const details = async (e, label) => {
       let c;
       try { c = await run(null, () => api("POST", "/api/library/preview", { id: e.id })); } catch { return; }
-      modal(e.name, moduleFacts(c), c.ok && !c.blocked ? [install({ id: e.id }, label, e.kind)] : []);
+      modal(e.name, moduleFacts(c, d.media), c.ok && !c.blocked ? [install({ id: e.id }, label, e.kind)] : []);
     };
     const draw = () => {
       const needle = S.mk.q.trim().toLowerCase();
@@ -1462,8 +1486,12 @@ async function marketplace(main) {
       clear(chips, ["", ...d.groups].map((g) => h("button", { type: "button", class: ["chip", S.mk.g === g && "on"], onclick: () => { S.mk.g = g; draw(); } }, g || "All")));
       clear(list, shown.length ? shown.map((e) => {
         const label = e.update ? "Update" : e.installed_release ? "Reinstall" : "Get";
+        const cover = mediaUrl(d.media, e.images && e.images[0] && e.images[0].src);
         return h("section", { class: "card mk" },
-          h("div", { class: "row" }, h("b", { class: "grow" }, e.name), kindPill(e.kind)),
+          cover ? h("button", { type: "button", class: "mk-cover", onclick: () => details(e, label), "aria-label": `Pictures of ${e.name}` },
+            h("img", { src: cover, alt: e.images[0].caption || "", loading: "lazy", referrerpolicy: "no-referrer" }),
+            e.images.length > 1 ? h("span", { class: "mk-count" }, `${e.images.length} pictures`) : null) : null,
+          h("div", { class: "row" }, modIcon(e, d.media, true), h("b", { class: "grow" }, e.name), kindPill(e.kind)),
           h("p", { class: "muted", style: { margin: "6px 0 4px" } }, e.summary),
           h("div", { class: "faint", style: { fontSize: "13px" } }, [`v${e.release}`, e.author && `by ${e.author}`,
             e.commands && e.commands.length && plural(e.commands.length, "command"), e.bytes && KB(e.bytes)].filter(Boolean).join(" · ")),
@@ -1516,6 +1544,7 @@ async function marketplace(main) {
   const share = (id, label) => h("a", { class: "btn ghost sm", href: `/api/library/export/${encodeURIComponent(id)}`, download: `${id}.module.json` }, label);
   clear(main, head("Marketplace", intro, btn("Browse", () => { location.hash = "#/marketplace/browse"; }, "primary")), tabs,
     card(`Installed (${lib.installed.length})`, lib.installed.length ? h("div", { class: "list" }, lib.installed.map((m) => h("div", { class: "item" },
+      modIcon(m, m.media, true),
       h("div", { class: "grow" },
         h("div", { class: "row wrap" }, h("b", null, m.name), m.release ? pill(`v${m.release}`) : null, m.kind ? kindPill(m.kind) : null),
         h("div", { class: "faint", style: { fontSize: "13px" } }, m.summary || "", m.source ? ` · ${m.source.replace(/^file /, "from ").replace(/^marketplace /, "from ")}` : ""),
@@ -1531,7 +1560,7 @@ async function marketplace(main) {
     lib.exportable.length ? card("Save a module as a file", h("p", { class: "muted", style: { marginTop: 0 } }, "Share a module, or keep a copy. “With my settings” uses your current values as its defaults; passwords and tokens are never included."),
       h("div", { class: "list" }, lib.exportable.map((m) => h("div", { class: "item" }, h("div", { class: "grow" }, h("b", null, m.name), h("div", { class: "faint" }, m.from === "folder" ? "a plugin folder: its Python goes in the file" : "a JSON module")),
         share(m.id, "Export"), m.settings ? h("a", { class: "btn ghost sm", href: `/api/library/export/${encodeURIComponent(m.id)}?settings=true`, download: `${m.id}.module.json` }, "With my settings") : null)))) : null,
-    h("p", { class: "faint" }, lib.allow_code ? "Modules with code are allowed." : "Only modules without code can be installed. ", h("a", { href: "#/settings/marketplace" }, "Marketplace settings →")));
+    h("p", { class: "faint" }, lib.allow_code ? "Modules with code are allowed. " : "Only modules without code can be installed. ", h("a", { href: "#/settings/marketplace" }, "Marketplace settings →")));
 }
 
 /* ---------------------------------------------------------------- accounts */

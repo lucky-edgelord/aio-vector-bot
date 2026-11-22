@@ -12,7 +12,7 @@ A marketplace is a GitHub repository of [JSON modules](json-modules.md). The def
 **Marketplace** (in the Bot section of the menu; owners only) has three tabs:
 
 - **Installed:** the JSON modules you've added, each with an on/off switch, its settings, **Export** and **Remove**. Below them, every module you can save as a file.
-- **Browse:** the marketplace's modules, searchable and grouped. **Details** shows what a module does (commands, autoresponders, timers, settings, and for code, every file) before you add it. **Get** adds it and switches it on; a module you have gets **Update** when the marketplace has a newer file.
+- **Browse:** the marketplace's modules, searchable and grouped, each with its icon and, when it has them, a cover picture. **Details** shows its screenshots and previews, and what it does (commands, autoresponders, timers, settings, and for code, every file) before you add it. **Get** adds it and switches it on; a module you have gets **Update** when the marketplace has a newer file.
 - **Add a module:** choose a file or paste JSON, start from the template, or copy a prompt for an AI. The module is checked as you type.
 
 ## In chat
@@ -23,6 +23,7 @@ Owners can use `!module market [word]` to list modules, `!module get <id>` to ad
 
 - Vectiq only reads from `raw.githubusercontent.com`.
 - Every file is checked against the SHA-256 the marketplace's catalog gives for it, and refused if it doesn't match.
+- Pictures (icons, screenshots) are shown only from the marketplace's own `modules/media/` folder, never from other sites.
 - Every module is checked before it's added; anything it can't use is left out, with a note.
 - Modules without code can only say things, react and post on a timer.
 - Modules with code need **Allow modules with code**, are added switched off, and show their files first.

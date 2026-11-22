@@ -62,6 +62,7 @@ The checker is forgiving, like Lilith Learning Lab's course checker: a command w
 | `group` | Where it's listed: Community, Fun, Members, Safety or Integrations. |
 | `release` | Its version, like `1.2.0`. The marketplace offers an update when the file changes. |
 | `description`, `author`, `license`, `homepage`, `tags` | Shown in the marketplace. |
+| `icon`, `images` | Pictures for the marketplace. `icon` is an emoji (`"🎱"`) or a picture; `images` are up to six screenshots or previews, each `"media/…"` or `{ "src": "media/…", "caption": "…" }`. Pictures live in the marketplace next to the modules (`modules/media/<id>/`, PNG, JPEG, WebP or GIF, animated is fine, under 800 KB each). |
 | `provides` | A job it does instead of a built-in module, like `automod`. Only one module does each job, so switching it on switches the other off. |
 
 ### Settings

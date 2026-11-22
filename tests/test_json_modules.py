@@ -462,3 +462,43 @@ async def test_an_assistant_can_write_check_add_and_remove_a_module(bot_env):
     async with Client(build(e.bot, token=None, read_only=True)) as c:
         names = {t.name for t in await c.list_tools()}
         assert "check_module_json" in names and "add_module_json" not in names and "remove_json_module" not in names
+
+
+# -- pictures --------------------------------------------------------------------------------------------------
+
+
+def test_icons_and_images_come_only_from_the_marketplace():
+    base = {"format": fmt.FORMAT, "version": 1, "id": "pics", "name": "Pics", "summary": "s",
+            "commands": [{"name": "p", "help": "h", "reply": "x"}]}
+    ok = fmt.validate({**base, "icon": "🎱", "images": ["media/pics/a.webp",
+                                                       {"src": "media/pics/b.png", "caption": "Hello"}]})
+    assert ok.ok and ok.module["icon"] == "🎱" and not ok.warnings
+    assert ok.module["images"] == [{"src": "media/pics/a.webp", "caption": ""}, {"src": "media/pics/b.png", "caption": "Hello"}]
+    assert fmt.summary(ok.module)["images"][1]["caption"] == "Hello"
+    bad = fmt.validate({**base, "icon": "<img src=x>", "images": ["https://example.com/x.png", "media/../secret.png",
+                                                                 "media/x.svg", {"src": 5}, *["media/p/x.png"] * 8]})
+    assert bad.ok and "icon" not in bad.module and len(bad.module["images"]) == fmt.MAX_IMAGES
+    assert sum("skipped" in w for w in bad.warnings) >= 4 and any("icon" in w for w in bad.warnings)
+    assert fmt.validate({**base, "icon": "media/pics/icon.png"}).module["icon"] == "media/pics/icon.png"
+
+
+async def test_the_catalog_keeps_safe_pictures_and_says_where_they_are():
+    cat, files = catalog(faq())
+    cat["modules"][0].update(icon="javascript:alert(1)", images=[{"src": "media/faq/a.png", "caption": "x" * 500},
+                                                                  {"src": "//evil/x.png"}, "media/faq/b.png"])
+    got = await Marketplace("a/b", get=fake_get(cat, files)).catalog()
+    e = got["modules"][0]
+    assert got["media"] == "https://raw.githubusercontent.com/a/b/main/modules/"
+    assert e["icon"] == "" and e["images"] == [{"src": "media/faq/a.png", "caption": "x" * 160}]
+
+
+async def test_installed_modules_know_where_their_pictures_are(bot_env):
+    e = bot_env
+    assert e.jm.media_for("marketplace lucky-edgelord/aio-marketplace").endswith("/lucky-edgelord/aio-marketplace/main/modules/")
+    assert e.jm.media_for("file pasted") == "" and e.jm.media_for("marketplace ../x") == ""
+
+
+def test_a_cog_inside_a_code_module_belongs_to_that_module(registry):
+    modules.register(modules.Module(name="picsy", label="Picsy", help="h", group="Fun", cogs=("vectiq_json.picsy",)))
+    assert modules.owner_of("vectiq_json.picsy") == modules.owner_of("vectiq_json.picsy.cog") == "picsy"
+    assert modules.owner_of("vectiq_json.picsyx.cog") == "cog"

@@ -36,6 +36,8 @@ COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 SETTING_TYPES = ("text", "longtext", "int", "number", "bool", "channel", "enum", "list")
 MATCHES = ("contains", "word", "exact", "startswith", "endswith")
+MEDIA_RE = re.compile(r"^media/[A-Za-z0-9_-][A-Za-z0-9_./-]{0,120}\.(png|jpe?g|webp|gif)$")
+MAX_IMAGES = 6
 CODE_SUFFIXES = (".py", ".json", ".txt", ".md", ".toml", ".yaml", ".yml", ".csv")
 PRIVATE_HINTS = ("token", "secret", "password", "apikey", "api_key", "nsec", "cookie", "webhook")
 
@@ -328,6 +330,44 @@ def _list(c: _Ctx, key: str, raw: Any) -> list:
     return raw
 
 
+def media_path(v: Any) -> bool:
+    """A picture kept in the marketplace next to the modules: ``media/<file>.png`` (also .jpg, .webp, .gif)."""
+    return isinstance(v, str) and bool(MEDIA_RE.match(v)) and ".." not in v and "//" not in v
+
+
+def emoji_icon(v: Any) -> bool:
+    """A short emoji (no letters, digits or markup), shown when there's no picture."""
+    return isinstance(v, str) and 0 < len(v.strip()) <= 8 and not re.search(r"[A-Za-z0-9<>/\\\s\"'&]", v.strip())
+
+
+def _media(c: _Ctx, icon: Any, images: Any) -> tuple[str, list]:
+    """``icon``: an emoji or a picture; ``images``: up to six pictures, each with an optional caption."""
+    out_icon = ""
+    if icon not in (None, ""):
+        if media_path(icon) or emoji_icon(icon):
+            out_icon = icon.strip()
+        else:
+            c.warnings.append('"icon" should be an emoji or a picture in the marketplace, like "media/my_module/icon.png"; '
+                              "ignored")
+    out = []
+    if images not in (None, "", []):
+        if not isinstance(images, list):
+            c.warnings.append('"images" should be a list of pictures; ignored')
+            images = []
+        for i, item in enumerate(images):
+            src, caption = (item, "") if isinstance(item, str) else (
+                (item.get("src"), item.get("caption", "")) if isinstance(item, dict) else (None, ""))
+            if not media_path(src):
+                c.warnings.append(f'images[{i}]: use a picture in the marketplace, like "media/my_module/screen.png"; '
+                                  "skipped")
+                continue
+            if len(out) == MAX_IMAGES:
+                c.warnings.append(f"more than {MAX_IMAGES} images; the rest are skipped")
+                break
+            out.append({"src": src, "caption": c.text(f"images[{i}].caption", caption, 160).strip()})
+    return out_icon, out
+
+
 def _code(c: _Ctx, raw: Any) -> dict | None:
     if raw is None:
         return None
@@ -424,6 +464,11 @@ def validate(raw: Any, *, reserved: tuple[str, ...] = ()) -> Result:
     tags = [t.lower() for t in c.texts("tags", raw.get("tags"), 10, 30)]
     if tags:
         mod["tags"] = tags
+    icon, images = _media(c, raw.get("icon"), raw.get("images"))
+    if icon:
+        mod["icon"] = icon
+    if images:
+        mod["images"] = images
     settings = _settings(c, raw.get("settings"))
     if settings:
         mod["settings"] = settings
@@ -462,6 +507,7 @@ def summary(module: dict) -> dict:
         "description": module.get("description", ""), "group": module["group"], "release": module["release"],
         "author": module.get("author", ""), "license": module.get("license", ""), "homepage": module.get("homepage", ""),
         "tags": module.get("tags", []), "kind": kind(module), "provides": module.get("provides", ""),
+        "icon": module.get("icon", ""), "images": module.get("images", []),
         "commands": [c["name"] for c in module.get("commands", [])],
         "autoresponders": len(module.get("autoresponders", [])), "timers": len(module.get("timers", [])),
         "settings": [s["label"] for s in module.get("settings", [])],

@@ -173,8 +173,12 @@ def drop_bytecode(name: str) -> None:
 
 
 def owner_of(ext: str) -> str:
-    """The module an extension (cog import path) belongs to."""
-    return next((m.name for m in REGISTRY if ext in m.cogs), ext.rsplit(".", 1)[-1])
+    """The module an extension (cog import path) belongs to; a cog in a submodule of it counts too (``pkg.cog``)."""
+    exact = next((m.name for m in REGISTRY if ext in m.cogs), None)
+    if exact:
+        return exact
+    inside = next((m.name for m in REGISTRY for c in m.cogs if ext.startswith(c + ".")), None)
+    return inside or ext.rsplit(".", 1)[-1]
 
 
 def same_slot(name: str) -> list[Module]:
