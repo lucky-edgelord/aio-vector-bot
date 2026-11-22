@@ -7,6 +7,8 @@ summary: Declare webhooks in YAML so outside tools can post into a channel, and 
 
 A webhook is a secret URL that lets an outside tool (GitHub, a monitoring service, a script) post a message into a channel. With Vectiq you list the webhooks you want in `config.yaml` and the bot creates them for you.
 
+![Webhooks on the dashboard](images/dashboard-webhooks.png)
+
 ## Declaring a webhook
 
 ```yaml

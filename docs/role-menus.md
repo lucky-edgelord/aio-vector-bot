@@ -7,6 +7,8 @@ summary: Reaction roles that members add and remove themselves.
 
 A role menu is a message with a list of roles. Members react with the matching emoji to get the role, and take the reaction back to lose it.
 
+![A role menu on the dashboard](images/dashboard-rolemenus.png)
+
 ## Making a menu
 
 ```

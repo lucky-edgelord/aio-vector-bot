@@ -12,6 +12,8 @@ summary: Tic-Tac-Toe, Connect Four, trivia and slots as WebXDC apps that the bot
 !game slots
 ```
 
+![The Games page on the dashboard: post a game and see each leaderboard](images/dashboard-games.png)
+
 `!game` posts a small web app into the chat. Members open it inside Vector, and the bot joins the app's realtime channel as the **referee**. The bot owns the board, the clock, the random numbers and the coins, so a modified app can't cheat.
 
 ## The games

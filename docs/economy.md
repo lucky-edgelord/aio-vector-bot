@@ -7,6 +7,8 @@ summary: Coins, daily streaks, work, a bank and a shop that can sell roles.
 
 Every member has a wallet. They earn coins from daily rewards, work and optionally from chatting, keep savings in a bank, pay each other, and spend coins in a shop that can sell roles.
 
+![The Economy page on the dashboard: coins in circulation, the shop and the richest members](images/dashboard-economy.png)
+
 ## Earning
 
 - `!daily` pays `daily_amount` coins and can be claimed every 24 hours. Claim again within 48 hours of the last time and your streak continues, and each streak day after the first adds `daily_streak_bonus`, up to `daily_streak_cap` days of bonus. Wait longer than 48 hours and the streak starts over.

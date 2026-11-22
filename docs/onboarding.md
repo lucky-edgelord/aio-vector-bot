@@ -7,6 +7,8 @@ summary: Greet new members, verify them, and let them pick roles.
 
 Three modules work together to look after a new member: **welcome** greets them, **verification** makes sure they are a person, and **onboarding** walks them through the steps and lets them pick roles. You can use any of them alone.
 
+![The Onboarding page on the dashboard](images/dashboard-onboarding.png)
+
 ## Welcome messages
 
 ```yaml

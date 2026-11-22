@@ -7,6 +7,8 @@ summary: Private support channels, claimed by staff and closed with a command or
 
 Tickets give each request its own private channel. Members open one, staff pick it up, and when it is resolved anyone with access closes it. The conversation is kept as a transcript.
 
+![The Tickets page on the dashboard; open one for its whole conversation](images/dashboard-tickets.png)
+
 ## How it works
 
 1. A member types `!tickets open I can't see the rules channel`. The bot creates a private channel, `ticket-` plus a number, that only the member and your support team can see.

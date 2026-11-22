@@ -164,7 +164,7 @@ A FastAPI dashboard runs inside the bot. Turn it on with `modules.dashboard: tru
 </p>
 <p align="center">
   <img src="docs/images/dashboard-marketplace-browse.png" alt="The Marketplace page's Browse tab: module cards with icons, a cover picture for Vectoria, and Get buttons" width="49%">
-  <img src="docs/images/dashboard-marketplace-installed.png" alt="The Marketplace page's Installed tab: an installed module with its icon, on/off switch, Settings, Export and Remove, and a section to save any module as a file" width="49%">
+  <img src="docs/images/dashboard-structure.png" alt="Channels & roles: channels by category, and roles with their members and permissions" width="49%">
 </p>
 <p align="center">
   <img src="docs/images/dashboard-access.png" alt="Dashboard access: choose what each Vector role can see or change, area by area" width="60%">

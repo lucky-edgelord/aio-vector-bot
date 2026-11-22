@@ -226,3 +226,6 @@ body.home .top.stuck { position: fixed; background: color-mix(in srgb, var(--ink
   .side { transition: none; }
 }
 @media print { .top, .side, .toc, .prevnext, .foot, .copy { display: none; } .layout { display: block; } body { background: #fff; color: #000; } }
+.prose .phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0; }
+.prose .phones img { margin: 0; }
+.prose img.tablet { max-width: 420px; }

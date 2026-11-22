@@ -7,6 +7,8 @@ summary: Every feature is a module. Switch any of them on or off while the bot r
 
 Vectiq is built from modules: moderation, Sentire, music, the dashboard and so on. Only modules that are switched on are loaded, so a bot that only does moderation never imports the music or dashboard code, and starts faster and uses less memory.
 
+![Switching modules on and off under Settings → Modules](images/dashboard-settings-modules.png)
+
 Switching a module on or off takes effect **straight away**. There's no restart. You can do it in four places:
 
 | Where | How |

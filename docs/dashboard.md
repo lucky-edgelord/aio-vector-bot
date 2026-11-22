@@ -58,6 +58,8 @@ For community admins (Vector's admin role or Manage Community) and for any role 
 
 The areas are Overview, Members, Moderation, Tickets, Channels & roles, Role menus, Onboarding, Leveling, Economy, Giveaways, Games, Security cam, Announce, Module pages and the Audit log. Someone with several roles gets the most any of them allows. Pages they can't open aren't in their menu, and a page they can only look at says so and hides its buttons. The bot checks every request too, so a hidden button can't be pressed anyway.
 
+![Dashboard access: the Moderator preset for a role, shown area by area](images/dashboard-access.png)
+
 Changes apply at once, even to people already signed in, and so does taking a role away in Vector. The community's owner and the bot's owners always have full access, and bot-wide pages (Settings, Marketplace, Webhooks, Users, Restore points) stay with the bot's owners. Every change is in the audit log.
 
 ## What is on each page
@@ -80,11 +82,43 @@ Changes apply at once, even to people already signed in, and so does taking a ro
 | Announce | Post a message as the bot into any channel |
 | Audit log | Who changed what, and when |
 
-Pages only appear for features that are turned on.
+Pages only appear for features that are turned on. A tour, on a made-up community:
 
-![A member page](images/dashboard-member.png)
+**Members.** Search everyone, then open someone to warn, time out, kick or ban them, give and take roles, and adjust their XP and coins.
 
-![Giveaways](images/dashboard-giveaways.png)
+![The Members page: a searchable list with roles, level, XP, coins and warnings](images/dashboard-members.png)
+
+![A member's panel: level, XP and coins, moderation buttons, roles, and XP and coin adjustments](images/dashboard-member.png)
+
+**Moderation.** Every case, newest first, and the community's bans.
+
+![The Moderation page: cases with the member, action, reason, moderator and time](images/dashboard-moderation.png)
+
+**Tickets.** Open, closed or all; open one for its whole conversation.
+
+![The Tickets page: a list of tickets with their status](images/dashboard-tickets.png)
+
+![A ticket's saved transcript shown as chat bubbles](images/dashboard-ticket.png)
+
+**Economy, giveaways, games.**
+
+![The Economy page: coins in circulation, the shop and the richest members](images/dashboard-economy.png)
+
+![The Giveaways page: running and ended giveaways and their entry counts](images/dashboard-giveaways.png)
+
+![The Games page: post a game and the leaderboard of each one](images/dashboard-games.png)
+
+**Role menus and onboarding.**
+
+![The Role menus page: a menu with an emoji and a role for each option](images/dashboard-rolemenus.png)
+
+![The Onboarding page: the steps new members go through, and how many finished](images/dashboard-onboarding.png)
+
+**Announce and the audit log.**
+
+![The Announce page: channel, title, message and a live preview](images/dashboard-announce.png)
+
+![The Audit log: who did what on the dashboard, and when](images/dashboard-audit.png)
 
 ## Settings
 
@@ -94,11 +128,24 @@ The Settings page edits the values in [config.yaml](configuration.md). **Export*
 
 Some settings only apply when the bot starts, such as the dashboard's own address. The page tells you when a restart is needed.
 
-## On a phone
+**Modules** switches features on and off while the bot runs, and **Bot profile** sets the bot's name, about text and picture in Vector.
 
-The dashboard works on a narrow screen: the menu folds away and tables become lists.
+![Settings → Modules: a switch for each feature](images/dashboard-settings-modules.png)
 
-![The dashboard on a phone](images/dashboard-phone.png)
+![Settings → Bot profile: name, about text and picture](images/dashboard-settings-profile.png)
+
+## On a phone or tablet
+
+Every page works on a phone, a tablet and a computer. On phones and on tablets held upright the menu folds away behind the ☰ button, so pages get the whole width; wide tables scroll sideways inside their card.
+
+<p class="phones">
+  <img src="images/dashboard-phone.png" alt="The overview on a phone">
+  <img src="images/dashboard-phone-member.png" alt="A member's panel on a phone">
+  <img src="images/dashboard-phone-wizard.png" alt="The setup wizard on a phone: the stages scroll sideways above the question">
+  <img src="images/dashboard-marketplace-phone.png" alt="The marketplace on a phone">
+</p>
+
+<img class="tablet" src="images/dashboard-tablet.png" alt="Leveling on a tablet held upright: the menu behind a button, the leaderboard card full width">
 
 ## Safety
 
@@ -119,11 +166,23 @@ The **Channels & roles** page lets you shape a community without leaving the das
 - **Per-channel and per-category permissions:** for @everyone, a role or a member, with ✓ allow, / inherit and ✕ deny for each permission.
 - **Roles:** create and edit them (name, colour, shown separately, mentionable, permissions), reorder them, delete them, and set what @everyone may do.
 
+![Channels & roles: channels by category on the left, roles with their members and permissions on the right](images/dashboard-structure.png)
+
 Giving members roles is on the **Members** page. The same actions are available to AI assistants through the [MCP server](mcp.md). Everything is written to the audit log.
 
 ## Marketplace
 
 The **Marketplace** page (owners) adds, updates and removes [JSON modules](json-modules.md): browse a [marketplace](marketplace.md) on GitHub, add a file or paste JSON (checked as you type), and export modules to share.
+
+![The Marketplace: module cards with icons and pictures, and a Get button](images/dashboard-marketplace-browse.png)
+
+## Webhooks and users
+
+**Webhooks** (owners) lists the [webhooks](webhooks.md) declared in config.yaml, with a test button and a fresh URL on demand. **Users** (owners) manages dashboard logins.
+
+![The Webhooks page](images/dashboard-webhooks.png)
+
+![The Users page: each login with its Vector account, last sign-in and status](images/dashboard-users.png)
 
 ## Module pages
 
