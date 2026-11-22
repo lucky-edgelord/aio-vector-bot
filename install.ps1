@@ -44,7 +44,7 @@ Say "Creating the virtual environment and installing Vectiq (the first build tak
 if (-not (Test-Path .venv)) { & cmd /c "$py -m venv .venv"; if ($LASTEXITCODE) { Die "couldn't create the virtual environment" } }
 $venvPy = Join-Path $Root ".venv\Scripts\python.exe"
 & $venvPy -m pip install -q --upgrade pip
-& $venvPy -m pip install -q -e ".[webhooks,dashboard,music]"
+& $venvPy -m pip install -q -e ".[webhooks,dashboard,music,media]"
 if ($LASTEXITCODE) { Die "installing Vectiq failed (see the messages above)" }
 
 function Set-EnvVar($k, $v) {

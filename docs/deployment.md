@@ -91,7 +91,7 @@ Then set `dashboard.base_url` to the `https://` address. That tells the dashboar
 
 ```sh
 git pull
-.venv/bin/pip install -e ".[webhooks,dashboard]"
+.venv/bin/pip install -e ".[webhooks,dashboard,music,media]"
 ```
 
 Then restart the bot. Database changes are applied automatically when it starts, and each one is applied only once. A restore point is made first, so you can go back if the update causes trouble. Read the [changelog](changelog.md) first if you are updating across several versions.
