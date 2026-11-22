@@ -30,6 +30,7 @@ if (-not $py) { Winget-Install "Python.Python.3.12" "Python 3.12"; Refresh-Path;
 if (-not (Have git))   { Winget-Install "Git.Git" "Git"; Refresh-Path }
 if (-not (Have cmake)) { Winget-Install "Kitware.CMake" "CMake"; Refresh-Path }
 if (-not (Have cargo)) { Winget-Install "Rustlang.Rustup" "Rust"; Refresh-Path }
+if (-not (Have ffmpeg)) { try { Winget-Install "Gyan.FFmpeg" "ffmpeg (music and talking videos)"; Refresh-Path } catch { Warn "Couldn't install ffmpeg; music and talking videos need it (winget install Gyan.FFmpeg)." } }
 $hasMsvc = (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") -and
     (& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
 if (-not $hasMsvc) {
@@ -43,7 +44,7 @@ Say "Creating the virtual environment and installing Vectiq (the first build tak
 if (-not (Test-Path .venv)) { & cmd /c "$py -m venv .venv"; if ($LASTEXITCODE) { Die "couldn't create the virtual environment" } }
 $venvPy = Join-Path $Root ".venv\Scripts\python.exe"
 & $venvPy -m pip install -q --upgrade pip
-& $venvPy -m pip install -q -e ".[webhooks,dashboard]"
+& $venvPy -m pip install -q -e ".[webhooks,dashboard,music]"
 if ($LASTEXITCODE) { Die "installing Vectiq failed (see the messages above)" }
 
 function Set-EnvVar($k, $v) {

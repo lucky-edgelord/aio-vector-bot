@@ -40,7 +40,16 @@ need_git() {
 need_git
 if [ -d "$DIR/.git" ]; then
   say "Updating Vectiq in $DIR"
-  git -C "$DIR" pull --ff-only -q || die "couldn't update $DIR (local changes?). Fix it, or set VECTIQ_DIR to install elsewhere."
+  # Your config.yaml is yours: set it aside while updating, then put it back (new options have defaults in the code).
+  kept=""
+  if ! git -C "$DIR" diff --quiet -- config.yaml 2>/dev/null; then
+    kept="$DIR/.config.yaml.yours"; cp "$DIR/config.yaml" "$kept"; git -C "$DIR" checkout -q -- config.yaml
+  fi
+  if ! git -C "$DIR" pull --ff-only -q; then
+    [ -n "$kept" ] && mv "$kept" "$DIR/config.yaml"
+    die "couldn't update $DIR (other local changes?). Fix it, or set VECTIQ_DIR to install elsewhere."
+  fi
+  [ -n "$kept" ] && mv "$kept" "$DIR/config.yaml"
 elif [ -e "$DIR" ] && [ -n "$(ls -A "$DIR" 2>/dev/null)" ]; then
   die "$DIR exists and isn't a Vectiq checkout. Set VECTIQ_DIR to another folder."
 else

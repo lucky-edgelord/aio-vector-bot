@@ -13,7 +13,7 @@ This page is about running the bot for the long term: starting it automatically,
 
 ## macOS
 
-`./install.sh` creates a launchd agent called `com.vectiq.bot` that starts the bot at login and restarts it if it stops. Logs are in `data/vectiq.log`.
+The installer creates a launchd agent called `com.vectiq.bot` that starts the bot at login and restarts it if it stops. Logs are in `data/vectiq.log`.
 
 ```sh
 launchctl kickstart -k gui/$(id -u)/com.vectiq.bot     # restart
@@ -28,7 +28,7 @@ tail -f data/vectiq.log                                # watch the log
 
 ## Linux
 
-`./install.sh` sets up a systemd user service called `vectiq` and enables lingering so it starts at boot and survives logging out.
+The installer sets up a systemd user service called `vectiq` and enables lingering so it starts at boot and survives logging out.
 
 ```sh
 systemctl --user restart vectiq      # restart
@@ -38,7 +38,7 @@ journalctl --user -u vectiq -f       # watch the log
 
 ## Windows
 
-`.\install.ps1` registers a scheduled task called `Vectiq` that starts at logon and restarts if it stops. Logs are in `data\vectiq.log`.
+The installer registers a scheduled task called `Vectiq` that starts at logon and restarts if it stops. Logs are in `data\vectiq.log`.
 
 ```powershell
 Stop-ScheduledTask Vectiq; Start-ScheduledTask Vectiq    # restart

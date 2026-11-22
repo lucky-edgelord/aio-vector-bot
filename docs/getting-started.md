@@ -10,20 +10,17 @@ Vectiq is a bot you run yourself. You install it on a computer that stays on (a 
 ## What you need
 
 - A computer that can stay on and online. The bot keeps a connection open to Vector, so it only works while it is running.
-- Python 3.10 or newer.
 - A Vector account **just for the bot**. Create a new one in the Vector app, or let the installer generate one.
 - Admin rights in the community you want the bot in.
 
 !!! warning "Use a separate account"
     Never give the bot your personal key. The bot's key sits in a file on the computer running it, and the account needs powerful roles in your community. Keep your own account out of it.
 
-The Vector SDK that Vectiq builds on has a Rust core. The first install compiles it, which takes several minutes and needs `rustc`, `cargo` and `cmake`. The macOS installer gets them from Homebrew for you.
+The installer gets everything else (Python, Rust, ffmpeg) for you.
 
 ## Install
 
-### In one line
-
-Copy one line into a terminal. It downloads Vectiq to `~/vectiq`, runs the installer described below, and starts the bot at login.
+Copy one line into a terminal. The same line installs and, run again later, updates.
 
 macOS and Linux:
 
@@ -37,72 +34,18 @@ Windows, in PowerShell:
 irm https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.ps1 | iex
 ```
 
-Run the same line again to update; your settings and data stay. To install somewhere else, set `VECTIQ_DIR` first. Options go after `sh -s --` (`... | sh -s -- --no-service`); on Windows set `$env:VECTIQ_NO_SERVICE = "1"` or `$env:VECTIQ_YES = "1"` before the line. If an AI agent is doing the install for you, point it at [AGENTS.md](https://github.com/lucky-edgelord/aio-vector-bot/blob/main/AGENTS.md).
+What it does:
 
-### From a copy of the code
+1. Gets git if it's missing, and downloads Vectiq to `~/vectiq` (set `VECTIQ_DIR` first to use another folder).
+2. Installs what the bot needs: Python, Rust and CMake (to build the Vector SDK), and ffmpeg (for music and talking videos). On a Mac that's Homebrew; on Linux apt, dnf, pacman, zypper or apk (it asks for your password); on Windows winget.
+3. Asks for the bot's key, and any community invite links. Leave the key blank to create a new account; it's saved in `.env`, so back that file up.
+4. Offers the setup wizard, checks `config.yaml`, and starts the bot when you log in (macOS, Windows) or when the computer starts (Linux). Logs go to `~/vectiq/data/vectiq.log`.
 
-Or download the code yourself:
+The first install compiles the Vector SDK and takes several minutes. Running the line again pulls the newest Vectiq and keeps your settings and data.
 
-```sh
-git clone https://github.com/lucky-edgelord/aio-vector-bot
-cd aio-vector-bot
-```
+Options: on macOS and Linux they go after `sh -s --`, as in `... | sh -s -- --no-service` (install, but don't start at login; run `~/vectiq/run.sh` yourself) or `--yes` (no questions; reads `VECTOR_NSEC` and `VECTIQ_INVITE_URLS` from the environment). On Windows set `$env:VECTIQ_NO_SERVICE = "1"` or `$env:VECTIQ_YES = "1"` before the line. If an AI agent is installing it for you, point it at [AGENTS.md](https://github.com/lucky-edgelord/aio-vector-bot/blob/main/AGENTS.md).
 
-#### macOS and Linux
-
-One script does the rest:
-
-```sh
-./install.sh
-```
-
-On a Mac it installs Homebrew packages; on Linux it uses apt, dnf, pacman, zypper or apk (and asks for your password) plus Rust from rustup. Then it creates a virtual environment, asks for the bot's key and any invite links, offers the setup wizard, checks your `config.yaml`, and starts the bot at login (macOS) or at boot (a systemd user service on Linux). Leave the key blank to generate a new account (the key is saved in `.env`, so back it up). Logs go to `data/vectiq.log`.
-
-Useful variations: `./install.sh --no-service` installs without starting at login, and `./install.sh --yes` skips every question and reads `VECTOR_NSEC` and `VECTIQ_INVITE_URLS` from the environment.
-
-#### Windows
-
-In PowerShell, from the cloned folder:
-
-```powershell
-.\install.ps1
-```
-
-It uses `winget` to install Python, Git, CMake, Rust and the Visual Studio C++ build tools (a large download), then does the same steps as the other installers and starts the bot with a scheduled task at logon (`.\uninstall.ps1` removes it). If scripts are blocked, run `powershell -ExecutionPolicy Bypass -File .\install.ps1`. Options: `-NoService` and `-Yes`. If you would rather not install build tools, use [Docker](docker.md) with Docker Desktop.
-
-!!! note "Not yet tested on Windows"
-    The Windows and Linux installers have not been run on real machines yet. If something is off, please [open an issue](https://github.com/lucky-edgelord/aio-vector-bot/issues).
-
-### With pip or pipx
-
-You don't need to clone anything. This works on Linux and macOS, and needs `rustc`/`cargo` and `cmake` the first time because the Vector SDK is compiled from source.
-
-```sh
-pipx install "vectiq[dashboard,webhooks] @ git+https://github.com/lucky-edgelord/aio-vector-bot"
-mkdir my-bot && cd my-bot
-vectiq --init          # writes config.yaml and .env here
-vectiq --setup         # friendly wizard; then put VECTOR_NSEC in .env
-vectiq
-```
-
-Plain `pip install` in a virtual environment works the same way. Update with `pipx upgrade vectiq`, or reinstall with `--force` to pick up the newest commit. `vectiq --version` shows what you have.
-
-### Linux
-
-```sh
-python3 -m venv .venv
-.venv/bin/pip install -e ".[webhooks,dashboard]"
-cp .env.example .env && chmod 600 .env
-```
-
-Open `.env` and set `VECTOR_NSEC` to the bot's key. Then check the configuration and start the bot:
-
-```sh
-.venv/bin/python -m vectiq --check
-.venv/bin/python -m vectiq
-```
-
-To keep it running after you log out, see [Deployment](deployment.md#linux).
+To remove it: `~/vectiq/uninstall.sh` (`~\vectiq\uninstall.ps1` on Windows).
 
 ## Put the bot in your community
 

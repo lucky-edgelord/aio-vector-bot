@@ -788,7 +788,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001 - usually a missing permission on Vector's side
-            fail(502, f"Couldn't {what}: {explain(exc)}")
+            fail(502, f"That didn't work ({what}): {explain(exc)}")
         await audit(npub, what, detail[:480], g)
         return out
 
