@@ -7,6 +7,8 @@ summary: Browse JSON modules on GitHub and add them from the dashboard, from cha
 
 A marketplace is a GitHub repository of [JSON modules](json-modules.md). The default is [lucky-edgelord/aio-marketplace](https://github.com/lucky-edgelord/aio-marketplace), which also has a [website](https://lucky-edgelord.github.io/aio-marketplace/).
 
+![The Marketplace on the dashboard](images/dashboard-marketplace-browse.png)
+
 ## On the dashboard
 
 **Marketplace** (in the Bot section of the menu; owners only) has three tabs:

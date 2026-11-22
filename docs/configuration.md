@@ -49,6 +49,8 @@ profile:
   avatar: vectoria.png      # a file next to config.yaml, a full path, or a web address
 ```
 
+![Settings → Bot profile on the dashboard](images/dashboard-settings-profile.png)
+
 It's applied when the bot starts and whenever you change it. Empty values leave that part of the profile alone, and the picture is uploaded again only when the file changes.
 
 ## Modules

@@ -98,22 +98,29 @@ class Perms:
         self.administrator = self.manage_guild = admin
 
 
+class Colour(int):
+    @property
+    def value(self):
+        return int(self)
+
+
 class Role:
-    def __init__(self, rid, name, colour):
-        self.id, self.name, self.colour = rid, name, SimpleNamespace(value=colour)
+    def __init__(self, rid, name, colour, perms=(), hoist=False):
+        from vectiq.manage import perms_value
+
+        self.id, self.name, self.colour = rid, name, Colour(colour)
+        self.permissions, self.hoist, self.mentionable, self.members, self.position = perms_value(perms), hoist, True, [], 0
 
     def is_default(self):
         return False
 
 
 class Channel:
-    def __init__(self, cid, name, category=None):
-        self.id, self.name, self.category, self.private = (
-            cid,
-            name,
-            SimpleNamespace(name=category) if category else None,
-            False,
-        )
+    def __init__(self, cid, name, category=None, view="chat", topic="", private=False):
+        self.id, self.name, self.private, self.view, self.topic = cid, name, private, view, topic
+        self.category = SimpleNamespace(name=category, id=f"cat-{category}") if category else None
+        self.category_id = self.category.id if self.category else None
+        self.read_only, self.overwrites = cid == "c1", {}
 
 
 class Member:
@@ -137,13 +144,15 @@ class Member:
 class Guild:
     def __init__(self):
         self.id, self.name = GID, "Nebula Builders"
+        mod = ("view_channel", "send_messages", "read_message_history", "manage_messages", "moderate_members",
+               "kick_members", "manage_nicknames")
         self.roles = [
-            Role("r1", "Admin", 0x59FCB3),
-            Role("r2", "Moderator", 0x7CB7FF),
+            Role("r1", "Admin", 0x59FCB3, mod + ("ban_members", "manage_channels", "manage_roles", "manage_guild"), True),
+            Role("r2", "Moderator", 0x7CB7FF, mod, True),
             Role("r3", "Gamer", 0xFF9F7A),
             Role("r4", "Artist", 0xC896FF),
             Role("r5", "Dev", 0xFFD666),
-            Role("r6", "Verified", 0x8C8E94),
+            Role("r6", "Verified", 0x8C8E94, ("view_channel", "send_messages", "attach_files", "add_reactions")),
         ]
         r = {x.name: x for x in self.roles}
         self.members = [Member(0, "Nova", True, [r["Admin"], r["Dev"]])]
@@ -155,6 +164,9 @@ class Guild:
                 roles.insert(0, r["Moderator"])
             self.members.append(Member(i, n, admin=i == 3, roles=roles, timed_out=i == 11))
         self.members += [Member(100 + k, f"npub1demo{k}…") for k in range(7)]
+        for m in self.members:
+            for role in m.roles:
+                role.members.append(m)
         self.owner_id = self.members[0].npub
         self.text_channels = [
             Channel("c1", "📣┊announcements", "Info"),
@@ -163,7 +175,14 @@ class Guild:
             Channel("c4", "🛠️┊dev-chat", "Community"),
             Channel("c5", "🎨┊art", "Community"),
             Channel("c6", "🤖┊bot-commands", "Bots"),
+            Channel("c7", "🛡️┊mod-log", "Staff", private=True, topic="Warnings, timeouts and bans"),
         ]
+        self.categories = [SimpleNamespace(id=f"cat-{n}", name=n, overwrites={})
+                           for n in ("Info", "Community", "Bots", "Staff")]
+        self.channels = self.text_channels + [Channel("v1", "🔊┊hangout", "Community", view="voice")]
+        from vectiq.manage import perms_value
+
+        self.default_role = SimpleNamespace(permissions=perms_value(("view_channel", "send_messages")))
         self.capabilities = {
             "manage_roles": True,
             "manage_channels": True,
@@ -288,7 +307,7 @@ async def seed(stores: Stores, guild: Guild) -> None:
     for prize, mins, ended in (
         ("Custom role colour", 2 * 60 * 24, False),
         ("1,000 coins", 45, False),
-        ("Nitro-style badge", -600, True),
+        ("Golden name badge", -600, True),
     ):
         g = await stores.giveaways.create(GID, "c1", people[0].npub, prize, 1, int(time.time() + mins * 60))
         for m in people[: rnd.randint(4, 15)]:
@@ -330,6 +349,16 @@ async def seed(stores: Stores, guild: Guild) -> None:
 
 # -- screenshots ---------------------------------------------------------------------------------------------
 
+    people = guild.members
+    for ago, who, action, detail in ((50, 0, "changed settings", "leveling.xp_min, leveling.xp_max"),
+                                     (41, 3, "timed out", "Echo, 1 hour: heated argument"),
+                                     (33, 0, "created role", "Artist"), (26, 8, "closed ticket", "#1 Can't see the art channel"),
+                                     (18, 0, "started giveaway", "Golden name badge"),
+                                     (9, 3, "gave role", "Juniper: Moderator"), (2, 0, "posted announcement", "#announcements")):
+        await stores.dashboard.audit(people[who].npub, action, detail, GID)
+        await stores.db.execute("UPDATE dash_audit SET at=? WHERE id=(SELECT MAX(id) FROM dash_audit)",
+                                (int(time.time() - ago * 3600),))
+
 
 def backdate(path: Path, days: float) -> None:
     """Make a demo restore point look older, so the list reads like a real history."""
@@ -361,6 +390,8 @@ async def main(chrome: str | None) -> None:
         (avatars / f"{i}.png").write_bytes(make_avatar(i))
     (tmp / "config.yaml").write_text(
         f"owners: [{npub(0)}]\nmodules:\n  dashboard: true\n"
+        "profile:\n  name: Nebula Bot\n  about: Levels, tickets and games for Nebula Builders. Type !help\n"
+        "  avatar: nebula-bot.png\n"
         f"verification:\n  mode: captcha\n  min_age: 16\n  public_url: {BASE}\n"
         f"  captcha:\n    provider: Cloudflare Turnstile\n    site_key: demo\n    script_url: {BASE}/demo-captcha.js\n")
     cfg = Config.load(tmp / "config.yaml", env={})
@@ -434,6 +465,27 @@ async def main(chrome: str | None) -> None:
         await page.click(".item.click >> nth=2")
         await shot("dashboard-ticket", wait=1200)
         await shot("dashboard-giveaways", f"/#/c/{GID}/giveaways", 1200)
+        await shot("dashboard-tickets", f"/#/c/{GID}/tickets/", 1200)
+        await shot("dashboard-moderation", f"/#/c/{GID}/moderation", 1500)
+        await shot("dashboard-economy", f"/#/c/{GID}/economy", 1500)
+        await shot("dashboard-rolemenus", f"/#/c/{GID}/rolemenus", 1200)
+        await shot("dashboard-onboarding", f"/#/c/{GID}/onboarding", 1200)
+        await shot("dashboard-games", f"/#/c/{GID}/games", 1200)
+        await shot("dashboard-structure", f"/#/c/{GID}/structure", 1500)
+        await shot("dashboard-announce", f"/#/c/{GID}/announce", 1200)
+        await shot("dashboard-audit", f"/#/c/{GID}/audit", 1200)
+        await page.goto(BASE + f"/#/c/{GID}/access")
+        await page.wait_for_timeout(1500)
+        await page.locator("select").last.select_option(label="Moderator")
+        await page.wait_for_timeout(600)
+        await page.get_by_role("button", name="Area by area").last.click()
+        await shot("dashboard-access", wait=600, full=True)
+        await shot("dashboard-marketplace-browse", "/#/marketplace/browse", 4000, full=True)
+        await shot("dashboard-marketplace-add", "/#/marketplace/add", 1200)
+        await shot("dashboard-webhooks", "/#/webhooks", 1200)
+        await shot("dashboard-users", "/#/users", 1200)
+        await shot("dashboard-settings-modules", "/#/settings/modules", 1200)
+        await shot("dashboard-settings-profile", "/#/settings/profile", 1200)
         await shot("dashboard-settings", "/#/settings/leveling", 1200)
         await page.goto(BASE + "/#/setup")
         await page.wait_for_selector(".wiz")
@@ -461,6 +513,21 @@ async def main(chrome: str | None) -> None:
         await phone.add_cookies(await ctx.cookies())
         page = await phone.new_page()
         await shot("dashboard-phone", f"/#/c/{GID}/overview", 2500)
+        await page.goto(BASE + f"/#/c/{GID}/members")
+        await page.wait_for_timeout(1800)
+        await page.click("tbody tr.click >> nth=4")
+        await shot("dashboard-phone-member", wait=1800)
+        await shot("dashboard-marketplace-phone", "/#/marketplace/browse", 4000)
+        await page.goto(BASE + "/#/setup")
+        await page.wait_for_selector(".wiz")
+        await page.click("text=Let's go")
+        for _ in range(4):
+            await page.click("text=Continue")
+        await shot("dashboard-phone-wizard", wait=900)
+        tablet = await browser.new_context(viewport={"width": 820, "height": 1180}, device_scale_factor=2)
+        await tablet.add_cookies(await ctx.cookies())
+        page = await tablet.new_page()
+        await shot("dashboard-tablet", f"/#/c/{GID}/leveling", 2500)
         await browser.close()
 
     server.should_exit = True

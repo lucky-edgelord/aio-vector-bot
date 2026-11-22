@@ -44,6 +44,8 @@ Add it and **Server rules** appears in your modules, with *The rules* as a setti
 
 ## Writing one
 
+![Marketplace → Add a module: paste or choose a file, checked as you type](images/dashboard-marketplace-add.png)
+
 The quickest way is to ask an AI. On the dashboard, **Marketplace → Add a module → Copy a prompt for an AI** copies instructions that describe the format. Paste them into Claude (or another AI), say what you want ("a module that welcomes people who say hi and has a !schedule command with our meeting times"), and paste the answer back into the same box. It's checked as you type, and nothing is installed until you press **Install**.
 
 You can also start from **Start from the template**, which fills the box with a small module that uses every part. With the [MCP server](mcp.md) on, an assistant can do all of this itself: `module_format_guide`, `check_module_json`, `add_module_json`.

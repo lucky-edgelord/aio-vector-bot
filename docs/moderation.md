@@ -7,6 +7,8 @@ summary: Warnings that escalate, timeouts, bans that lift themselves, softbans, 
 
 Every moderation action is stored as a numbered **case**, so you can see what happened, who did it and why. Commands need the matching Vector permission, so someone who can't time people out in Vector can't do it through the bot either.
 
+![The Moderation page on the dashboard: every case, newest first](images/dashboard-moderation.png)
+
 ## Warnings
 
 ```

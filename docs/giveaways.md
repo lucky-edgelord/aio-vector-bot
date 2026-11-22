@@ -9,6 +9,8 @@ summary: Timed giveaways with multiple winners and rerolls. Members enter by rea
 !giveaway start 1h 2 Nitro
 ```
 
+![The Giveaways page on the dashboard](images/dashboard-giveaways.png)
+
 That starts a one-hour giveaway for a prize called "Nitro" with two winners. The bot posts it with a 🎉 reaction, members react to enter, and when time is up the bot picks the winners at random and announces them.
 
 ## Running one
