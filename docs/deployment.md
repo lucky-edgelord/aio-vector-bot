@@ -15,6 +15,8 @@ This page is about running the bot for the long term: starting it automatically,
 
 The installer creates a launchd agent called `com.vectiq.bot` that starts the bot at login and restarts it if it stops. Logs are in `data/vectiq.log`.
 
+Installing over SSH, or on a Mac that nobody logs in to? Add `--boot` (it's chosen for you when there's no desktop session): the installer then sets up a system service, `/Library/LaunchDaemons/com.vectiq.bot.plist`, that starts when the Mac boots and runs as your user. It asks for your password once. Restart it with `sudo launchctl kickstart -k system/com.vectiq.bot`. Apple's command line tools are installed from the terminal too, so no window ever opens.
+
 ```sh
 launchctl kickstart -k gui/$(id -u)/com.vectiq.bot     # restart
 tail -f data/vectiq.log                                # watch the log
