@@ -40,6 +40,24 @@ Rules never touch the network and stores never touch Vector, so almost everythin
 
 ## Quick start
 
+One line installs everything and starts the bot at login. Run it again later to update.
+
+**macOS and Linux**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.sh | sh
+```
+
+**Windows** (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/lucky-edgelord/aio-vector-bot/main/get.ps1 | iex
+```
+
+Vectiq goes in `~/vectiq` (set `VECTIQ_DIR` for another folder). Asking an AI agent to install it for you? Point it at [AGENTS.md](AGENTS.md).
+
+Or from a clone:
+
 ```sh
 git clone https://github.com/lucky-edgelord/aio-vector-bot
 cd aio-vector-bot
