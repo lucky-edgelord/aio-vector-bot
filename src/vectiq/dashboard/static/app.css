@@ -97,7 +97,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--dim); text-transform: upper
 .table tr.click { cursor: pointer; }
 .table tr.click:hover td { background: var(--raise); }
 .table .num { text-align: right; font-variant-numeric: tabular-nums; }
-.scroll-x { overflow-x: auto; margin: 0 -6px; padding: 0 6px; }
+.scroll-x, .tablewrap { overflow-x: auto; margin: 0 -6px; padding: 0 6px; }
 .empty { padding: 28px 10px; text-align: center; color: var(--dim); }
 .empty .mark { margin-bottom: 10px; opacity: .5; }
 
@@ -224,7 +224,8 @@ textarea.input { height: auto; min-height: 90px; padding: 10px 14px; resize: ver
   .form.two { grid-template-columns: 1fr; }
   .setting { grid-template-columns: 1fr; gap: 8px; }
 }
-@media (max-width: 780px) {
+/* phones and tablets held upright: the menu slides in from a button, so pages get the full width */
+@media (max-width: 1000px) {
   .shell { grid-template-columns: 1fr; }
   .side { position: fixed; z-index: 60; left: 0; top: 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform .18s; }
   .shell.open .side { transform: none; box-shadow: 20px 0 60px rgba(0,0,0,.6); }
@@ -232,12 +233,20 @@ textarea.input { height: auto; min-height: 90px; padding: 10px 14px; resize: ver
   .topbar { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 40; padding: 10px 14px;
     background: rgba(11, 11, 12, .92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-soft); }
   .main { padding-top: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .side { transition: none; } }
+@media (max-width: 780px) {
   h1 { font-size: 22px; }
   .stat .v { font-size: 22px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .legend { flex-wrap: wrap; gap: 8px; }
   .hide-sm { display: none !important; }
   .card { padding: 16px; }
+  /* phones: page buttons go under the title, and a list row's buttons wrap under its text */
+  .pagehead { flex-wrap: wrap; }
+  .pagehead > .grow { flex: 1 1 100%; }
+  .item { flex-wrap: wrap; row-gap: 8px; }
+  .item > .grow { flex: 1 1 60%; min-width: 60%; }
 }
 
 /* setup wizard: an installer-style frame */

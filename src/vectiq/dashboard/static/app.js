@@ -1560,7 +1560,7 @@ async function marketplace(main) {
     lib.exportable.length ? card("Save a module as a file", h("p", { class: "muted", style: { marginTop: 0 } }, "Share a module, or keep a copy. “With my settings” uses your current values as its defaults; passwords and tokens are never included."),
       h("div", { class: "list" }, lib.exportable.map((m) => h("div", { class: "item" }, h("div", { class: "grow" }, h("b", null, m.name), h("div", { class: "faint" }, m.from === "folder" ? "a plugin folder: its Python goes in the file" : "a JSON module")),
         share(m.id, "Export"), m.settings ? h("a", { class: "btn ghost sm", href: `/api/library/export/${encodeURIComponent(m.id)}?settings=true`, download: `${m.id}.module.json` }, "With my settings") : null)))) : null,
-    h("p", { class: "faint" }, lib.allow_code ? "Modules with code are allowed." : "Only modules without code can be installed. ", h("a", { href: "#/settings/marketplace" }, "Marketplace settings →")));
+    h("p", { class: "faint" }, lib.allow_code ? "Modules with code are allowed. " : "Only modules without code can be installed. ", h("a", { href: "#/settings/marketplace" }, "Marketplace settings →")));
 }
 
 /* ---------------------------------------------------------------- accounts */
