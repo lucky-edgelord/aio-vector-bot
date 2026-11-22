@@ -144,6 +144,17 @@ def fail(status: int, message: str):
 # -- the app ---------------------------------------------------------------------------------------
 
 
+def role_hex(role: Any) -> str | None:
+    """A role's colour as #rrggbb, whether the SDK gives a number or a Colour object (``.value``); None if unset."""
+    c = getattr(role, "colour", None)
+    c = getattr(c, "value", c)
+    try:
+        n = int(c or 0)
+    except (TypeError, ValueError):
+        return None
+    return f"#{n:06x}" if n else None
+
+
 def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route next to the bot it uses
     cfg = bot.config
     store = bot.stores.dashboard
@@ -1309,8 +1320,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
     async def access_get(gid: str, npub: str = Depends(current)):
         g = configurable(gid, npub)
         rules = access.rules.get(str(g.id)) or access.clean_rules({})
-        roles = [{"id": str(r.id), "name": r.name, "color": f"#{int(getattr(r, 'colour', 0) or 0):06x}"
-                  if getattr(r, "colour", 0) else None}
+        roles = [{"id": str(r.id), "name": r.name, "color": role_hex(r)}
                  for r in getattr(g, "roles", []) if not (getattr(r, "is_default", lambda: False)())]
         names = {r["id"]: r["name"] for r in roles}
         return {"areas": [{"id": a, "label": label, "help": help_} for a, label, help_ in AREAS],
