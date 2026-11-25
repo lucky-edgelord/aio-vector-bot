@@ -225,12 +225,12 @@ const PAGES = [
   ["overview", "◈", "Overview"], ["members", "☺", "Members"], ["moderation", "⚑", "Moderation"],
   ["leveling", "▲", "Leveling"], ["economy", "◎", "Economy"], ["tickets", "✉", "Tickets"],
   ["rolemenus", "❖", "Role menus"], ["giveaways", "✦", "Giveaways"], ["games", "▣", "Games"],
-  ["onboarding", "➜", "Onboarding"], ["structure", "▤", "Channels & roles"], ["securitycam", "◉", "Security cam"],
+  ["onboarding", "➜", "Onboarding"], ["structure", "▤", "Channels & roles"], ["limits", "⛨", "Command limits"], ["securitycam", "◉", "Security cam"],
   ["announce", "✎", "Announce"], ["audit", "☰", "Audit log"],
 ];
 // The dashboard area each community page belongs to (see Dashboard access).
 const AREA_OF = { overview: "overview", members: "members", moderation: "moderation", leveling: "leveling", economy: "economy",
-  tickets: "tickets", rolemenus: "rolemenus", giveaways: "giveaways", games: "games", onboarding: "onboarding", structure: "structure",
+  tickets: "tickets", rolemenus: "rolemenus", giveaways: "giveaways", games: "games", onboarding: "onboarding", structure: "structure", limits: "structure",
   securitycam: "securitycam", announce: "announce", audit: "audit", m: "modules" };
 const commAccess = (comm, page) => (comm && comm.access ? comm.access[AREA_OF[page]] || "" : "");
 const MODULE_OF = { moderation: "moderation", leveling: "leveling", economy: "economy", tickets: "tickets", rolemenus: "roles",
@@ -303,7 +303,7 @@ function renderShell(page) {
   const level = page === "access" ? (comm && comm.configure ? "manage" : "") : comm && S.route[0] === "c" ? commAccess(comm, page) : "manage";
   if (comm && S.route[0] === "c" && !level) { clear(main, card(null, h("p", { class: "muted" }, "You don't have access to this page. The community's owner decides who can see what, under Dashboard access."))); return; }
   main.classList.toggle("readonly", level === "view");
-  const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit, access: accessPage,
+  const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, limits, securitycam, announce, audit, access: accessPage,
     settings, setup, restore, updates, webhooks, marketplace, users, account, m: modulePanel, structure }[page];
   if (!fn || (!comm && !["settings", "setup", "restore", "updates", "webhooks", "marketplace", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
@@ -762,6 +762,31 @@ async function onboarding(main) {
     h("div", { style: { marginTop: "16px" } }, card(`Role menu: “${d.title}”`, h("div", { class: "list" }, Object.entries(d.role_menu).map(([e, r]) =>
       h("div", { class: "item" }, h("span", { style: { fontSize: "20px", width: "28px", textAlign: "center" } }, e), h("b", null, r)))),
     h("p", { class: "faint" }, `Posted in ${d.channel ? `#${d.channel}` : "the system channel"}.`))));
+}
+
+/* ---------------------------------------------------------------- command limits */
+
+async function limits(main) {
+  const d = await api("GET", C("/command-limits"));
+  const target = input({ placeholder: "A command (ban, tickets list) or a module", list: "limit-targets" });
+  const chosen = new Set();
+  const picked = h("div", { class: "row wrap", style: { gap: "6px" } });
+  const drawPicked = () => clear(picked, [...chosen].map((id) => h("span", { class: "role" }, d.roles.find((r) => r.id === id)?.name || id,
+    h("button", { type: "button", class: "x", "aria-label": "Remove", onclick: () => { chosen.delete(id); drawPicked(); } }, "×"))));
+  const pick = select([["", "Add a role…"], ...d.roles.map((r) => [r.id, r.name])], "");
+  pick.addEventListener("change", () => { if (pick.value) { chosen.add(pick.value); pick.value = ""; drawPicked(); } });
+  const save = btn("Limit it", async () => {
+    try { await run(save, () => api("PUT", C("/command-limits"), { target: target.value, roles: [...chosen] })); limits(main); } catch { /* toast */ }
+  }, "primary");
+  clear(main, head("Command limits", "Only people with the roles you choose can use a command, or every command of a module. Admins and the owner can always use everything."),
+    h("div", { class: "grid g2" },
+      card("Limit a command", h("div", { class: "form" },
+        field("Command or module", target), h("datalist", { id: "limit-targets" }, [...d.targets.commands, ...d.targets.modules].map((t) => h("option", { value: t }))),
+        field("Who may use it", h("div", { class: "stack" }, picked, pick)), h("div", { class: "row" }, save))),
+      card(`Limited (${d.limits.length})`, d.limits.length ? h("div", { class: "list" }, d.limits.map((l) => h("div", { class: "item" },
+        h("div", { class: "grow" }, h("b", null, l.target), h("div", { class: "faint" }, l.roles.map((r) => r.name).join(", "))),
+        btn("Open to everyone", async (e) => { try { await run(e.target, () => api("PUT", C("/command-limits"), { target: l.target, roles: [] })); limits(main); } catch { /* toast */ } }, "ghost sm"))))
+        : empty("Nothing is limited."))));
 }
 
 /* ---------------------------------------------------------------- security cam */

@@ -1295,6 +1295,36 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
                                        timestamp=True)), "send")
         return {"ok": True, "message": f"Test sent to #{cam.name}."}
 
+    # -- command limits -------------------------------------------------------------------------------
+
+    @app.get("/api/c/{gid}/command-limits")
+    async def command_limits(gid: str, npub: str = Depends(current)):
+        g = community(gid, npub)
+        lim = cog("Limits")
+        rules = await lim.get(g)
+        names = {str(r.id): r.name for r in g.roles}
+        return {"limits": [{"target": k, "roles": [{"id": str(i), "name": names.get(str(i), "(deleted role)")} for i in v]}
+                           for k, v in sorted(rules.items())],
+                "targets": lim.targets(),
+                "roles": [{"id": str(r.id), "name": r.name} for r in g.roles if not getattr(r, "is_default", lambda: False)()]}
+
+    @app.put("/api/c/{gid}/command-limits")
+    async def command_limits_save(gid: str, request: Request, npub: str = Depends(current)):
+        g = community(gid, npub)
+        lim = cog("Limits")
+        data = await body(request)
+        name = lim.known(str(data.get("target", "")))
+        if name is None:
+            fail(400, "That isn't a command or module I know.")
+        known = {str(r.id) for r in g.roles}
+        ids = [str(i) for i in data.get("roles", []) if str(i) in known]
+        if data.get("roles") and not ids:
+            fail(400, "None of those roles exist.")
+        await lim.save(g, name, ids)
+        await audit(npub, "limited a command" if ids else "opened a command", f"{name}: {lim.role_names(g, ids)}", g)
+        return {"ok": True, "message": f"{name} is limited to {lim.role_names(g, ids)}." if ids
+                else f"{name} is open to everyone."}
+
     # -- announcements -------------------------------------------------------------------------------
 
     @app.post("/api/c/{gid}/announce")

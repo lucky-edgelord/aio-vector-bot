@@ -126,7 +126,7 @@ BUILTIN: tuple[Module, ...] = (
            ("vectiq.cogs.dashboard",), default=False, extra="dashboard", imports=("fastapi", "uvicorn")),
 )
 
-CORE_COGS = ("vectiq.cogs.core", "vectiq.cogs.restorepoints", "vectiq.cogs.updates")
+CORE_COGS = ("vectiq.cogs.core", "vectiq.cogs.restorepoints", "vectiq.cogs.updates", "vectiq.cogs.limits")
 
 # Live views of every module known right now. They are updated in place when plugins are found, so code that
 # imported them keeps seeing the current list.

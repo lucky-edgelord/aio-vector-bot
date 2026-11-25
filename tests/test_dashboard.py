@@ -396,6 +396,34 @@ async def test_restore_points_page(env, tmp_path):
     assert (await c.post(f"/api/restore-points/{pid}/rollback", headers=H)).status_code == 404
 
 
+async def test_command_limits_page(env):
+    from vectiq.cogs.limits import Limits
+
+    g = env.bot.guilds[0]
+    g.roles = [SimpleNamespace(id="r1", name="Moderator", is_default=lambda: False)]
+    cmds = [SimpleNamespace(name="ban", qualified_name="ban", cog_name="Moderation", root_parent=None)]
+    env.bot.walk_commands = lambda: cmds
+    env.bot.cogs = {"Moderation": 1}
+    env.bot.get_command = lambda n: cmds[0] if n == "ban" else None
+    env.bot.add_check = lambda f: None
+    lim = Limits(env.bot)
+    env.bot.get_cog = lambda name: lim if name == "Limits" else None
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    await login(env.client)
+    d = (await env.client.get("/api/c/g1/command-limits")).json()
+    assert d["limits"] == [] and "ban" in d["targets"]["commands"] and d["roles"][0]["name"] == "Moderator"
+    bad = await env.client.put("/api/c/g1/command-limits", json={"target": "nope", "roles": ["r1"]}, headers=H)
+    assert bad.status_code == 400
+    ghost = await env.client.put("/api/c/g1/command-limits", json={"target": "ban", "roles": ["zzz"]}, headers=H)
+    assert ghost.status_code == 400
+    ok = await env.client.put("/api/c/g1/command-limits", json={"target": "ban", "roles": ["r1"]}, headers=H)
+    assert ok.status_code == 200
+    d = (await env.client.get("/api/c/g1/command-limits")).json()
+    assert d["limits"][0]["target"] == "ban" and d["limits"][0]["roles"][0]["name"] == "Moderator"
+    await env.client.put("/api/c/g1/command-limits", json={"target": "ban", "roles": []}, headers=H)
+    assert (await env.client.get("/api/c/g1/command-limits")).json()["limits"] == []
+
+
 async def test_update_endpoints_are_owner_only(env):
     from types import SimpleNamespace
 
