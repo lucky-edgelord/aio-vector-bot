@@ -39,7 +39,11 @@ Set `warn_action: none` if you want warnings to be a record only.
 !tempban @sam 3d cooling off
 !softban @sam keeps coming back
 !unban npub1... reason
+!bans
+!unbanall confirm
 ```
+
+`!bans` lists who is banned and why. `!unban` lifts one ban. `!unbanall confirm` lifts every ban and needs the administrator permission. The dashboard's Bans page does the same with a button.
 
 Durations are written as `30m`, `2h`, `1d12h`. A timeout can be at most `moderation.mute_max_days` (28 by default, which is Vector's own limit). A tempban lifts itself when the time is up. The bot checks every 30 seconds.
 

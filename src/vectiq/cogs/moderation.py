@@ -194,21 +194,54 @@ class Moderation(commands.Cog, name="Moderation"):
         case = await self._record(ctx, member, "tempban", reason, expires_at=int(time.time()) + seconds)
         await ctx.send(ok(f"Banned {name_of(member)} for {format_duration(seconds)} (case #{case.id})."))
 
-    @commands.command()
-    @commands.has_permissions(ban_members=True)
-    async def unban(self, ctx, user: vector.User, *, reason: str = ""):
-        """Lift a ban or a softban."""
-        soft = await self.bot.stores.gate.unsoftban(str(ctx.guild.id), str(user.id))
+    async def lift_ban(self, guild, user, moderator, reason=""):
+        """Lift a ban or softban and close its cases. Shared by !unban, !unbanall and the dashboard."""
+        gid, uid = str(guild.id), str(user.id)
+        soft = await self.bot.stores.gate.unsoftban(gid, uid)
         try:
-            await ctx.guild.unban(user, reason=reason or None)
+            await guild.unban(user, reason=reason or None)
         except Exception:  # noqa: BLE001
             if not soft:
                 raise
         for action in ("ban", "tempban"):
-            for c in await self.store.for_user(str(ctx.guild.id), str(user.id), action=action, active_only=True):
-                await self.store.deactivate(str(ctx.guild.id), c.id)
-        await self._record(ctx, user, "unban", reason)
+            for c in await self.store.for_user(gid, uid, action=action, active_only=True):
+                await self.store.deactivate(gid, c.id)
+        return await self.record(guild, user, moderator, "unban", reason)
+
+    @commands.command()
+    @commands.has_permissions(ban_members=True)
+    async def unban(self, ctx, user: vector.User, *, reason: str = ""):
+        """Lift a ban or a softban."""
+        await self.lift_ban(ctx.guild, user, ctx.author, reason)
         await ctx.send(ok(f"Unbanned {name_of(user)}."))
+
+    @commands.command()
+    @commands.has_permissions(ban_members=True)
+    async def bans(self, ctx):
+        """List who is banned, with the reason."""
+        rows = []
+        async for entry in ctx.guild.bans(limit=50):
+            user = getattr(entry, "user", entry)
+            rows.append((name_of(user), short(getattr(entry, "reason", "") or "no reason")))
+        if not rows:
+            return await ctx.send(ok("Nobody is banned."))
+        await ctx.send(embed=embed(f"Bans ({len(rows)})", table(rows), footer="!unban <user> lifts one"))
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def unbanall(self, ctx, confirm: str = ""):
+        """Lift every ban (type !unbanall confirm)."""
+        if confirm.lower() != "confirm":
+            return await ctx.send(fail("This lifts every ban. Run `!unbanall confirm` to do it."))
+        users = [getattr(e, "user", e) async for e in ctx.guild.bans()]
+        done = 0
+        for user in users:
+            try:
+                await self.lift_ban(ctx.guild, user, ctx.author, "unbanall")
+                done += 1
+            except Exception as exc:  # noqa: BLE001
+                self.bot.dispatch("vectiq_warning", f"unban failed for {short(user.id)}: {exc}")
+        await ctx.send(ok(f"Lifted {done} of {len(users)} bans."))
 
     @tasks.loop(seconds=30)
     async def expire_loop(self):

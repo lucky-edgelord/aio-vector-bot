@@ -198,7 +198,7 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 | Safety | `linksafety` `linksafety check/update` `imageguard` `imageguard block/unblock/list/test` |
 | Music | `play` `search` `playnext` `queue` `nowplaying` `skip` `forceskip` `skipto` `back` `replay` `seek` `pause` `resume` `loop` `shuffle` `move` `remove` `clearqueue` `removedupes` `leavecleanup` `volume` `filter` `247` `join` `leave` |
 | Alerts | `notify` `notify add youtube/twitch/rss` `notify remove` `notify check` |
-| Moderation | `softban` `warn` `warnings` `delwarn` `clearwarns` `timeout` `untimeout` `kick` `ban` `tempban` `unban` `case` `history` `modlog` `purge` `lock` `unlock` `slowmode` |
+| Moderation | `softban` `warn` `warnings` `delwarn` `clearwarns` `timeout` `untimeout` `kick` `ban` `tempban` `unban` `bans` `unbanall` `case` `history` `modlog` `purge` `lock` `unlock` `slowmode` |
 | Leveling | `rank` `leaderboard` `levelreward add/remove` `givexp` `resetxp` `levelcurve` |
 | Economy | `balance` `daily` `work` `pay` `deposit` `withdraw` `richest` `transactions` `shop` `buy` `inventory` `addmoney` |
 | Dashboard | `dashboard` (DMs you a one-time sign-in link) |
