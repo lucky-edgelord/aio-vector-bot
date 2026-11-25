@@ -89,6 +89,14 @@ GROUPS: list[dict[str, Any]] = [
         field("events.calendar_image", "Calendar as an image", "bool"),
         field("events.week_starts", "Week starts on", "enum", options=("monday", "sunday")),
     ]},
+    {"id": "updates", "title": "Updates", "fields": [
+        field("updates.check", "Check for updates", "bool", "One small request to GitHub every few hours"),
+        field("updates.every_hours", "Check every (hours)", "int", minimum=1, maximum=168),
+        field("updates.notify", "DM the owners when one is ready", "bool"),
+        field("updates.auto_install", "Install updates automatically", "bool",
+              "Makes a restore point, installs and restarts by itself. Only works on a git install."),
+        field("updates.restart", "Restart after updating", "bool"),
+    ]},
     {"id": "securitycam", "title": "Security cam", "fields": [
         field("securitycam.channel", "Camera channel", "channel", "Channel name or id that receives every echoed "
               "message. Blank = use the one set with !securitycam set. Keep it private."),

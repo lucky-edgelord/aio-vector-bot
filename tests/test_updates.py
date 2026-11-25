@@ -185,3 +185,46 @@ async def test_install_refuses_when_up_to_date_or_dirty(cog, monkeypatch):
     monkeypatch.setattr(updates, "check", dirty)
     ok, message = await c.install()
     assert not ok and "edited" in message and not points
+
+
+async def test_auto_install_updates_once_per_version_and_tells_owners(cog, monkeypatch):
+    c, sent, points = cog
+    c.cfg.data["updates"]["auto_install"] = True
+    runs = []
+
+    async def fake(repo):
+        return updates.UpdateInfo(kind="git", latest="v2", behind=1, can_update=True, checked_at=__import__("time").time())
+
+    async def applied(*a, **k):
+        runs.append(1)
+        return False, "git pull failed"
+
+    monkeypatch.setattr(updates, "check", fake)
+    monkeypatch.setattr(updates, "apply", applied)
+    await c.loop.coro(c)
+    await c.loop.coro(c)
+    assert runs == [1] and len(sent) == 1 and "couldn't" in sent[0] and points
+
+
+def test_cli_check_and_update(repos, monkeypatch, capsys):
+    from vectiq.__main__ import main
+
+    origin, mine = repos
+    monkeypatch.setattr(updates, "ROOT", mine)
+    real = updates.check
+
+    async def local(repo, root=mine, kind=None):
+        return await real(repo, root)
+
+    monkeypatch.setattr(updates, "check", local)
+    assert main(["--check-update"]) == 0 and "up to date" in capsys.readouterr().out
+    publish(origin)
+    assert main(["--check-update"]) == 10 and "Add a thing" in capsys.readouterr().out
+    real_apply = updates.apply
+
+    async def local_apply(root=mine, **kw):
+        return await real_apply(root, pip=False)
+
+    monkeypatch.setattr(updates, "apply", local_apply)
+    monkeypatch.chdir(mine.parent)
+    assert main(["--update", "--config", str(mine / "config.yaml")]) in (0, 1)
