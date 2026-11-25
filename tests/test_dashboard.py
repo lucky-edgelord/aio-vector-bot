@@ -396,6 +396,36 @@ async def test_restore_points_page(env, tmp_path):
     assert (await c.post(f"/api/restore-points/{pid}/rollback", headers=H)).status_code == 404
 
 
+async def test_update_endpoints_are_owner_only(env):
+    from types import SimpleNamespace
+
+    from vectiq import updates
+
+    calls = []
+
+    class Fake:
+        async def refresh(self, force=False):
+            return updates.UpdateInfo(kind="git", latest="abc", behind=2, can_update=True, changes=["x"])
+
+        async def install(self, who=""):
+            calls.append(who)
+            return True, "Updated. Restarting in a few seconds; I'll be back shortly."
+
+    env.bot.get_cog = lambda name: Fake() if name == "Updates" else None
+    await env.store.create_user("olga", OWNER, "correct horse battery")
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    c = env.client
+    await login(c, "ada")
+    assert (await c.get("/api/update")).status_code == 403
+    assert (await c.post("/api/update/run", headers=H)).status_code == 403
+    await login(c, "olga")
+    d = (await c.get("/api/update")).json()
+    assert d["available"] and d["behind"] == 2 and d["can_update"] and d["enabled"]
+    r = await c.post("/api/update/run", headers=H)
+    assert r.status_code == 200 and calls == [OWNER]
+    assert SimpleNamespace  # keep the import used
+
+
 async def test_securitycam_live_feed_and_switch(env):
     import datetime
     from types import SimpleNamespace

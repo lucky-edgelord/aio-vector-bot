@@ -95,6 +95,13 @@ appeals:                      # needs modules.appeals: true
     - Why should the ban be lifted?
     - Is there anything else the moderators should know?
 
+updates:                      # the update check and one-click updater (owners only)
+  check: true                 # look for a newer Vectiq now and then (one small request to GitHub)
+  every_hours: 12             # how often
+  notify: true                # DM the owners once when a newer one is ready
+  restart: true               # restart by itself after `!update now` or the dashboard's Update button
+  repo: lucky-edgelord/aio-vector-bot   # where new versions come from
+
 securitycam:                  # needs modules.securitycam: true
   channel: ""                 # channel (name or id) that receives the echoes; or set it in chat with !securitycam set. Keep it staff-only.
   include_bots: false         # also echo other bots (this bot is never echoed)

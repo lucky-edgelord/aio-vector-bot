@@ -30,6 +30,10 @@ Each module is a whole feature. Turn one off and its commands, background jobs a
 
 {{config:appeals}}
 
+## Updates
+
+{{config:updates}}
+
 ## Security cam
 
 {{config:securitycam}}

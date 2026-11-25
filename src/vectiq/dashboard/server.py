@@ -1565,6 +1565,20 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
             fail(503, "Restore points aren't running.")
         return rp
 
+    @app.get("/api/update")
+    async def update_info(refresh: bool = False, npub: str = Depends(owner)):
+        info = await cog("Updates").refresh(force=refresh)
+        return info.as_dict() | {"enabled": bool(cfg.get("updates.check", True)),
+                                 "restart": bool(cfg.get("updates.restart", True))}
+
+    @app.post("/api/update/run")
+    async def update_run(npub: str = Depends(owner)):
+        good, message = await cog("Updates").install(npub)
+        await audit(npub, "updated Vectiq" if good else "update failed", message[:200])
+        if not good:
+            fail(400, message)
+        return {"ok": True, "message": message}
+
     @app.get("/api/restore-points")
     async def restore_points(npub: str = Depends(owner)):
         rp = points()
