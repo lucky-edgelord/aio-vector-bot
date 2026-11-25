@@ -44,7 +44,7 @@ async def test_switch_every_module_on_off_and_on_again(make_bot, tmp_path):
     r = await bot.sync_modules()
     assert r["loaded"] == ["music"] and "Music" in bot.cogs
     await bot.sync_modules()                         # nothing changed: nothing happens
-    assert set(bot.cogs) == {"Core", "Restore points", "Music"}
+    assert set(bot.cogs) == {"Core", "Restore points", "Updates", "Music"}
 
 
 async def test_missing_package_is_reported_not_fatal(make_bot, tmp_path, monkeypatch):
