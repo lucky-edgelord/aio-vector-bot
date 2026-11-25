@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+from collections import deque
 
 import vector
 from vector.ext import commands
@@ -32,6 +33,8 @@ class SecurityCam(commands.Cog, name="SecurityCam"):
         self.cfg = bot.config
         self.settings = bot.stores.settings
         self.stats: dict[str, dict] = {}      # guild id -> {"echoed": n, "last": datetime}; since the bot started
+        self.feed: dict[str, deque] = {}      # guild id -> the latest messages, for the dashboard's live feed (memory only)
+        self._seq: dict[str, int] = {}
 
     # -- where to echo ------------------------------------------------------------------
 
@@ -46,13 +49,35 @@ class SecurityCam(commands.Cog, name="SecurityCam"):
             [str(c) for c in self.cfg.get("securitycam.ignore_channels", [])]
 
     def _ignored(self, message, cam, ignore=()) -> bool:
-        if str(message.channel.id) == str(cam.id):
+        if cam is not None and str(message.channel.id) == str(cam.id):
             return True      # never echo the camera's own channel: that would loop forever
         if message.author.bot and (str(message.author.id) == str(self.bot.user.id)
                                    or not self.cfg.get("securitycam.include_bots", False)):
             return True
         ignore = {str(c).lstrip("#").lower() for c in ignore}
         return bool(ignore & {str(message.channel.id).lower(), str(message.channel.name).lower()})
+
+    # -- the dashboard feed -------------------------------------------------------------
+
+    def remember(self, guild, message) -> None:
+        """Keep the message in memory so the web dashboard can show it live. Nothing is written to disk."""
+        gid = str(guild.id)
+        size = max(int(self.cfg.get("securitycam.feed_size", 300) or 300), 20)
+        buf = self.feed.get(gid)
+        if buf is None or buf.maxlen != size:
+            buf = self.feed[gid] = deque(buf or (), maxlen=size)
+        self._seq[gid] = seq = self._seq.get(gid, 0) + 1
+        at = getattr(message, "created_at", None) or datetime.datetime.now(datetime.timezone.utc)
+        buf.append({"seq": seq, "at": at.timestamp(), "channel_id": str(message.channel.id),
+                    "channel": str(getattr(message.channel, "name", "")), "author_id": str(message.author.id),
+                    "author": name_of(message.author), "avatar": avatar_url(message.author),
+                    "text": (message.content or "")[:2000],
+                    "attachments": [str(getattr(a, "filename", "file")) for a in message.attachments[:8]]})
+
+    def recent(self, guild_id: str, after: int = 0, limit: int = 100) -> tuple[list[dict], int]:
+        """Messages newer than ``after`` (the last 100 on a first load) and the newest sequence number."""
+        rows = [e for e in self.feed.get(str(guild_id), ()) if e["seq"] > after]
+        return rows[-max(limit, 1):], self._seq.get(str(guild_id), 0)
 
     # -- the echo -----------------------------------------------------------------------
 
@@ -90,7 +115,10 @@ class SecurityCam(commands.Cog, name="SecurityCam"):
             return
         try:
             cam = await self.camera(guild)
-            if cam is None or self._ignored(message, cam, await self.ignored_channels(guild)):
+            skip = self._ignored(message, cam, await self.ignored_channels(guild))
+            if not skip and self.cfg.get("securitycam.dashboard_feed", True):
+                self.remember(guild, message)
+            if cam is None or skip:
                 return
             await self.echo(message, cam)
             st = self.stats.setdefault(str(guild.id), {"echoed": 0, "last": None})

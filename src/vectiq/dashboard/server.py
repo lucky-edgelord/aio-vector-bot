@@ -897,10 +897,11 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
                 "reason": c.reason, "created_at": c.created_at, "expires_at": c.expires_at, "active": c.active}
 
     @app.get("/api/c/{gid}/cases")
-    async def cases(gid: str, action: str = "", limit: int = 100, npub: str = Depends(current)):
+    async def cases(gid: str, action: str = "", limit: int = 50, offset: int = 0, npub: str = Depends(current)):
         g = community(gid, npub)
-        rows = await bot.stores.moderation.recent(gid, min(max(limit, 1), 500), action or None)
-        return {"cases": [case_json(g, c) for c in rows]}
+        mod = bot.stores.moderation
+        rows = await mod.recent(gid, min(max(limit, 1), 500), action or None, max(offset, 0))
+        return {"cases": [case_json(g, c) for c in rows], "total": await mod.count(gid, action or None)}
 
     @app.post("/api/c/{gid}/cases/{case_id}/deactivate")
     async def case_off(gid: str, case_id: int, npub: str = Depends(current)):
@@ -911,7 +912,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         return {"ok": True, "message": f"Case #{case_id} is no longer active."}
 
     @app.get("/api/c/{gid}/bans")
-    async def bans(gid: str, npub: str = Depends(current)):
+    async def bans(gid: str, offset: int = 0, limit: int = 50, npub: str = Depends(current)):
         g = community(gid, npub)
         out = []
         try:
@@ -921,7 +922,8 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
                 out.append(person(user, uid) | {"reason": getattr(entry, "reason", "") or ""})
         except Exception as exc:  # noqa: BLE001
             fail(502, f"Couldn't read the ban list: {exc}")
-        return {"bans": out}
+        offset = max(offset, 0)
+        return {"bans": out[offset: offset + min(max(limit, 1), 200)], "total": len(out)}
 
     @app.post("/api/c/{gid}/bans/{uid}/unban")
     async def unban(gid: str, uid: str, npub: str = Depends(current)):
@@ -1248,7 +1250,17 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
                 "ignore": [str(c) for c in await bot.stores.settings.get(gid, "securitycam:ignore", []) or []],
                 "config_ignore": [str(c) for c in cfg.get("securitycam.ignore_channels", [])],
                 "include_bots": bool(cfg.get("securitycam.include_bots", False)),
+                "feed": bool(cfg.get("securitycam.dashboard_feed", True)),
                 "echoed": st.get("echoed", 0), "last": st["last"].isoformat() if st.get("last") else None}
+
+    @app.get("/api/c/{gid}/securitycam/feed")
+    async def securitycam_feed(gid: str, after: int = 0, limit: int = 100, npub: str = Depends(current)):
+        community(gid, npub)
+        sc = cog("SecurityCam")
+        if not cfg.get("securitycam.dashboard_feed", True):
+            return {"enabled": False, "entries": [], "last": 0}
+        entries, last = sc.recent(gid, max(after, 0), min(max(limit, 1), 300))
+        return {"enabled": True, "entries": entries, "last": last}
 
     @app.put("/api/c/{gid}/securitycam")
     async def securitycam_save(gid: str, request: Request, npub: str = Depends(current)):
@@ -1347,11 +1359,11 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
         return {"ok": True, "message": "Saved. It applies straight away, even to people already signed in."}
 
     @app.get("/api/c/{gid}/audit")
-    async def audit_log(gid: str, npub: str = Depends(current)):
+    async def audit_log(gid: str, offset: int = 0, limit: int = 50, npub: str = Depends(current)):
         g = community(gid, npub)
-        rows = await store.audit_log(gid, 200)
+        rows = await store.audit_log(gid, min(max(limit, 1), 200), max(offset, 0))
         return {"entries": [{"at": r["at"], "who": who(g, r["npub"]), "action": r["action"], "detail": r["detail"]}
-                            for r in rows]}
+                            for r in rows], "total": await store.audit_count(gid)}
 
     # -- webhooks (owners) ---------------------------------------------------------------------------
 

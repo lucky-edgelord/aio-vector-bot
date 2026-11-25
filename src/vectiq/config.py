@@ -79,6 +79,14 @@ DEFAULTS: dict[str, Any] = {
                 "message": "Welcome to {community}, {mention}! You are member #{count}.",
                 "leave_message": "{name} has left {community}.", "leave_channel": "", "dm_message": ""},
     "onboarding": {"steps": ["verify", "pick_roles"], "channel": "", "log_channel": "", "required": False,
+                   "rules_title": "Community rules", "rules_emoji": "✅",
+                   "rules": ["Be kind and respectful.", "No spam, scams or adult content.",
+                             "Keep topics in the right channels.", "Listen to the moderators."],
+                   "tutorial_title": "Welcome tour",
+                   "tutorial": ["Say hi in the general channel and introduce yourself.",
+                                "Browse the channel list: each channel has a topic that says what belongs there.",
+                                "Type !help in any channel to see what the bot can do.",
+                                "Need a hand? Open a ticket or ask a moderator."],
                    "title": "Pick your interests", "prompt": "Welcome! Pick your roles below, then say hi.",
                    "done_message": "{mention} you're all set. Enjoy {community}!",
                    "role_menu": {"🎮": "Gamer", "🎨": "Artist", "💻": "Dev"}},
@@ -103,7 +111,8 @@ DEFAULTS: dict[str, Any] = {
                               "Is there anything else the moderators should know?"]},
     "updates": {"check": True, "every_hours": 12, "notify": True, "restart": True,
                 "repo": "lucky-edgelord/aio-vector-bot"},
-    "securitycam": {"channel": "", "include_bots": False, "ignore_channels": []},
+    "securitycam": {"channel": "", "include_bots": False, "ignore_channels": [], "dashboard_feed": True,
+                    "feed_size": 300},
     "dashboard": {"host": "127.0.0.1", "port": 8090, "base_url": "http://localhost:8090",
                   "session_days": 7, "code_minutes": 10, "vector_code_login": True},
 }
@@ -366,9 +375,9 @@ class Config:
         if lv["xp_min"] > lv["xp_max"]:
             raise ConfigError("leveling.xp_min must not exceed xp_max")
         ob = d["onboarding"]
-        bad = [x for x in ob["steps"] if x not in ("verify", "pick_roles")]
+        bad = [x for x in ob["steps"] if x not in ("verify", "rules", "pick_roles", "tutorial")]
         if bad:
-            raise ConfigError(f"onboarding.steps: unknown step {bad[0]!r} (use verify, pick_roles)")
+            raise ConfigError(f"onboarding.steps: unknown step {bad[0]!r} (use verify, rules, pick_roles, tutorial)")
         if "pick_roles" in ob["steps"] and d["modules"].get("onboarding") and not ob["role_menu"]:
             raise ConfigError("onboarding.role_menu needs at least one emoji: Role pair when pick_roles is a step")
         hooks = d["webhooks"]["hooks"]

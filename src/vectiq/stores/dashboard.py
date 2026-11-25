@@ -204,11 +204,14 @@ class DashboardStore:
         await self.db.insert("INSERT INTO dash_audit (at,npub,guild_id,action,detail) VALUES (?,?,?,?,?)",
                              (int(time.time()), npub, guild_id, action, detail[:500]))
 
-    async def audit_log(self, guild_id: str | None = None, limit: int = 100):
+    async def audit_log(self, guild_id: str | None = None, limit: int = 100, offset: int = 0):
         if guild_id is None:
-            return await self.db.all("SELECT * FROM dash_audit ORDER BY id DESC LIMIT ?", (limit,))
-        return await self.db.all("SELECT * FROM dash_audit WHERE guild_id IN (?, '') ORDER BY id DESC LIMIT ?",
-                                 (guild_id, limit))
+            return await self.db.all("SELECT * FROM dash_audit ORDER BY id DESC LIMIT ? OFFSET ?", (limit, offset))
+        return await self.db.all("SELECT * FROM dash_audit WHERE guild_id IN (?, '') ORDER BY id DESC LIMIT ? OFFSET ?",
+                                 (guild_id, limit, offset))
+
+    async def audit_count(self, guild_id: str) -> int:
+        return await self.db.scalar("SELECT COUNT(*) FROM dash_audit WHERE guild_id IN (?, '')", (guild_id,), 0)
 
     # -- dashboard access by role --------------------------------------------------------
 

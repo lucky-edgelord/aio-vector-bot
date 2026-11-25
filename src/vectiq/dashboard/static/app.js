@@ -507,20 +507,66 @@ function memberAction(m, action, label, needs, after) {
 
 /* ---------------------------------------------------------------- moderation */
 
+const CASE_COLOUR = { warn: "yellow", timeout: "yellow", kick: "red", ban: "red", tempban: "red", unban: "green" };
+
+function caseHead(withUser = true) {
+  return h("tr", null, h("th", null, "#"), withUser !== false ? h("th", null, "Member") : null, h("th", null, "Action"),
+    h("th", null, "Reason"), h("th", { class: "hide-sm" }, "By"), h("th", null, "When"), h("th"));
+}
+
+function caseRow(c, withUser = true, after = null) {
+  return h("tr", null,
+    h("td", { class: "faint" }, c.id), withUser !== false ? h("td", { class: "click", onclick: () => openMember(c.user.id), style: { cursor: "pointer" } }, who(c.user)) : null,
+    h("td", null, pill(c.action, c.active ? CASE_COLOUR[c.action] : "")), h("td", { class: "ellipsis", style: { maxWidth: "260px" } }, c.reason || h("span", { class: "faint" }, "–")),
+    h("td", { class: "hide-sm" }, c.moderator.name), h("td", { class: "nowrap faint", title: when(c.created_at) }, rel(c.created_at)),
+    h("td", null, c.active && ["warn", "timeout", "tempban"].includes(c.action) ? btn("Remove", async (e) => {
+      if (await confirmBox(`Remove case #${c.id}?`, "It stays in the history but no longer counts.", "Remove")) {
+        run(e.target, () => api("POST", C(`/cases/${c.id}/deactivate`))).then(() => (after ? after() : route())).catch(() => {});
+      }
+    }, "ghost sm") : null));
+}
+
 function casesTable(cases, withUser = true, after = null) {
-  const colour = { warn: "yellow", timeout: "yellow", kick: "red", ban: "red", tempban: "red", unban: "green" };
   return h("div", { class: "scroll-x" }, h("table", { class: "table" },
-    h("thead", null, h("tr", null, h("th", null, "#"), withUser !== false ? h("th", null, "Member") : null, h("th", null, "Action"),
-      h("th", null, "Reason"), h("th", { class: "hide-sm" }, "By"), h("th", null, "When"), h("th"))),
-    h("tbody", null, cases.map((c) => h("tr", null,
-      h("td", { class: "faint" }, c.id), withUser !== false ? h("td", { class: "click", onclick: () => openMember(c.user.id), style: { cursor: "pointer" } }, who(c.user)) : null,
-      h("td", null, pill(c.action, c.active ? colour[c.action] : "")), h("td", { class: "ellipsis", style: { maxWidth: "260px" } }, c.reason || h("span", { class: "faint" }, "–")),
-      h("td", { class: "hide-sm" }, c.moderator.name), h("td", { class: "nowrap faint", title: when(c.created_at) }, rel(c.created_at)),
-      h("td", null, c.active && ["warn", "timeout", "tempban"].includes(c.action) ? btn("Remove", async (e) => {
-        if (await confirmBox(`Remove case #${c.id}?`, "It stays in the history but no longer counts.", "Remove")) {
-          run(e.target, () => api("POST", C(`/cases/${c.id}/deactivate`))).then(() => (after ? after() : route())).catch(() => {});
-        }
-      }, "ghost sm") : null))))));
+    h("thead", null, caseHead(withUser)), h("tbody", null, cases.map((c) => caseRow(c, withUser, after)))));
+}
+
+/* A long list that loads a page at a time: the next page arrives when the end scrolls into view (or on "Load more").
+   load(offset, size) -> { items, total }; row(item) -> element; head: optional <tr> that turns the list into a table. */
+function lazyList({ load, row, head, emptyText = "Nothing yet.", size = 50, onTotal }) {
+  const shell = head ? h("tbody") : h("div", { class: "list" });
+  const holder = h("div");
+  const more = btn("Load more", null, "sm");
+  const foot = h("div", { class: "row", style: { justifyContent: "center", marginTop: "12px" } }, more);
+  let offset = 0, total = 0, busy = false, done = false;
+  const box = h("div", null, holder, foot);
+  async function next(first) {
+    if (busy || done) return;
+    busy = true;
+    try {
+      const d = await load(offset, size);
+      total = d.total;
+      if (onTotal) onTotal(total);
+      if (first) {
+        if (!d.items.length) { clear(holder, empty(emptyText)); done = true; foot.classList.add("hidden"); return; }
+        clear(holder, head ? h("div", { class: "scroll-x" }, h("table", { class: "table" }, h("thead", null, head), shell)) : shell);
+      }
+      shell.append(...d.items.map(row));
+      offset += d.items.length;
+      done = offset >= total || !d.items.length;
+      foot.classList.toggle("hidden", done);
+    } finally { busy = false; }
+  }
+  more.addEventListener("click", () => run(more, () => next(false)));
+  if ("IntersectionObserver" in window) {
+    const watch = new IntersectionObserver((hits) => {
+      if (!box.isConnected) return watch.disconnect();
+      if (hits.some((x) => x.isIntersecting) && !done) next(false).catch(() => {});
+    }, { rootMargin: "300px" });
+    watch.observe(foot);
+  }
+  next(true).catch(() => {});
+  return box;
 }
 
 async function moderation(main) {
@@ -528,20 +574,22 @@ async function moderation(main) {
   const tabs = h("div", { class: "tabs" }, [["cases", "Cases"], ["bans", "Bans"]].map(([id, l]) =>
     h("button", { type: "button", class: tab === id && "on", onclick: () => { location.hash = `#/c/${S.gid}/moderation/${id}`; } }, l)));
   if (tab === "bans") {
-    const d = await api("GET", C("/bans"));
-    clear(main, head("Moderation", "Banned accounts."), tabs, card(null, d.bans.length ? h("div", { class: "list" }, d.bans.map((b) => h("div", { class: "item" },
-      h("div", { class: "grow" }, who(b, b.reason || b.id.slice(0, 20) + "…")),
-      btn("Unban", async (e) => {
-        if (await confirmBox(`Unban ${b.name}?`, "They can rejoin with an invite.", "Unban", "primary")) run(e.target, () => api("POST", C(`/bans/${encodeURIComponent(b.id)}/unban`))).then(route).catch(() => {});
-      }, "sm")))) : empty("Nobody is banned.")));
+    clear(main, head("Moderation", "Banned accounts."), tabs, card(null, lazyList({
+      load: (offset, size) => api("GET", C(`/bans?offset=${offset}&limit=${size}`)).then((d) => ({ items: d.bans, total: d.total })),
+      emptyText: "Nobody is banned.",
+      row: (b) => h("div", { class: "item" }, h("div", { class: "grow" }, who(b, b.reason || b.id.slice(0, 20) + "…")),
+        btn("Unban", async (e) => {
+          if (await confirmBox(`Unban ${b.name}?`, "They can rejoin with an invite.", "Unban", "primary")) run(e.target, () => api("POST", C(`/bans/${encodeURIComponent(b.id)}/unban`))).then(route).catch(() => {});
+        }, "sm")) })));
     return;
   }
   const action = S.route[4] || "";
-  const d = await api("GET", C(`/cases?limit=200&action=${action}`));
   const filter = select([["", "All actions"], ...["warn", "timeout", "kick", "ban", "tempban", "unban"].map((a) => [a, a])], action);
   filter.addEventListener("change", () => { location.hash = `#/c/${S.gid}/moderation/cases/${filter.value}`; });
   clear(main, head("Moderation", "Every case, newest first. Act on a member from the Members page.", h("div", { style: { width: "180px" } }, filter)),
-    tabs, card(null, d.cases.length ? casesTable(d.cases) : empty("No cases yet.")));
+    tabs, card(null, lazyList({
+      load: (offset, size) => api("GET", C(`/cases?offset=${offset}&limit=${size}&action=${action}`)).then((d) => ({ items: d.cases, total: d.total })),
+      head: caseHead(true), row: (c) => caseRow(c, true), emptyText: "No cases yet." })));
 }
 
 /* ---------------------------------------------------------------- leveling */
@@ -747,6 +795,7 @@ async function securitycam(main) {
         stat("Messages echoed", fmt(d.echoed), null, true), stat("Last echo", d.last ? new Date(d.last).toLocaleTimeString() : "—")),
         h("p", { class: "faint" }, d.include_bots ? "Other bots' messages are included." : "Other bots' messages are skipped."),
         h("a", { href: "#/settings/securitycam" }, "More options in Settings →"))),
+    d.feed ? h("div", { style: { marginTop: "16px" } }, liveFeed()) : null,
     h("div", { style: { marginTop: "16px" } }, card("Channels to skip",
       h("p", { class: "muted" }, "Switch on a channel to leave it out of the echo."),
       h("div", { class: "list" }, m.channels.filter((c) => c.id !== d.channel).map((c) =>
@@ -757,6 +806,42 @@ async function securitycam(main) {
       h("div", { class: "row", style: { marginTop: "12px" } }, btn("Save skips", async (e) => {
         try { await run(e.target, () => api("PUT", C("/securitycam"), { ignore: [...skip] })); } catch { /* toast */ }
       }, "primary sm")))));
+}
+
+/* The newest messages from every channel, appearing as they are sent. Polls while the page is open; nothing is stored. */
+function liveFeed() {
+  const list = h("div", { class: "feed", style: { maxHeight: "420px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" } });
+  const state = h("span", { class: "faint" }, "Connecting…");
+  let last = 0, paused = false, timer = 0, count = 0;
+  const pause = btn("Pause", () => { paused = !paused; pause.textContent = paused ? "Resume" : "Pause"; state.textContent = paused ? "Paused" : "Live"; }, "ghost sm");
+  const line = (e) => h("div", { style: { display: "flex", gap: "10px", alignItems: "baseline" } },
+    h("span", { class: "faint nowrap", style: { fontSize: "12px" }, title: when(e.at) }, new Date(e.at * 1000).toLocaleTimeString()),
+    h("div", { class: "grow", style: { minWidth: "0" } },
+      h("div", null, h("b", null, e.author), " ", h("span", { class: "faint" }, `#${e.channel}`)),
+      e.text ? h("div", { style: { whiteSpace: "pre-wrap", wordBreak: "break-word" } }, e.text) : null,
+      e.attachments.length ? h("div", { class: "faint" }, `📎 ${e.attachments.join(", ")}`) : null));
+  async function tick() {
+    if (!list.isConnected) return;       // left the page: stop polling
+    if (!paused) {
+      try {
+        const d = await api("GET", C(`/securitycam/feed?after=${last}&limit=100`));
+        if (d.last < last) { last = 0; clear(list); count = 0; }   // the bot restarted
+        if (d.entries.length) {
+          const stick = list.scrollTop + list.clientHeight >= list.scrollHeight - 40;
+          list.append(...d.entries.map(line));
+          count += d.entries.length;
+          while (list.childNodes.length > 200) list.removeChild(list.firstChild);
+          if (stick || !last) list.scrollTop = list.scrollHeight;
+        }
+        last = d.last;
+        state.textContent = count ? "Live" : "Live. Waiting for messages…";
+      } catch { state.textContent = "Reconnecting…"; }
+    }
+    timer = setTimeout(tick, 3000);
+  }
+  tick();
+  return card("Live feed", h("div", { class: "row" }, state, h("span", { class: "grow" }), pause), list,
+    h("p", { class: "faint" }, "Shown here only; nothing is saved. A restart clears it."));
 }
 
 /* ---------------------------------------------------------------- announce */
@@ -788,11 +873,12 @@ async function announce(main) {
 /* ---------------------------------------------------------------- audit */
 
 async function audit(main) {
-  const d = await api("GET", C("/audit"));
-  clear(main, head("Audit log", "Everything done through this dashboard."), card(null, d.entries.length ? h("div", { class: "scroll-x" }, h("table", { class: "table" },
-    h("thead", null, h("tr", null, h("th", null, "When"), h("th", null, "Who"), h("th", null, "Action"), h("th", null, "Details"))),
-    h("tbody", null, d.entries.map((e) => h("tr", null, h("td", { class: "nowrap faint", title: when(e.at) }, rel(e.at)), h("td", null, who(e.who)),
-      h("td", null, h("b", null, e.action)), h("td", { class: "muted", style: { wordBreak: "break-word" } }, e.detail || "–")))))) : empty("Nothing yet.")));
+  clear(main, head("Audit log", "Everything done through this dashboard."), card(null, lazyList({
+    load: (offset, size) => api("GET", C(`/audit?offset=${offset}&limit=${size}`)).then((d) => ({ items: d.entries, total: d.total })),
+    head: h("tr", null, h("th", null, "When"), h("th", null, "Who"), h("th", null, "Action"), h("th", null, "Details")),
+    row: (e) => h("tr", null, h("td", { class: "nowrap faint", title: when(e.at) }, rel(e.at)), h("td", null, who(e.who)),
+      h("td", null, h("b", null, e.action)), h("td", { class: "muted", style: { wordBreak: "break-word" } }, e.detail || "–")),
+    emptyText: "Nothing yet." })));
 }
 
 /* ---------------------------------------------------------------- settings */
