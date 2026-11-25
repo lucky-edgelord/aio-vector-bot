@@ -43,7 +43,13 @@ class Updates(commands.Cog, name="Updates"):
         if not self.v("check", True):
             return
         info = await self.refresh()
-        if info.error or info.behind <= 0 or not self.v("notify", True):
+        if info.error or info.behind <= 0:
+            return
+        if self.v("auto_install", False) and info.can_update:
+            if await self._auto_tried(info.latest):
+                await self._auto(info)
+            return
+        if not self.v("notify", True):
             return
         settings = self.bot.stores.settings
         if await settings.get("", NOTIFIED, "") == info.latest:
@@ -59,6 +65,27 @@ class Updates(commands.Cog, name="Updates"):
                     await user.send(text)
             except Exception as exc:  # noqa: BLE001 - closed DMs are normal
                 log.debug("couldn't tell %s about the update: %s", owner, exc)
+
+    async def _auto_tried(self, version: str) -> bool:
+        """True the first time we see this version, so a failing update isn't retried every half hour."""
+        settings = self.bot.stores.settings
+        if await settings.get("", "updates:auto_tried", "") == version:
+            return False
+        await settings.set("", "updates:auto_tried", version)
+        return True
+
+    async def _auto(self, info) -> None:
+        good, message = await self.install("automatic update")
+        text = (f"Vectiq updated itself to {info.latest}. {message}" if good
+                else f"Vectiq tried to update itself to {info.latest} but couldn't: {message} "
+                     f"Update by hand from the dashboard's Updates page.")
+        for owner in self.cfg.owners:
+            user = self.bot.get_user(owner)
+            try:
+                if user is not None:
+                    await user.send(text)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("couldn't tell %s: %s", owner, exc)
 
     @loop.before_loop
     async def _wait(self):

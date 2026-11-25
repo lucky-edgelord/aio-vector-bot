@@ -99,6 +99,7 @@ updates:                      # the update check and one-click updater (owners o
   check: true                 # look for a newer Vectiq now and then (one small request to GitHub)
   every_hours: 12             # how often
   notify: true                # DM the owners once when a newer one is ready
+  auto_install: false         # install new versions by itself (restore point first), then restart
   restart: true               # restart by itself after `!update now` or the dashboard's Update button
   repo: lucky-edgelord/aio-vector-bot   # where new versions come from
 

@@ -1213,7 +1213,16 @@ async function updates(main) {
       else updates(main);
     } catch { /* toast */ }
   }, "primary");
+  const opts = [["updates.check", "Check for updates automatically", d.enabled],
+    ["updates.notify", "DM the owners when one is ready", d.notify],
+    ["updates.auto_install", "Install updates by itself (restore point first, then restart)", d.auto_install]];
+  const flip = (key, on) => api("PUT", "/api/settings", { changes: { [key]: on } }).then((r) => toast(r.message || "Saved.")).catch((e) => toast(e.message, true));
   clear(main, head("Updates", "Find out when a newer Vectiq is out and install it in one click.", recheck),
+    card("Automatic updates", h("div", { class: "list" }, opts.map(([key, label, on]) =>
+      h("div", { class: "item" }, h("span", { class: "grow" }, label), toggle(!!on, (v) => flip(key, v))))),
+      d.kind !== "git" ? h("p", { class: "faint" }, "Installing by itself needs the git install; other installs only get checks and messages.") : null,
+      h("p", { class: "faint" }, "Change how often it checks in Settings → Updates.")),
+    h("div", { style: { height: "16px" } }),
     card("Vectiq", h("div", { class: "form" }, status,
       d.changes.length ? h("div", null, h("b", null, "What's new"), h("ul", { class: "muted" }, d.changes.map((c) => h("li", null, c)))) : null,
       d.available && d.can_update ? h("div", { class: "row" }, go) : null,

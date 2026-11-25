@@ -58,11 +58,57 @@ def json_module_cli(args) -> int:
         return 2
 
 
+def update_cli(args) -> int:
+    """--check-update and --update: the update check and the updater without the bot running."""
+    from . import updates
+
+    repo = "lucky-edgelord/aio-vector-bot"
+    try:
+        cfg = Config.load(args.config)
+        repo = cfg.get("updates.repo", repo)
+    except ConfigError:
+        cfg = None
+    info = asyncio.run(updates.check(repo))
+    if info.error:
+        print(f"❌ couldn't check: {info.error}", file=sys.stderr)
+        return 1
+    if info.behind <= 0:
+        print(f"✅ up to date (vectiq {info.current})")
+        return 0
+    print(f"A newer Vectiq is available: {info.current} -> {info.latest}")
+    for line in info.changes[:10]:
+        print(f"  - {line}")
+    if not args.update:
+        print("Install it with: vectiq --update" if info.can_update else info.how)
+        return 10
+    if not info.can_update:
+        print(f"❌ {info.how}", file=sys.stderr)
+        return 1
+
+    async def go() -> tuple[bool, str]:
+        if cfg is not None:
+            from .backup import RestorePoints
+
+            try:
+                await RestorePoints(cfg).create(f"Before updating to {info.latest}", "automatic")
+            except Exception as exc:  # noqa: BLE001
+                return False, f"couldn't make a restore point first, so I didn't update: {exc}"
+        return await updates.apply()
+
+    good, message = asyncio.run(go())
+    print(("✅ " if good else "❌ ") + message + (" Restart Vectiq to run it." if good else ""))
+    return 0 if good else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="vectiq", description="Vectiq, a community bot for Vector")
     ap.add_argument("--config", help="path to config.yaml (default: ./config.yaml)")
     ap.add_argument("--check", action="store_true", help="validate config.yaml and exit")
     ap.add_argument("--version", action="store_true", help="print the version and exit")
+    ap.add_argument("--check-update", action="store_true",
+                    help="say whether a newer Vectiq is out (exit code 10 if so, 0 if up to date, 1 if it couldn't check)")
+    ap.add_argument("--update", action="store_true",
+                    help="install the newest Vectiq (make a restore point first). Restart the bot afterwards.")
     ap.add_argument("--init", nargs="?", const=".", metavar="FOLDER",
                     help="create config.yaml and .env in FOLDER (default: here), then run the setup wizard with --setup")
     ap.add_argument("--setup", action="store_true", help="answer a few questions to fill in config.yaml")
@@ -108,6 +154,8 @@ def main(argv=None) -> int:
 
         print(f"vectiq {__version__}")
         return 0
+    if args.check_update or args.update:
+        return update_cli(args)
     if args.init is not None:
         from .scaffold import init
 
