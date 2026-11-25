@@ -76,9 +76,10 @@ Use a **separate Vector account for the bot**, never your personal key.
 | Games | `games` | Tic-Tac-Toe, Connect Four, Trivia, Slots as **WebXDC mini apps** |
 | Utilities / analytics | `utility` | userinfo, poll, activity chart |
 | Events | `events` | event calendar: RSVPs, waitlists, repeats, reminders (channel + DM), banner pictures, month picture, .ics |
-| Ban appeals | `appeals` | banned people appeal by DM; moderators vote on a staff channel card and a majority lifts the ban |
+| Ban appeals | `appeals` | the moment someone is banned the bot DMs them an appeal form; answers go to a staff channel, moderators vote ✅/❌ and a majority lifts the ban |
 | Security cam | `securitycam` | echo every message (author, channel, time, text, attachments) into one staff channel; off by default |
-| (new) | `onboarding`, `webhooks` | welcome → verify → pick roles; YAML-declared webhooks |
+| (new) | `onboarding`, `webhooks` | welcome → verify → rules → pick roles → tutorial (any order); YAML-declared webhooks |
+| (new) | command limits, updates | limit commands or whole modules to roles; update check and one-click updater (core, always on) |
 
 Not ported: music, Twitch/YouTube/Twitter alerts, temporary voice channels and the web dashboard. They don't map onto Vector (or were off in Logiq).
 
@@ -128,20 +129,34 @@ A question, a ✅ reaction, or a **CAPTCHA web page** reached by a personal one-
 
 Like System Restore: the database, `config.yaml`, dashboard settings and event pictures are saved daily and before risky changes (imports, the wizard, upgrades, rollbacks), and you can make your own. Roll back from the dashboard, chat (`!restorepoint`) or the terminal (`--restore`); a rollback can itself be undone. Settings export and import as YAML, with a preview of every change (`--export-config`, `--import-config`, or Settings on the dashboard). The bot's key is never included in either.
 
+### Ban appeals
+
+When someone is banned (by Vectiq, the dashboard or by hand in Vector) the bot DMs them an appeal form: a few questions (`appeals.questions`), asked one at a time. The answers land as a card in a staff channel (`appeals.channel`, or `moderation.log_channel`). Moderators with Ban Members vote with ✅/❌ (or `!appealvote <n> yes|no`); `appeals.votes_needed` (2) approvals lift the ban and tell the person, that many denials close it and they wait `appeals.cooldown_days` before trying again. `!bans` lists bans and `!unbanall confirm` lifts them all.
+
+### Command limits
+
+`!limit ban Moderator, Admin` lets only those roles use a command; `!limit Quantum VIP` limits every command of a module. `!limits` lists them and `!limit clear <name>` removes one. Admins and owners always bypass. Also on the dashboard's **Command limits** page.
+
+### Updates
+
+Vectiq checks GitHub every 12 hours (`updates.*`) and DMs the owners once when a newer version exists. `!update` shows what's new and `!update now` installs it (restore point first, your `config.yaml` kept, then a restart). The dashboard's **Updates** page does the same with switches for checking, notifying and **installing automatically**. From a terminal: `vectiq --check-update` (exit code 10 when behind) and `vectiq --update`. Installing needs a git install; Docker and package installs still get the check and the right command to run.
+
 ### Security cam
 
-Turn on `modules.securitycam`, then run `!securitycam set #channel` (Manage Server), or pick the channel on the dashboard's Security cam page. Every message in every other channel is copied there: the author's name and text, then any attachments, then the source channel and time. The camera channel itself and the bot's own messages are never echoed; other bots are skipped unless `securitycam.include_bots` is on, and you can skip channels in config.yaml or on the dashboard. **Make the camera channel staff-only** — it shows everything.
+With the dashboard on, the Security cam page also shows a **live feed** of messages as they arrive (memory only, `securitycam.dashboard_feed`). Turn on `modules.securitycam`, then run `!securitycam set #channel` (Manage Server), or pick the channel on the dashboard's Security cam page. Every message in every other channel is copied there: the author's name and text, then any attachments, then the source channel and time. The camera channel itself and the bot's own messages are never echoed; other bots are skipped unless `securitycam.include_bots` is on, and you can skip channels in config.yaml or on the dashboard. **Make the camera channel staff-only** — it shows everything.
 
 ### Onboarding
 
 ```yaml
 onboarding:
-  steps: [verify, pick_roles]
+  steps: [verify, rules, pick_roles, tutorial]   # any of these, in any order
+  rules: [Be kind and respectful., No spam or scams.]   # posted once; members react ✅ or type !agree
+  tutorial: [Say hi in general., Type !help to see what I can do.]   # DMed one page per message
   role_menu: { "🎮": Gamer, "🎨": Artist, "💻": Dev }   # roles are created if missing
   required: false        # true: only complete once they pick a role
 ```
 
-New member → welcome → verification → a role menu built from the YAML (the same reaction roles as `!rolemenu`) → done message. Progress is stored per member and finishing fires an `onboarding` event.
+New member → welcome → then the steps you list, in order: verification, accepting the rules, a role menu built from the YAML (the same reaction roles as `!rolemenu`), a DM welcome tour (`!tutorial` replays it) → done message. Progress is stored per member and finishing fires an `onboarding` event.
 
 ## Web dashboard
 
@@ -183,7 +198,7 @@ A FastAPI dashboard runs inside the bot. Turn it on with `modules.dashboard: tru
 
 Owners can also create logins on the **Users** page, and anyone signed in can change their password on **My account**. As a fallback (no password yet, or forgot it) admins can get a one-time code by Vector DM from the sign-in page or with `!dashboard`; turn that off with `dashboard.vector_code_login: false`.
 
-**Pages:** overview with 30-day activity, members (warn, timeout, kick, ban, roles, XP, coins, full record), moderation cases and bans, leveling and role rewards (with the leaderboard card), economy and shop, tickets with transcripts, role menus, giveaways, games, onboarding, announcements, an audit log of every dashboard action, settings, webhooks and users.
+**Pages:** overview with 30-day activity, members (warn, timeout, kick, ban, roles, XP, coins, full record), moderation cases and bans (lazy-loaded as you scroll), leveling and role rewards (with the leaderboard card), economy and shop, tickets with transcripts, role menus, giveaways, games, onboarding, command limits, the security cam live feed, announcements, updates, an audit log of every dashboard action, settings, webhooks and users.
 
 **Settings** edited in the dashboard are saved in the database and layered over `config.yaml`, which is never rewritten (its comments stay). Each changed setting shows a "dashboard" tag and can be reset to the file's value; **Export YAML** downloads the merged result. Module switches and the dashboard's own address need a restart.
 
@@ -209,7 +224,10 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 | Games | `games` `game <name>` `gamestats` `gameboard` |
 | Utility | `userinfo` `communityinfo` `poll` `analytics` `testwelcome` `about` `ping` |
 | Events | `event create` `event list` `event info` `event edit` `event rsvp` `event who` `event cancel` `event delete` `event repost` `event ics` `event timezone` `calendar` |
-| Ban appeals | `appeal` (in a DM) `appeals` `appealvote` |
+| Ban appeals | `appeal` (in a DM, or automatic on ban) `appeals` `appealvote` |
+| Command limits | `limit <command or module> <roles>` `limits` `limit clear <name>` |
+| Updates | `update` `update now` (owners) |
+| Onboarding | `agree` `tutorial` |
 | Security cam | `securitycam` `securitycam set [channel]` `securitycam off` |
 | Owner | `vectiq reload/stats`, `webhooks`, `webhooks sync/rotate/test` |
 
