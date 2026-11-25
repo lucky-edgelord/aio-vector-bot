@@ -93,6 +93,9 @@ GROUPS: list[dict[str, Any]] = [
         field("securitycam.channel", "Camera channel", "channel", "Channel name or id that receives every echoed "
               "message. Blank = use the one set with !securitycam set. Keep it private."),
         field("securitycam.include_bots", "Include other bots", "bool"),
+        field("securitycam.dashboard_feed", "Live feed on the dashboard", "bool",
+              "Shows messages as they arrive on the Security cam page. Kept in memory only."),
+        field("securitycam.feed_size", "Messages the live feed keeps", "int", minimum=20, maximum=2000),
         field("securitycam.ignore_channels", "Channels to skip", "list", "Names or ids, one per line"),
     ]},
     {"id": "sentire", "title": "Sentire", "fields": [

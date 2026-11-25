@@ -99,6 +99,8 @@ securitycam:                  # needs modules.securitycam: true
   channel: ""                 # channel (name or id) that receives the echoes; or set it in chat with !securitycam set. Keep it staff-only.
   include_bots: false         # also echo other bots (this bot is never echoed)
   ignore_channels: []         # channels to skip
+  dashboard_feed: true        # also show messages live on the dashboard's Security cam page (kept in memory only)
+  feed_size: 300              # how many recent messages per community the live feed keeps
 
 moderation:
   mute_max_days: 28           # longest timeout a moderator can give, in days (Vector allows up to 28)
