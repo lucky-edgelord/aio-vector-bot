@@ -422,3 +422,84 @@ async def test_command_limits_page(env):
     assert d["limits"][0]["target"] == "ban" and d["limits"][0]["roles"][0]["name"] == "Moderator"
     await env.client.put("/api/c/g1/command-limits", json={"target": "ban", "roles": []}, headers=H)
     assert (await env.client.get("/api/c/g1/command-limits")).json()["limits"] == []
+
+
+async def test_update_endpoints_are_owner_only(env):
+    from types import SimpleNamespace
+
+    from vectiq import updates
+
+    calls = []
+
+    class Fake:
+        async def refresh(self, force=False):
+            return updates.UpdateInfo(kind="git", latest="abc", behind=2, can_update=True, changes=["x"])
+
+        async def install(self, who=""):
+            calls.append(who)
+            return True, "Updated. Restarting in a few seconds; I'll be back shortly."
+
+    env.bot.get_cog = lambda name: Fake() if name == "Updates" else None
+    await env.store.create_user("olga", OWNER, "correct horse battery")
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    c = env.client
+    await login(c, "ada")
+    assert (await c.get("/api/update")).status_code == 403
+    assert (await c.post("/api/update/run", headers=H)).status_code == 403
+    await login(c, "olga")
+    d = (await c.get("/api/update")).json()
+    assert d["available"] and d["behind"] == 2 and d["can_update"] and d["enabled"]
+    r = await c.post("/api/update/run", headers=H)
+    assert r.status_code == 200 and calls == [OWNER]
+    assert SimpleNamespace  # keep the import used
+
+
+async def test_securitycam_live_feed_and_switch(env):
+    import datetime
+    from types import SimpleNamespace
+
+    from vectiq.cogs.securitycam import SecurityCam
+
+    g = env.bot.guilds[0]
+    cam, general = SimpleNamespace(id="c1", name="cam"), SimpleNamespace(id="c2", name="general")
+    g.text_channels = [cam, general]
+    env.bot.find_channel = lambda guild, ref: next((c for c in guild.text_channels if ref in (c.id, c.name)), None)
+    env.bot.user = SimpleNamespace(id="bot")
+    sc = SecurityCam(env.bot)
+    env.bot.get_cog = lambda name: sc if name == "SecurityCam" else None
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    await login(env.client)
+
+    def say(channel, text, author="u1", bot=False):
+        return SimpleNamespace(guild=g, channel=channel, content=text, attachments=[SimpleNamespace(filename="a.png")],
+                               author=SimpleNamespace(id=author, bot=bot, display_name="Ann", display_avatar=None),
+                               created_at=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc))
+
+    await sc.on_message(say(general, "hello"))
+    await sc.on_message(say(general, "from a bot", author="b2", bot=True))     # bots are skipped
+    await sc.on_message(say(general, "mine", author="bot", bot=True))           # so is the bot itself
+    await sc.on_message(say(general, "second"))
+    d = (await env.client.get("/api/c/g1/securitycam/feed")).json()
+    assert d["enabled"] and [e["text"] for e in d["entries"]] == ["hello", "second"] and d["last"] == 2
+    assert d["entries"][0]["channel"] == "general" and d["entries"][0]["attachments"] == ["a.png"]
+    later = (await env.client.get("/api/c/g1/securitycam/feed?after=1")).json()
+    assert [e["text"] for e in later["entries"]] == ["second"]
+    env.bot.config.data.setdefault("securitycam", {})["dashboard_feed"] = False
+    assert (await env.client.get("/api/c/g1/securitycam/feed")).json()["enabled"] is False
+    await sc.on_message(say(general, "unseen"))
+    assert len(sc.feed["g1"]) == 2
+
+
+async def test_cases_bans_and_audit_page_with_totals(env):
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    await login(env.client)
+    for i in range(7):
+        await env.bot.stores.moderation.add("g1", "u1", "mod", "warn", f"r{i}")
+    first = (await env.client.get("/api/c/g1/cases?limit=3")).json()
+    assert first["total"] == 7 and [c["reason"] for c in first["cases"]] == ["r6", "r5", "r4"]
+    last = (await env.client.get("/api/c/g1/cases?limit=3&offset=6")).json()
+    assert [c["reason"] for c in last["cases"]] == ["r0"]
+    assert (await env.client.get("/api/c/g1/cases?action=ban")).json()["total"] == 0
+    audit = (await env.client.get("/api/c/g1/audit?limit=1")).json()
+    assert audit["total"] >= 1 and len(audit["entries"]) == 1
+    assert (await env.client.get("/api/c/g1/audit?offset=999")).json()["entries"] == []

@@ -95,10 +95,19 @@ appeals:                      # needs modules.appeals: true
     - Why should the ban be lifted?
     - Is there anything else the moderators should know?
 
+updates:                      # the update check and one-click updater (owners only)
+  check: true                 # look for a newer Vectiq now and then (one small request to GitHub)
+  every_hours: 12             # how often
+  notify: true                # DM the owners once when a newer one is ready
+  restart: true               # restart by itself after `!update now` or the dashboard's Update button
+  repo: lucky-edgelord/aio-vector-bot   # where new versions come from
+
 securitycam:                  # needs modules.securitycam: true
   channel: ""                 # channel (name or id) that receives the echoes; or set it in chat with !securitycam set. Keep it staff-only.
   include_bots: false         # also echo other bots (this bot is never echoed)
   ignore_channels: []         # channels to skip
+  dashboard_feed: true        # also show messages live on the dashboard's Security cam page (kept in memory only)
+  feed_size: 300              # how many recent messages per community the live feed keeps
 
 moderation:
   mute_max_days: 28           # longest timeout a moderator can give, in days (Vector allows up to 28)
@@ -324,7 +333,20 @@ welcome:
   dm_message: ""              # optional private welcome sent by DM (blank = none)
 
 onboarding:
-  steps: [verify, pick_roles]     # what a new member goes through, in order
+  steps: [verify, pick_roles]     # what a new member goes through, in order: verify, rules, pick_roles, tutorial
+  rules_title: Community rules    # the rules step posts these once; members react (or type !agree) to accept
+  rules_emoji: "✅"
+  rules:
+    - Be kind and respectful.
+    - No spam, scams or adult content.
+    - Keep topics in the right channels.
+    - Listen to the moderators.
+  tutorial_title: Welcome tour    # the tutorial step DMs these pages, one message each (members can run !tutorial again)
+  tutorial:
+    - Say hi in the general channel and introduce yourself.
+    - "Browse the channel list: each channel has a topic that says what belongs there."
+    - Type !help in any channel to see what the bot can do.
+    - Need a hand? Open a ticket or ask a moderator.
   channel: ""                     # where the role menu lives (blank = system channel)
   log_channel: ""                 # notes who finished onboarding (blank = none)
   required: false                 # true: onboarding only completes once they pick a role

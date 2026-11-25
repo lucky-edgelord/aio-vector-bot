@@ -64,3 +64,13 @@ Progress is stored for each member. With `required: true`, a member finishes onb
 ### Onboarding
 
 {{config:onboarding}}
+
+## Rules and a tutorial
+
+Two more steps can go in `onboarding.steps`, in any order you like: `rules` and `tutorial`. For example `[verify, rules, pick_roles, tutorial]`.
+
+- **rules** posts your rules once in the onboarding channel (or `onboarding.rules_channel`) with a ✅ reaction. A new member has to react, or type `!agree`, before they move on. Edit the text in `onboarding.rules`, or on the dashboard's Onboarding settings. If you list no rules the step is skipped.
+- **tutorial** sends the member a short welcome tour by private message, one page per message, from `onboarding.tutorial`. If their messages are closed it is posted in the onboarding channel. Anyone can ask for it again with `!tutorial`.
+
+The steps run one after another, and onboarding is complete when the last one is done. `verify` still comes from the verification module, and `pick_roles` works as before (`onboarding.required` decides whether members must pick a role before the steps after it).
+

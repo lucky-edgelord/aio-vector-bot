@@ -76,7 +76,7 @@ Changes apply at once, even to people already signed in, and so does taking a ro
 | Giveaways | Start, end and reroll giveaways |
 | Games | Results and leaderboards for each game |
 | Onboarding | The welcome message, verification and onboarding steps |
-| Security cam | Choose the channel and the channels to leave out |
+| Security cam | Choose the channel and the channels to leave out, and watch messages arrive live |
 | Setup wizard | Set the bot up by answering questions, one per screen (owners) |
 | Restore points | Make restore points, roll back to one, download them (owners) |
 | Announce | Post a message as the bot into any channel |
@@ -187,3 +187,5 @@ The **Marketplace** page (owners) adds, updates and removes [JSON modules](json-
 ## Module pages
 
 Modules can add their own pages under **Modules** in the menu: [Sentire](sentire.md), [MCP](mcp.md), and any plugin that describes one (see [Writing modules](writing-modules.md#a-page-on-the-dashboard)).
+
+Long lists (cases, bans, the audit log and members) load a page at a time: the next page arrives when you scroll to the end, or press **Load more**. That keeps the dashboard quick in a large community.
