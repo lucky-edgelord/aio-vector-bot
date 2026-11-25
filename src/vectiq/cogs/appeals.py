@@ -148,7 +148,8 @@ class Appeals(commands.Cog, name="Appeals"):
             return await message.channel.send(fail("That community can't receive appeals right now."))
         need = int(self.v("votes_needed", 2))
         card = embed(f"Ban appeal #{draft.id}", f"From {name_of(message.author)} (`{short(draft.user_id)}`)",
-                     fields=[(q[:250], a[:1000], False) for q, a in zip(qs, answers, strict=False)] + [("Votes needed", str(need), True)],
+                     fields=[(q[:250], a[:1000], False) for q, a in zip(qs, answers, strict=False)]
+                     + [("Votes needed", str(need), True)],
                      footer=f"React {YES} to lift the ban or {NO} to deny. Staff with Ban Members can vote.",
                      timestamp=True)
         sent = await channel.send(embed=card)
