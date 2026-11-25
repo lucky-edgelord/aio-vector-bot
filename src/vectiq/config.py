@@ -101,6 +101,8 @@ DEFAULTS: dict[str, Any] = {
     "appeals": {"channel": "", "votes_needed": 2, "cooldown_days": 7, "min_chars": 5, "max_chars": 1000,
                 "questions": ["What happened? Tell us in your own words.", "Why should the ban be lifted?",
                               "Is there anything else the moderators should know?"]},
+    "updates": {"check": True, "every_hours": 12, "notify": True, "restart": True,
+                "repo": "lucky-edgelord/aio-vector-bot"},
     "securitycam": {"channel": "", "include_bots": False, "ignore_channels": []},
     "dashboard": {"host": "127.0.0.1", "port": 8090, "base_url": "http://localhost:8090",
                   "session_days": 7, "code_minutes": 10, "vector_code_login": True},

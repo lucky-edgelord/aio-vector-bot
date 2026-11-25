@@ -246,6 +246,7 @@ FEATURES = [
     ("dashboard", "Web dashboard", "Manage members, settings, tickets and more in a browser, behind real logins."),
     ("configuration", "Setup wizard", "The bot asks what it needs, one question per screen, on the dashboard or in the terminal."),
     ("restore-points", "Restore points", "Go back to any earlier moment, like System Restore. Made daily and before risky changes."),
+    ("updates", "Updates", "Know when a newer Vectiq is out and install it in one click, with a restore point first."),
 ]
 
 

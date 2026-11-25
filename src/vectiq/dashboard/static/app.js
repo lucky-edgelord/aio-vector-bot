@@ -280,6 +280,7 @@ function renderShell(page) {
     h("a", { href: "#/settings", class: page === "settings" && "on" }, h("span", { class: "ico" }, "⚙"), "Settings"),
     S.me.owner ? h("a", { href: "#/setup", class: page === "setup" && "on" }, h("span", { class: "ico" }, "✧"), "Setup wizard") : null,
     S.me.owner ? h("a", { href: "#/restore", class: page === "restore" && "on" }, h("span", { class: "ico" }, "↺"), "Restore points") : null,
+    S.me.owner ? h("a", { href: "#/updates", class: page === "updates" && "on" }, h("span", { class: "ico" }, "⇪"), "Updates") : null,
     S.me.owner ? h("a", { href: "#/webhooks", class: page === "webhooks" && "on" }, h("span", { class: "ico" }, "⇄"), "Webhooks") : null,
     S.me.owner ? h("a", { href: "#/marketplace", class: page === "marketplace" && "on" }, h("span", { class: "ico" }, "⬡"), "Marketplace") : null,
     S.me.owner ? h("a", { href: "#/users", class: page === "users" && "on" }, h("span", { class: "ico" }, "⚿"), "Users") : null,
@@ -303,8 +304,8 @@ function renderShell(page) {
   if (comm && S.route[0] === "c" && !level) { clear(main, card(null, h("p", { class: "muted" }, "You don't have access to this page. The community's owner decides who can see what, under Dashboard access."))); return; }
   main.classList.toggle("readonly", level === "view");
   const fn = { overview, members, moderation, leveling, economy, tickets, rolemenus, giveaways, games, onboarding, securitycam, announce, audit, access: accessPage,
-    settings, setup, restore, webhooks, marketplace, users, account, m: modulePanel, structure }[page];
-  if (!fn || (!comm && !["settings", "setup", "restore", "webhooks", "marketplace", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
+    settings, setup, restore, updates, webhooks, marketplace, users, account, m: modulePanel, structure }[page];
+  if (!fn || (!comm && !["settings", "setup", "restore", "updates", "webhooks", "marketplace", "users", "account", "m"].includes(page))) { clear(main, empty("Nothing here.")); return; }
   clear(main, h("div", { class: "boot", style: { minHeight: "50vh" } }, h("div", { class: "mark" }, h("i"))));
   fn(main).then(() => { if (level === "view") main.prepend(h("div", { class: "note viewonly" }, "You can look at this page but not change anything on it.")); })
     .catch((e) => clear(main, card(null, h("p", { class: "muted" }, e.message))));
@@ -1085,6 +1086,31 @@ async function setup(main) {
 
 /* ---------------------------------------------------------------- restore points */
 // Like System Restore: a list of moments you can go back to. Rolling back saves "now" first.
+async function updates(main) {
+  if (!S.me.owner) { clear(main, card(null, h("p", { class: "muted" }, "Only bot owners can update Vectiq."))); return; }
+  const d = await api("GET", "/api/update");
+  const recheck = btn("Check now", async () => { try { await run(recheck, () => api("GET", "/api/update?refresh=true")); updates(main); } catch { /* toast */ } }, "ghost");
+  const status = d.error ? h("div", { class: "row" }, pill("couldn't check", "yellow"), h("span", { class: "muted" }, d.error))
+    : d.available ? h("div", { class: "row" }, pill("update ready", "green"), h("span", null, d.kind === "git" ? `${plural(d.behind, "new change")} (${d.current} → ${d.latest})` : `${d.current} → ${d.latest}`))
+    : h("div", { class: "row" }, pill("up to date", "green"), h("span", { class: "muted" }, `Vectiq ${d.current}`));
+  const go = btn("Update now", async () => {
+    if (!(await confirmBox("Update Vectiq?", d.restart ? "I make a restore point first, install the new version and restart. The dashboard is unavailable for a few seconds." : "I make a restore point first and install it. Restart Vectiq afterwards to run it.", "Update", "primary"))) return;
+    try {
+      const r = await run(go, () => api("POST", "/api/update/run"));
+      toast(r.message);
+      if (d.restart) setTimeout(function wait() { api("GET", "/api/me").then(() => location.reload()).catch(() => setTimeout(wait, 2500)); }, 6000);
+      else updates(main);
+    } catch { /* toast */ }
+  }, "primary");
+  clear(main, head("Updates", "Find out when a newer Vectiq is out and install it in one click.", recheck),
+    card("Vectiq", h("div", { class: "form" }, status,
+      d.changes.length ? h("div", null, h("b", null, "What's new"), h("ul", { class: "muted" }, d.changes.map((c) => h("li", null, c)))) : null,
+      d.available && d.can_update ? h("div", { class: "row" }, go) : null,
+      d.available && !d.can_update ? h("p", { class: "muted" }, d.how) : null,
+      !d.enabled ? h("p", { class: "faint" }, "Automatic checks are off (updates.check in config.yaml). You can still check by hand.") : null,
+      d.checked_at ? h("p", { class: "faint" }, `Last checked ${rel(d.checked_at)}.`) : null)));
+}
+
 async function restore(main) {
   if (!S.me.owner) { clear(main, card(null, h("p", { class: "muted" }, "Only bot owners can see restore points."))); return; }
   const d = await api("GET", "/api/restore-points");

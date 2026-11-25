@@ -39,7 +39,7 @@ async def test_switch_every_module_on_off_and_on_again(make_bot, tmp_path):
     for m in modules.NAMES:
         cfg.data["modules"][m] = False
     r = await bot.sync_modules()
-    assert set(bot.cogs) == {"Core", "Restore points"} and len(r["unloaded"]) == len(ONE_PER_JOB)
+    assert set(bot.cogs) == {"Core", "Restore points", "Updates"} and len(r["unloaded"]) == len(ONE_PER_JOB)
     cfg.data["modules"]["music"] = True
     r = await bot.sync_modules()
     assert r["loaded"] == ["music"] and "Music" in bot.cogs
