@@ -77,6 +77,8 @@ BUILTIN: tuple[Module, ...] = (
     # -- Safety
     Module("moderation", "Moderation", "Warnings, timeouts, kicks, bans, softbans, purge, lock and slowmode",
            "Safety", ("vectiq.cogs.moderation",)),
+    Module("appeals", "Ban appeals", "Banned people appeal by DM; moderators vote on it in a staff channel and "
+           "a majority lifts the ban", "Safety", ("vectiq.cogs.appeals",), works_with=("moderation",)),
     Module("linksafety", "Link safety", "Checks links against big blocklists (oisd.nl) and removes scam, malware "
            "and adult sites", "Safety", ("vectiq.cogs.linksafety",), default=False, works_with=("moderation",)),
     Module("imageguard", "Image guard", "Polices pictures: a blocklist of known images, and optional nudity "

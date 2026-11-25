@@ -98,6 +98,7 @@ DEFAULTS: dict[str, Any] = {
                "default_minutes": 60, "reminders": [60, 15], "dm_reminders": True,
                "who_can_create": "staff", "attendee_roles": False, "calendar_image": True, "week_starts": "monday",
                "max_per_community": 200},
+    "appeals": {"channel": "", "votes_needed": 2, "cooldown_days": 7, "min_chars": 20, "max_chars": 1000},
     "securitycam": {"channel": "", "include_bots": False, "ignore_channels": []},
     "dashboard": {"host": "127.0.0.1", "port": 8090, "base_url": "http://localhost:8090",
                   "session_days": 7, "code_minutes": 10, "vector_code_login": True},

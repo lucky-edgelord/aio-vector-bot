@@ -76,6 +76,7 @@ Use a **separate Vector account for the bot**, never your personal key.
 | Games | `games` | Tic-Tac-Toe, Connect Four, Trivia, Slots as **WebXDC mini apps** |
 | Utilities / analytics | `utility` | userinfo, poll, activity chart |
 | Events | `events` | event calendar: RSVPs, waitlists, repeats, reminders (channel + DM), banner pictures, month picture, .ics |
+| Ban appeals | `appeals` | banned people appeal by DM; moderators vote on a staff channel card and a majority lifts the ban |
 | Security cam | `securitycam` | echo every message (author, channel, time, text, attachments) into one staff channel; off by default |
 | (new) | `onboarding`, `webhooks` | welcome → verify → pick roles; YAML-declared webhooks |
 
@@ -208,6 +209,7 @@ Owners can also create logins on the **Users** page, and anyone signed in can ch
 | Games | `games` `game <name>` `gamestats` `gameboard` |
 | Utility | `userinfo` `communityinfo` `poll` `analytics` `testwelcome` `about` `ping` |
 | Events | `event create` `event list` `event info` `event edit` `event rsvp` `event who` `event cancel` `event delete` `event repost` `event ics` `event timezone` `calendar` |
+| Ban appeals | `appeal` (in a DM) `appeals` `appealvote` |
 | Security cam | `securitycam` `securitycam set [channel]` `securitycam off` |
 | Owner | `vectiq reload/stats`, `webhooks`, `webhooks sync/rotate/test` |
 

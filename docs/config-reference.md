@@ -26,6 +26,10 @@ Each module is a whole feature. Turn one off and its commands, background jobs a
 
 {{config:events}}
 
+## Ban appeals
+
+{{config:appeals}}
+
 ## Security cam
 
 {{config:securitycam}}
