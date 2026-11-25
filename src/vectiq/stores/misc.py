@@ -255,7 +255,7 @@ class ActivityStore:
 class OnboardingStore:
     """Where each new member is in the onboarding flow (verify, pick roles, done)."""
 
-    STEPS = ("verified_at", "picked_at")
+    STEPS = ("verified_at", "rules_at", "picked_at", "tutorial_at")
 
     def __init__(self, db: Database):
         self.db = db

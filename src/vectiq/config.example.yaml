@@ -324,7 +324,20 @@ welcome:
   dm_message: ""              # optional private welcome sent by DM (blank = none)
 
 onboarding:
-  steps: [verify, pick_roles]     # what a new member goes through, in order
+  steps: [verify, pick_roles]     # what a new member goes through, in order: verify, rules, pick_roles, tutorial
+  rules_title: Community rules    # the rules step posts these once; members react (or type !agree) to accept
+  rules_emoji: "✅"
+  rules:
+    - Be kind and respectful.
+    - No spam, scams or adult content.
+    - Keep topics in the right channels.
+    - Listen to the moderators.
+  tutorial_title: Welcome tour    # the tutorial step DMs these pages, one message each (members can run !tutorial again)
+  tutorial:
+    - Say hi in the general channel and introduce yourself.
+    - "Browse the channel list: each channel has a topic that says what belongs there."
+    - Type !help in any channel to see what the bot can do.
+    - Need a hand? Open a ticket or ask a moderator.
   channel: ""                     # where the role menu lives (blank = system channel)
   log_channel: ""                 # notes who finished onboarding (blank = none)
   required: false                 # true: onboarding only completes once they pick a role

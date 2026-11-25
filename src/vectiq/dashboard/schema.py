@@ -251,7 +251,10 @@ GROUPS: list[dict[str, Any]] = [
         field("welcome.dm_message", "DM to new members", "longtext", "Blank = none"),
     ]},
     {"id": "onboarding", "title": "Onboarding", "fields": [
-        field("onboarding.steps", "Steps", "list", "verify and/or pick_roles, in order"),
+        field("onboarding.steps", "Steps", "list", "Any of verify, rules, pick_roles, tutorial, in order"),
+        field("onboarding.rules", "Rules to accept", "list", "One rule per line. Used by the rules step"),
+        field("onboarding.rules_emoji", "Agree reaction", "text", "New members react with this to accept"),
+        field("onboarding.tutorial", "Tutorial pages", "list", "One page per line. Used by the tutorial step"),
         field("onboarding.channel", "Role menu channel", "channel", "Blank = the system channel"),
         field("onboarding.required", "Required", "bool", "Members must finish before they can chat"),
         field("onboarding.log_channel", "Onboarding log channel", "channel", "Notes who finished (blank = none)"),
@@ -399,7 +402,7 @@ WIZARD_ASK: dict[str, str] = {
     "imageguard.allow_channels": "Any channels where pictures shouldn't be checked (like an adults-only one)?",
     "welcome.message": "What should I say when someone joins? You can use {mention}, {name}, {community} and {count}.",
     "welcome.leave_message": "And when someone leaves? Leave it empty to say nothing.",
-    "onboarding.steps": "What should new members go through, in order? verify, pick_roles, or both.",
+    "onboarding.steps": "What should new members go through, in order? verify, rules, pick_roles, tutorial.",
     "onboarding.required": "Do members have to pick a role before they're done?",
 }
 

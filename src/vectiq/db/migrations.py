@@ -392,4 +392,9 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (appeal_id, voter_id)
     );
     """,
+    # 11: onboarding grows a rules step and a tutorial step
+    """
+    ALTER TABLE onboarding ADD COLUMN rules_at INTEGER;
+    ALTER TABLE onboarding ADD COLUMN tutorial_at INTEGER;
+    """,
 ]
