@@ -103,7 +103,7 @@ ROUTE_AREAS = {
     "everyone": "structure", "rolemenus": "rolemenus", "onboarding": "onboarding", "leveling": "leveling",
     "leaderboard.png": "leveling", "rewards": "leveling", "economy": "economy", "shop": "economy",
     "giveaways": "giveaways", "games": "games", "securitycam": "securitycam", "announce": "announce",
-    "audit": "audit",
+    "audit": "audit", "command-limits": "structure",
 }
 # /members/<id>/<what> changes belong to the area that owns <what>
 MEMBER_ACTIONS = {"action": "moderation", "xp": "leveling", "coins": "economy", "roles": "members"}
