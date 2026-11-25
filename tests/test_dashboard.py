@@ -394,3 +394,54 @@ async def test_restore_points_page(env, tmp_path):
     assert labels[0].startswith("Before rolling back") and "Before the setup wizard" in labels
     assert (await c.delete(f"/api/restore-points/{pid}", headers=H)).status_code == 200
     assert (await c.post(f"/api/restore-points/{pid}/rollback", headers=H)).status_code == 404
+
+
+async def test_securitycam_live_feed_and_switch(env):
+    import datetime
+    from types import SimpleNamespace
+
+    from vectiq.cogs.securitycam import SecurityCam
+
+    g = env.bot.guilds[0]
+    cam, general = SimpleNamespace(id="c1", name="cam"), SimpleNamespace(id="c2", name="general")
+    g.text_channels = [cam, general]
+    env.bot.find_channel = lambda guild, ref: next((c for c in guild.text_channels if ref in (c.id, c.name)), None)
+    env.bot.user = SimpleNamespace(id="bot")
+    sc = SecurityCam(env.bot)
+    env.bot.get_cog = lambda name: sc if name == "SecurityCam" else None
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    await login(env.client)
+
+    def say(channel, text, author="u1", bot=False):
+        return SimpleNamespace(guild=g, channel=channel, content=text, attachments=[SimpleNamespace(filename="a.png")],
+                               author=SimpleNamespace(id=author, bot=bot, display_name="Ann", display_avatar=None),
+                               created_at=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc))
+
+    await sc.on_message(say(general, "hello"))
+    await sc.on_message(say(general, "from a bot", author="b2", bot=True))     # bots are skipped
+    await sc.on_message(say(general, "mine", author="bot", bot=True))           # so is the bot itself
+    await sc.on_message(say(general, "second"))
+    d = (await env.client.get("/api/c/g1/securitycam/feed")).json()
+    assert d["enabled"] and [e["text"] for e in d["entries"]] == ["hello", "second"] and d["last"] == 2
+    assert d["entries"][0]["channel"] == "general" and d["entries"][0]["attachments"] == ["a.png"]
+    later = (await env.client.get("/api/c/g1/securitycam/feed?after=1")).json()
+    assert [e["text"] for e in later["entries"]] == ["second"]
+    env.bot.config.data.setdefault("securitycam", {})["dashboard_feed"] = False
+    assert (await env.client.get("/api/c/g1/securitycam/feed")).json()["enabled"] is False
+    await sc.on_message(say(general, "unseen"))
+    assert len(sc.feed["g1"]) == 2
+
+
+async def test_cases_bans_and_audit_page_with_totals(env):
+    await env.store.create_user("ada", ADMIN, "correct horse battery")
+    await login(env.client)
+    for i in range(7):
+        await env.bot.stores.moderation.add("g1", "u1", "mod", "warn", f"r{i}")
+    first = (await env.client.get("/api/c/g1/cases?limit=3")).json()
+    assert first["total"] == 7 and [c["reason"] for c in first["cases"]] == ["r6", "r5", "r4"]
+    last = (await env.client.get("/api/c/g1/cases?limit=3&offset=6")).json()
+    assert [c["reason"] for c in last["cases"]] == ["r0"]
+    assert (await env.client.get("/api/c/g1/cases?action=ban")).json()["total"] == 0
+    audit = (await env.client.get("/api/c/g1/audit?limit=1")).json()
+    assert audit["total"] >= 1 and len(audit["entries"]) == 1
+    assert (await env.client.get("/api/c/g1/audit?offset=999")).json()["entries"] == []

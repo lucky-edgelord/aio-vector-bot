@@ -46,3 +46,10 @@ securitycam:
 ## Commands
 
 {{commands:Security cam}}
+
+## Live feed on the dashboard
+
+With the dashboard on, the **Security cam** page also has a **Live feed**: the newest messages from every channel appear there as they are sent, with who said it, the channel and any attachment names. You do not need a camera channel for it. Pause stops the list from moving while you read.
+
+The feed is kept in memory only (the latest `securitycam.feed_size` messages per community, 300 by default) and is gone when the bot restarts. It follows the same rules as the chat echo: the camera channel, other bots and skipped channels are left out. Turn it off with `securitycam.dashboard_feed: false`. Only people with the Security cam area of the dashboard can see it.
+
