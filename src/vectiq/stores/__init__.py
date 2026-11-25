@@ -4,11 +4,12 @@ from .events import Attendees, Event, EventStore
 from .gate import GateStore
 from .levels import LevelStore, level_for_xp, xp_for_level
 from .misc import ActivityStore, GameStatsStore, GiveawayStore, OnboardingStore, RoleMenuStore, SettingsStore, VerificationStore
-from .moderation import ModerationStore
+from .moderation import AppealStore, ModerationStore
 from .safety import ImageBlockStore, NotifyStore
 from .tickets import TicketStore
 
 __all__ = (
+    "AppealStore",
     "ActivityStore",
     "DashboardStore",
     "EconomyStore",
@@ -40,6 +41,7 @@ class Stores:
         self.db = db
         self.settings = SettingsStore(db)
         self.moderation = ModerationStore(db)
+        self.appeals = AppealStore(db)
         self.levels = LevelStore(db)
         self.economy = EconomyStore(db)
         self.tickets = TicketStore(db)

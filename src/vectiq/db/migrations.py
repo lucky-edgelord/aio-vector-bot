@@ -368,4 +368,28 @@ MIGRATIONS: list[str] = [
         updated_at INTEGER NOT NULL
     );
     """,
+    # 10: ban appeals, filled in by DM and voted on by moderators
+    """
+    CREATE TABLE ban_appeals (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        text       TEXT NOT NULL DEFAULT '',
+        status     TEXT NOT NULL DEFAULT 'drafting',
+        channel_id TEXT NOT NULL DEFAULT '',
+        message_id TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL,
+        decided_at INTEGER
+    );
+    CREATE INDEX ban_appeals_user ON ban_appeals (guild_id, user_id);
+    CREATE INDEX ban_appeals_msg ON ban_appeals (message_id);
+
+    CREATE TABLE ban_appeal_votes (
+        appeal_id INTEGER NOT NULL,
+        voter_id  TEXT NOT NULL,
+        approve   INTEGER NOT NULL,
+        at        INTEGER NOT NULL,
+        PRIMARY KEY (appeal_id, voter_id)
+    );
+    """,
 ]

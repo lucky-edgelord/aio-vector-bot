@@ -22,6 +22,7 @@ modules:              # every feature is a module: on or off. Only modules that 
   linksafety: false   # removes links to scam/malware/adult sites using oisd.nl blocklists (section `linksafety`)
   imageguard: false   # polices pictures: blocklist + optional nudity detector (section `imageguard`)
   verification: true
+  appeals: true       # banned people appeal by DM; moderators vote on it in a staff channel
   securitycam: false  # echo every message from every channel into one staff channel
   # Members
   welcome: true
@@ -82,6 +83,17 @@ events:
   attendee_roles: false       # give people who are going a temporary role (needs Manage Roles)
   calendar_image: true        # !calendar as a picture
   week_starts: monday         # monday | sunday (the calendar picture)
+
+appeals:                      # needs modules.appeals: true
+  channel: ""                 # staff channel (name or id) where appeals are posted; blank = moderation.log_channel
+  votes_needed: 2             # moderators who must agree: this many approvals lift the ban, this many denials close it
+  cooldown_days: 7            # how long a person waits to appeal again after a denial
+  min_chars: 5                # shortest answer accepted
+  max_chars: 1000             # longest answer accepted
+  questions:                  # the form the banned person is sent, one question at a time
+    - What happened? Tell us in your own words.
+    - Why should the ban be lifted?
+    - Is there anything else the moderators should know?
 
 securitycam:                  # needs modules.securitycam: true
   channel: ""                 # channel (name or id) that receives the echoes; or set it in chat with !securitycam set. Keep it staff-only.

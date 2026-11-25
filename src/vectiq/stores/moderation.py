@@ -81,3 +81,87 @@ class ModerationStore:
         rows = await self.db.all("SELECT user_id, COUNT(*) n FROM mod_cases WHERE guild_id=? AND action='warn' AND active=1"
                                  " GROUP BY user_id", (guild_id,))
         return {r["user_id"]: r["n"] for r in rows}
+
+
+@dataclass
+class Appeal:
+    id: int
+    guild_id: str
+    user_id: str
+    text: str
+    status: str          # drafting | pending | approved | denied | cancelled
+    channel_id: str
+    message_id: str
+    created_at: int
+    decided_at: int | None
+
+
+def _appeal(r) -> Appeal:
+    return Appeal(r["id"], r["guild_id"], r["user_id"], r["text"], r["status"], r["channel_id"], r["message_id"],
+                  r["created_at"], r["decided_at"])
+
+
+class AppealStore:
+    def __init__(self, db: Database):
+        self.db = db
+
+    async def start(self, guild_id: str, user_id: str) -> Appeal:
+        """Begin a draft. An older unfinished draft of theirs is cancelled."""
+        await self.db.execute("UPDATE ban_appeals SET status='cancelled' WHERE user_id=? AND status='drafting'",
+                              (user_id,))
+        now = int(time.time())
+        aid = await self.db.insert("INSERT INTO ban_appeals (guild_id,user_id,status,created_at)"
+                                   " VALUES (?,?,'drafting',?)", (guild_id, user_id, now))
+        return Appeal(aid, guild_id, user_id, "", "drafting", "", "", now, None)
+
+    async def get(self, appeal_id: int) -> Appeal | None:
+        r = await self.db.one("SELECT * FROM ban_appeals WHERE id=?", (appeal_id,))
+        return _appeal(r) if r else None
+
+    async def draft_of(self, user_id: str) -> Appeal | None:
+        r = await self.db.one("SELECT * FROM ban_appeals WHERE user_id=? AND status='drafting'"
+                              " ORDER BY id DESC LIMIT 1", (user_id,))
+        return _appeal(r) if r else None
+
+    async def by_message(self, message_id: str) -> Appeal | None:
+        r = await self.db.one("SELECT * FROM ban_appeals WHERE message_id=? AND status='pending'", (message_id,))
+        return _appeal(r) if r else None
+
+    async def latest(self, guild_id: str, user_id: str, *statuses: str) -> Appeal | None:
+        marks = ",".join("?" * len(statuses))
+        r = await self.db.one(f"SELECT * FROM ban_appeals WHERE guild_id=? AND user_id=? AND status IN ({marks})"
+                              " ORDER BY id DESC LIMIT 1", (guild_id, user_id, *statuses))
+        return _appeal(r) if r else None
+
+    async def pending(self, guild_id: str) -> list[Appeal]:
+        rows = await self.db.all("SELECT * FROM ban_appeals WHERE guild_id=? AND status='pending' ORDER BY id",
+                                 (guild_id,))
+        return [_appeal(r) for r in rows]
+
+    async def save_draft(self, appeal_id: int, text: str) -> None:
+        await self.db.execute("UPDATE ban_appeals SET text=? WHERE id=? AND status='drafting'", (text, appeal_id))
+
+    async def submit(self, appeal_id: int, text: str, channel_id: str, message_id: str) -> None:
+        await self.db.execute("UPDATE ban_appeals SET text=?, status='pending', channel_id=?, message_id=?"
+                              " WHERE id=?", (text, channel_id, message_id, appeal_id))
+
+    async def vote(self, appeal_id: int, voter_id: str, approve: bool) -> tuple[int, int]:
+        """Record (or change) one moderator's vote. Returns (approvals, denials)."""
+        await self.db.execute("INSERT INTO ban_appeal_votes (appeal_id,voter_id,approve,at) VALUES (?,?,?,?)"
+                              " ON CONFLICT(appeal_id,voter_id) DO UPDATE SET approve=excluded.approve, at=excluded.at",
+                              (appeal_id, voter_id, int(approve), int(time.time())))
+        return await self.tally(appeal_id)
+
+    async def tally(self, appeal_id: int) -> tuple[int, int]:
+        rows = await self.db.all("SELECT approve, COUNT(*) AS n FROM ban_appeal_votes WHERE appeal_id=?"
+                                 " GROUP BY approve", (appeal_id,))
+        n = {int(r["approve"]): r["n"] for r in rows}
+        return n.get(1, 0), n.get(0, 0)
+
+    async def decide(self, appeal_id: int, status: str) -> bool:
+        return bool(await self.db.execute("UPDATE ban_appeals SET status=?, decided_at=? WHERE id=? AND status='pending'",
+                                          (status, int(time.time()), appeal_id)))
+
+    async def cancel(self, appeal_id: int) -> None:
+        await self.db.execute("UPDATE ban_appeals SET status='cancelled' WHERE id=? AND status='drafting'",
+                              (appeal_id,))

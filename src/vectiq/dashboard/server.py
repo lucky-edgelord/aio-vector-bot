@@ -927,11 +927,7 @@ def create_app(bot) -> FastAPI:  # noqa: C901 - one closure keeps every route ne
     async def unban(gid: str, uid: str, npub: str = Depends(current)):
         g = community(gid, npub)
         mod = cog("Moderation")
-        await act(g.unban(uid, reason="dashboard"), "unban")
-        for action in ("ban", "tempban"):
-            for c in await mod.store.for_user(gid, uid, action=action, active_only=True):
-                await mod.store.deactivate(gid, c.id)
-        await mod.record(g, access.actor(uid), access.actor(npub, g), "unban", "dashboard")
+        await act(mod.lift_ban(g, access.actor(uid), access.actor(npub, g), "dashboard"), "unban")
         await audit(npub, "unban", uid, g)
         return {"ok": True, "message": "Unbanned."}
 

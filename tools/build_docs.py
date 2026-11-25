@@ -97,7 +97,7 @@ def expand(md: str) -> str:
             from vectiq import modules
 
             slug = {"moderation": "moderation", "sentire_official": "sentire", "linksafety": "link-safety",
-                    "imageguard": "image-guard", "verification": "verification", "securitycam": "security-cam",
+                    "imageguard": "image-guard", "verification": "verification", "securitycam": "security-cam", "appeals": "appeals",
                     "welcome": "onboarding", "onboarding": "onboarding", "roles": "role-menus", "tickets": "tickets",
                     "events": "events", "notifications": "notifications", "utility": "utility",
                     "leveling": "leveling", "economy": "economy", "giveaways": "giveaways", "music": "music",
