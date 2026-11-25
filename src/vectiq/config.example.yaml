@@ -88,8 +88,12 @@ appeals:                      # needs modules.appeals: true
   channel: ""                 # staff channel (name or id) where appeals are posted; blank = moderation.log_channel
   votes_needed: 2             # moderators who must agree: this many approvals lift the ban, this many denials close it
   cooldown_days: 7            # how long a person waits to appeal again after a denial
-  min_chars: 20               # shortest appeal accepted
-  max_chars: 1000             # longest appeal accepted
+  min_chars: 5                # shortest answer accepted
+  max_chars: 1000             # longest answer accepted
+  questions:                  # the form the banned person is sent, one question at a time
+    - What happened? Tell us in your own words.
+    - Why should the ban be lifted?
+    - Is there anything else the moderators should know?
 
 securitycam:                  # needs modules.securitycam: true
   channel: ""                 # channel (name or id) that receives the echoes; or set it in chat with !securitycam set. Keep it staff-only.

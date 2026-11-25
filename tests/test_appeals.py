@@ -99,8 +99,10 @@ def reaction(guild, message, emoji, voter):
 
 async def file_appeal(cog, guild):
     await cog.appeal.callback(cog, Ctx())
-    msg, d = dm("I was wrongly flagged as a spammer, please look again.")
-    await cog.on_message(msg)
+    d = None
+    for answer in ("I posted a link and got flagged as spam.", "It was a one-off and I read the rules now.", "No, thank you."):
+        msg, d = dm(answer)
+        await cog.on_message(msg)
     return guild.chan.last, d
 
 
@@ -108,9 +110,9 @@ async def test_dm_flow_posts_to_the_staff_channel_with_vote_reactions(rig):
     cog, guild, _, stores = rig
     ctx = Ctx()
     await cog.appeal.callback(cog, ctx)
-    assert "Appeal your ban" in ctx.sent[0]
+    assert "You were banned from Test" in ctx.sent[0]
     card, d = await file_appeal(cog, guild)
-    assert "wrongly flagged" in guild.chan.sent[-1].description
+    assert "flagged as spam" in guild.chan.sent[-1].fields[0].value
     assert card.reactions == [YES, NO] and "Sent" in d.sent[0]
 
 
@@ -128,9 +130,9 @@ async def test_not_banned_and_in_a_community_are_refused(rig):
 async def test_short_text_is_rejected_and_the_draft_stays(rig):
     cog, guild, _, _ = rig
     await cog.appeal.callback(cog, Ctx())
-    msg, d = dm("pls")
+    msg, d = dm("no")
     await cog.on_message(msg)
-    assert "too short" in d.sent[0] and not guild.chan.sent
+    assert "a little more" in d.sent[0] and not guild.chan.sent
 
 
 async def test_two_approvals_lift_the_ban_and_tell_the_user(rig):
@@ -183,3 +185,24 @@ async def test_appealvote_command_and_the_appeals_list(rig):
     listing.author = guild.voters["mod1"]
     await cog.appeals.callback(cog, listing)
     assert "#1" in listing.sent[0].description and "1 for" in listing.sent[0].description
+
+
+async def test_a_ban_invites_them_automatically_and_their_reply_is_the_appeal(rig):
+    cog, guild, user_dm, stores = rig
+    user = SimpleNamespace(id=U, send=user_dm.send)
+    await cog.on_member_ban(guild, user)
+    assert "You were banned from Test" in user_dm.sent[0] and "1/3" in user_dm.sent[0]
+    for answer in ("It was a misunderstanding about the spam rule.", "I know the rules now, sorry.", "Nothing else."):
+        msg, d = dm(answer)
+        await cog.on_message(msg)
+    assert d.sent and "Sent" in d.sent[0]
+    assert "misunderstanding" in guild.chan.sent[-1].fields[0].value
+    assert (await stores.appeals.get(1)).status == "pending"
+
+
+async def test_no_invite_when_appeals_have_no_channel_or_one_is_open(rig):
+    cog, guild, user_dm, _ = rig
+    cog.cfg.data["appeals"]["channel"] = ""
+    cog.cfg.data.setdefault("moderation", {})["log_channel"] = ""
+    await cog.on_member_ban(guild, SimpleNamespace(id=U, send=user_dm.send))
+    assert user_dm.sent == []

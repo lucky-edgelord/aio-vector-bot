@@ -10,17 +10,17 @@ A banned person can ask to come back. They fill the appeal in by private message
 
 1. Keep `appeals: true` under `modules` in `config.yaml` (it is on by default).
 2. Choose the staff channel: set `appeals.channel`, or leave it blank to use `moderation.log_channel`. Keep it private.
-3. Optional: `appeals.votes_needed` (default 2), `appeals.cooldown_days` (default 7), `appeals.min_chars` and `appeals.max_chars`.
+3. Optional: `appeals.questions` (the form; edit, add or remove questions), `appeals.votes_needed` (default 2), `appeals.cooldown_days` (default 7), `appeals.min_chars` and `appeals.max_chars`.
 
 ## For the banned person
 
-Message the bot directly:
+The moment someone is banned (by a Vectiq command, the dashboard, or by hand in the Vector app) the bot messages them: it sends them the appeal form: a few questions, asked one at a time in the DM. Their answers are the appeal. If their DMs are closed, or they changed their mind, they can start it themselves by messaging the bot:
 
 ```
 !appeal
 ```
 
-The bot checks that you are banned, then asks you to reply with one message saying why the ban should be lifted. If you are banned from more than one community, add its name: `!appeal Cool Place`. `!appeal cancel` stops a draft. You get a message when the moderators decide. After a denial you wait `appeals.cooldown_days` before appealing again.
+The bot checks that you are banned, then sends you the form. If you are banned from more than one community, add its name: `!appeal Cool Place`. `!appeal cancel` stops a draft. You get a message when the moderators decide. After a denial you wait `appeals.cooldown_days` before appealing again.
 
 ## For moderators
 

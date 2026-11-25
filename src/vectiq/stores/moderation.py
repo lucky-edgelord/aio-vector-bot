@@ -138,6 +138,9 @@ class AppealStore:
                                  (guild_id,))
         return [_appeal(r) for r in rows]
 
+    async def save_draft(self, appeal_id: int, text: str) -> None:
+        await self.db.execute("UPDATE ban_appeals SET text=? WHERE id=? AND status='drafting'", (text, appeal_id))
+
     async def submit(self, appeal_id: int, text: str, channel_id: str, message_id: str) -> None:
         await self.db.execute("UPDATE ban_appeals SET text=?, status='pending', channel_id=?, message_id=?"
                               " WHERE id=?", (text, channel_id, message_id, appeal_id))

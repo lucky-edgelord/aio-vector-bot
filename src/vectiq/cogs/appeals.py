@@ -13,6 +13,7 @@ from ..utils.embeds import embed, fail, name_of, ok, short
 log = logging.getLogger("vectiq.appeals")
 
 YES, NO = "✅", "❌"
+SEP = "\u241e"   # separates saved answers in a draft
 
 
 def _who(uid: str):
@@ -75,21 +76,46 @@ class Appeals(commands.Cog, name="Appeals"):
             names = ", ".join(f"`{g.name}`" for g in guilds)
             return await ctx.send(f"You are banned in more than one community: {names}.\n"
                                   "Say which: `!appeal <community name>`")
-        guild = guilds[0]
+        problem = await self._begin(guilds[0], uid, ctx.send)
+        if problem:
+            await ctx.send(fail(problem))
+
+    async def _begin(self, guild, uid: str, send) -> str:
+        """Open a draft and say how to fill it in through `send`. Returns why not, or an empty string."""
         gid = str(guild.id)
         if (open_ := await self.store.latest(gid, uid, "pending")):
-            return await ctx.send(fail(f"Your appeal (#{open_.id}) is already with the moderators."))
+            return f"Your appeal (#{open_.id}) is already with the moderators."
         denied = await self.store.latest(gid, uid, "denied")
         days = float(self.v("cooldown_days", 7) or 0)
         if denied and denied.decided_at and time.time() < denied.decided_at + days * 86400:
             left = int((denied.decided_at + days * 86400 - time.time()) // 86400) + 1
-            return await ctx.send(fail(f"Your last appeal was denied. You can appeal again in {left} day(s)."))
+            return f"Your last appeal was denied. You can appeal again in {left} day(s)."
         if self._channel(guild) is None:
-            return await ctx.send(fail(f"{guild.name} hasn't set up a place for appeals, so I can't pass one on."))
+            return f"{guild.name} hasn't set up a place for appeals, so I can't pass one on."
         await self.store.start(gid, uid)
-        await ctx.send(f"**Appeal your ban from {guild.name}.**\nReply with one message: why the ban should be lifted "
-                       f"({int(self.v('min_chars', 20))}-{int(self.v('max_chars', 1000))} characters). "
-                       "The moderators will read it and vote. Send `!appeal cancel` to stop.")
+        await send(self._invite_text(guild))
+        return ""
+
+    def questions(self) -> list[str]:
+        qs = [str(q).strip() for q in (self.v("questions", []) or []) if str(q).strip()]
+        return qs or ["Why should the ban be lifted?"]
+
+    def _invite_text(self, guild) -> str:
+        qs = self.questions()
+        return (f"**You were banned from {guild.name}.** If you think that was a mistake, you can appeal. "
+                f"I'll ask {len(qs)} question{'s' if len(qs) != 1 else ''}, one at a time, and the moderators will "
+                f"read your answers and vote. Send `!appeal cancel` to stop.\n\n**1/{len(qs)}** {qs[0]}")
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild, user):
+        """Someone was banned, by Vectiq or by hand: invite them to appeal without them having to ask."""
+        uid = str(getattr(user, "id", user))
+        if uid == str(self.bot.user.id) or not self.bot.serves(guild):
+            return
+        try:
+            await self._begin(guild, uid, lambda text: user.send(text))
+        except Exception as exc:  # noqa: BLE001 - closed DMs are normal; `!appeal` still works if they DM us
+            log.debug("couldn't invite %s to appeal: %s", uid, exc)
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -102,28 +128,37 @@ class Appeals(commands.Cog, name="Appeals"):
         draft = await self.store.draft_of(uid)
         if draft is None:
             return
-        lo, hi = int(self.v("min_chars", 20)), int(self.v("max_chars", 1000))
+        lo, hi = int(self.v("min_chars", 5)), int(self.v("max_chars", 1000))
         if len(text) < lo:
-            return await message.channel.send(fail(f"That's too short. Tell them more (at least {lo} characters)."))
+            return await message.channel.send(fail(f"Say a little more (at least {lo} characters)."))
         if len(text) > hi:
-            return await message.channel.send(fail(f"That's too long by {len(text) - hi} characters. Shorten it."))
+            return await message.channel.send(fail(f"That's {len(text) - hi} characters too long. Shorten it."))
+        qs = self.questions()
+        answers = (draft.text.split(SEP) if draft.text else []) + [text]
+        if len(answers) < len(qs):
+            await self.store.save_draft(draft.id, SEP.join(answers))
+            return await message.channel.send(f"**{len(answers) + 1}/{len(qs)}** {qs[len(answers)]}")
+        await self._submit(draft, message, qs, answers)
+
+    async def _submit(self, draft, message, qs, answers) -> None:
         guild = self.bot.get_guild(draft.guild_id)
         channel = self._channel(guild) if guild else None
         if channel is None:
             await self.store.cancel(draft.id)
             return await message.channel.send(fail("That community can't receive appeals right now."))
         need = int(self.v("votes_needed", 2))
-        card = embed(f"Ban appeal #{draft.id}", text, fields=[
-            ("From", f"{name_of(message.author)} (`{short(uid)}`)", True),
-            ("Votes needed", str(need), True)],
-            footer=f"React {YES} to lift the ban or {NO} to deny. Staff with Ban Members can vote.", timestamp=True)
+        card = embed(f"Ban appeal #{draft.id}", f"From {name_of(message.author)} (`{short(draft.user_id)}`)",
+                     fields=[(q[:250], a[:1000], False) for q, a in zip(qs, answers, strict=False)] + [("Votes needed", str(need), True)],
+                     footer=f"React {YES} to lift the ban or {NO} to deny. Staff with Ban Members can vote.",
+                     timestamp=True)
         sent = await channel.send(embed=card)
         for emoji in (YES, NO):
             try:
                 await sent.add_reaction(emoji)
             except Exception as exc:  # noqa: BLE001
                 log.debug("couldn't add %s: %s", emoji, exc)
-        await self.store.submit(draft.id, text, str(channel.id), str(sent.id))
+        await self.store.submit(draft.id, "\n\n".join(f"{q}\n{a}" for q, a in zip(qs, answers, strict=False)),
+                                str(channel.id), str(sent.id))
         await message.channel.send(ok(f"Sent. Appeal #{draft.id} is with the moderators. I'll message you when they decide."))
 
     # -- the moderators' side --------------------------------------------------------------------
