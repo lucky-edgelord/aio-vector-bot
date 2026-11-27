@@ -197,9 +197,12 @@ class Onboarding(commands.Cog, name="Onboarding"):
             await channel.send(f"{member.mention} please read the rules above and react {emoji} to accept them "
                                f"(or type `{self.bot.config['prefix']}agree`).")
 
-    async def accept_rules(self, guild, member) -> bool:
+    async def accept_rules(self, guild, member, ack=None) -> bool:
+        """Record that they accepted; ``ack`` (a coroutine function) runs before the next step, so replies read in order."""
         if not await self.store.mark(str(guild.id), str(member.id), "rules_at"):
             return False
+        if ack is not None:
+            await ack()
         await self._advance(guild, member)
         return True
 
@@ -258,8 +261,9 @@ class Onboarding(commands.Cog, name="Onboarding"):
         """Accept the community rules."""
         if "rules" not in self.steps:
             return await ctx.send("There's nothing to accept here.")
-        if await self.accept_rules(ctx.guild, ctx.author):
-            return await ctx.send(f"✅ Thanks {name_of(ctx.author)}, rules accepted.")
+        if await self.accept_rules(ctx.guild, ctx.author,
+                                   ack=lambda: ctx.send(f"✅ Thanks {name_of(ctx.author)}, rules accepted.")):
+            return
         await ctx.send("You've already accepted the rules, or you're not in onboarding.")
 
     @commands.command()

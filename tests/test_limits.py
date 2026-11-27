@@ -28,8 +28,9 @@ class Settings:
 
 
 def command(name, cog=None, parent=None):
-    c = SimpleNamespace(name=name.split()[-1], qualified_name=name, cog_name=cog, root_parent=parent)
-    return c
+    """Shaped like the SDK's Command: the module is ``command.cog.qualified_name`` (there is no cog_name)."""
+    return SimpleNamespace(name=name.split()[-1], qualified_name=name, root_parent=parent,
+                           cog=SimpleNamespace(qualified_name=cog) if cog else None)
 
 
 @pytest.fixture
@@ -113,3 +114,30 @@ async def test_setting_listing_and_clearing_through_chat(lim):
     assert await cog.get(guild) == {}
     await cog.limit_clear.callback(cog, c, target="ban")
     assert "isn't limited" in sent[-1]
+
+
+async def test_a_broken_check_lets_the_command_run(lim, monkeypatch):
+    cog, _, guild, cmds = lim
+    await cog.save(guild, "ban", ["r1"])
+
+    async def boom(guild):
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(cog, "get", boom)
+    assert await cog.check(ctx(guild, cmds[0], []))
+
+
+async def test_works_with_the_real_sdk_command_class(lim):
+    from vector.ext.commands import Command
+
+    cog, _, guild, _ = lim
+
+    async def ping(ctx):
+        pass
+
+    real = Command(ping, name="ping")
+    real.cog = SimpleNamespace(qualified_name="Utility")
+    await cog.save(guild, "Utility", ["r1"])
+    with pytest.raises(commands.CheckFailure):
+        await cog.check(ctx(guild, real, []))
+    assert await cog.check(ctx(guild, real, [MOD]))

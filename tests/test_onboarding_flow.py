@@ -105,7 +105,7 @@ async def test_the_agree_command_and_wrong_message_reactions(rig):
 
     ctx.send = send
     await cog.agree.callback(cog, ctx)
-    assert "accepted" in ctx.sent[0]
+    assert "accepted" in ctx.sent[0]          # the thanks comes before anything the next steps send
     await cog.agree.callback(cog, ctx)
     assert "already" in ctx.sent[1]
 
