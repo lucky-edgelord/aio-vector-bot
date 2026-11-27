@@ -228,3 +228,21 @@ def test_cli_check_and_update(repos, monkeypatch, capsys):
     monkeypatch.setattr(updates, "apply", local_apply)
     monkeypatch.chdir(mine.parent)
     assert main(["--update", "--config", str(mine / "config.yaml")]) in (0, 1)
+
+
+def test_update_keeps_the_extras_you_installed(tmp_path):
+    (tmp_path / "pyproject.toml").write_text("""
+[project]
+name = "vectiq"
+[project.optional-dependencies]
+webhooks = ["vector-sdk-py[webhooks] @ git+https://x"]
+dashboard = ["fastapi>=0.110", "uvicorn>=0.29"]
+media = ["httpx>=0.27", "numpy>=1.26", "brand-new-lib>=1"]
+mcp = ["fastmcp>=4.2", "uvicorn>=0.29"]
+all = ["vectiq[webhooks,dashboard,media,mcp]"]
+dev = ["pytest", "httpx>=0.27"]
+""")
+    have = {"vector-sdk-py", "fastapi", "uvicorn", "httpx", "numpy"}
+    # media is kept even though brand-new-lib isn't installed yet; mcp isn't picked up through the shared uvicorn
+    assert updates.kept_extras(tmp_path, installed=lambda n: n in have) == ["dashboard", "media", "webhooks"]
+    assert updates.kept_extras(tmp_path / "missing") == []

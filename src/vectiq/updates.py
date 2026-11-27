@@ -11,7 +11,10 @@ import sys
 import time
 import urllib.request
 from dataclasses import asdict, dataclass, field
+from importlib import metadata
 from pathlib import Path
+
+import tomllib
 
 from . import __version__
 
@@ -132,10 +135,43 @@ async def apply(root: Path = ROOT, *, pip: bool = True) -> tuple[bool, str]:
     if rc:
         return False, f"git pull failed: {out[-300:]}"
     if pip:
-        rc, out = await sh(sys.executable, "-m", "pip", "install", "-q", "-e", str(root), cwd=root, timeout=900)
+        extras = kept_extras(root)
+        target = f"{root}[{','.join(extras)}]" if extras else str(root)
+        rc, out = await sh(sys.executable, "-m", "pip", "install", "-q", "-e", target, cwd=root, timeout=900)
         if rc:
             return False, f"The new code is in place but installing its packages failed: {out[-300:]}"
     return True, "Updated."
+
+
+def _req_name(req: str) -> str:
+    return re.split(r"[\s\[<>=!~;@]", req.strip(), maxsplit=1)[0].lower().replace("_", "-")
+
+
+def _installed(name: str) -> bool:
+    try:
+        metadata.distribution(name)
+        return True
+    except metadata.PackageNotFoundError:
+        return False
+
+
+def kept_extras(root: Path = ROOT, installed=_installed) -> list[str]:
+    """The optional extras this install already has, read from the (new) pyproject.toml.
+
+    An extra counts as installed when a package only it brings is there. That way an update that adds a package to
+    an extra you use (say, media) installs it, and extras you never chose stay out."""
+    try:
+        extras = tomllib.loads((root / "pyproject.toml").read_text())["project"]["optional-dependencies"]
+    except (OSError, KeyError, tomllib.TOMLDecodeError):
+        return []
+    extras = {k: [_req_name(r) for r in v] for k, v in extras.items() if k not in ("all", "dev")}
+    keep = []
+    for name, reqs in extras.items():
+        others = {r for k, v in extras.items() if k != name for r in v}
+        own = [r for r in reqs if r not in others and r != "vectiq"] or reqs
+        if any(installed(r) for r in own):
+            keep.append(name)
+    return sorted(keep)
 
 
 def restart() -> None:
