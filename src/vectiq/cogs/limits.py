@@ -19,8 +19,9 @@ def _names(command) -> list[str]:
     while parts:
         out.append(" ".join(parts))
         parts.pop()
-    if command.cog_name:
-        out.append(command.cog_name.lower())
+    module = getattr(command, "cog_name", None) or getattr(getattr(command, "cog", None), "qualified_name", None)
+    if module:
+        out.append(str(module).lower())
     return out
 
 
@@ -52,6 +53,15 @@ class Limits(commands.Cog, name="Limits"):
         return dict(await self.settings.get(str(guild.id), KEY, {}) or {})
 
     async def check(self, ctx) -> bool:
+        try:
+            return await self._check(ctx)
+        except commands.CheckFailure:
+            raise
+        except Exception:  # noqa: BLE001 - a bug here must never silence every command: let it run, and log it
+            log.exception("command limit check failed for %s", getattr(ctx.command, "qualified_name", "?"))
+            return True
+
+    async def _check(self, ctx) -> bool:
         guild = ctx.guild
         if guild is None or ctx.command is None or (ctx.command.root_parent or ctx.command).name in EXEMPT:
             return True

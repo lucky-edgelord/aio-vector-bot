@@ -88,11 +88,12 @@ async def check(repo: str = "lucky-edgelord/aio-vector-bot", root: Path = ROOT, 
     info = UpdateInfo(kind=kind, checked_at=time.time(), url=f"https://github.com/{repo}")
     try:
         if kind == "git":
-            rc, out = await sh("git", "fetch", "--quiet", "origin", cwd=root, timeout=60)
+            _, branch = await sh("git", "rev-parse", "--abbrev-ref", "HEAD", cwd=root)
+            # fetch the branch by name and compare with FETCH_HEAD: works whatever the clone's refspec is
+            rc, out = await sh("git", "fetch", "--quiet", "origin", branch, cwd=root, timeout=60)
             if rc:
                 raise RuntimeError(out or "git fetch failed")
-            _, branch = await sh("git", "rev-parse", "--abbrev-ref", "HEAD", cwd=root)
-            up = f"origin/{branch}"
+            up = "FETCH_HEAD"
             rc, count = await sh("git", "rev-list", "--count", f"HEAD..{up}", cwd=root)
             if rc:
                 raise RuntimeError(f"no {up} to compare with")
@@ -129,7 +130,8 @@ async def apply(root: Path = ROOT, *, pip: bool = True) -> tuple[bool, str]:
         shutil.copy2(cfg, aside)
         await sh("git", "checkout", "-q", "--", "config.yaml", cwd=root)
         kept = True
-    rc, out = await sh("git", "pull", "--ff-only", "-q", cwd=root, timeout=180)
+    _, branch = await sh("git", "rev-parse", "--abbrev-ref", "HEAD", cwd=root)
+    rc, out = await sh("git", "pull", "--ff-only", "-q", "origin", branch, cwd=root, timeout=180)
     if kept:
         shutil.move(str(aside), str(cfg))
     if rc:

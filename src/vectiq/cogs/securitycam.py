@@ -51,8 +51,9 @@ class SecurityCam(commands.Cog, name="SecurityCam"):
     def _ignored(self, message, cam, ignore=()) -> bool:
         if cam is not None and str(message.channel.id) == str(cam.id):
             return True      # never echo the camera's own channel: that would loop forever
-        if message.author.bot and (str(message.author.id) == str(self.bot.user.id)
-                                   or not self.cfg.get("securitycam.include_bots", False)):
+        if str(message.author.id) == str(self.bot.user.id):
+            return True      # our own messages (Vector doesn't always flag them as a bot's)
+        if message.author.bot and not self.cfg.get("securitycam.include_bots", False):
             return True
         ignore = {str(c).lstrip("#").lower() for c in ignore}
         return bool(ignore & {str(message.channel.id).lower(), str(message.channel.name).lower()})

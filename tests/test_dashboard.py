@@ -401,7 +401,7 @@ async def test_command_limits_page(env):
 
     g = env.bot.guilds[0]
     g.roles = [SimpleNamespace(id="r1", name="Moderator", is_default=lambda: False)]
-    cmds = [SimpleNamespace(name="ban", qualified_name="ban", cog_name="Moderation", root_parent=None)]
+    cmds = [SimpleNamespace(name="ban", qualified_name="ban", cog=SimpleNamespace(qualified_name="Moderation"), root_parent=None)]
     env.bot.walk_commands = lambda: cmds
     env.bot.cogs = {"Moderation": 1}
     env.bot.get_command = lambda n: cmds[0] if n == "ban" else None
@@ -477,7 +477,7 @@ async def test_securitycam_live_feed_and_switch(env):
 
     await sc.on_message(say(general, "hello"))
     await sc.on_message(say(general, "from a bot", author="b2", bot=True))     # bots are skipped
-    await sc.on_message(say(general, "mine", author="bot", bot=True))           # so is the bot itself
+    await sc.on_message(say(general, "mine", author="bot", bot=False))          # so is the bot itself, flagged or not
     await sc.on_message(say(general, "second"))
     d = (await env.client.get("/api/c/g1/securitycam/feed")).json()
     assert d["enabled"] and [e["text"] for e in d["entries"]] == ["hello", "second"] and d["last"] == 2
